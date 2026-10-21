@@ -1,0 +1,27 @@
+-- DOWN 002 — store_id kolonlarını kaldır. (FK'ler down/004'te, unique key'ler down/005'te zaten kaldırılmış olmalı.)
+ALTER TABLE `products`                     DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `orders`                       DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `order_items`                  DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `customers`                    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `invoices`                     DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `returns`                      DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `questions`                    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `stock_movements`              DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `marketplace_products`         DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `brand_marketplace_mapping`    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `category_marketplace_mapping` DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `category_attributes`          DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `product_attribute_values`     DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `xml_feeds`                    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `product_import_jobs`          DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `financial_transactions`       DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `price_rules`                  DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `sync_logs`                    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `sync_jobs`                    DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `enrichment_logs`              DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `brands`                       DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `categories`                   DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `brand_aliases`                DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `api_logs`                     DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `api_tokens`                   DROP COLUMN IF EXISTS `store_id`;
+ALTER TABLE `users`                        DROP COLUMN IF EXISTS `store_id`;

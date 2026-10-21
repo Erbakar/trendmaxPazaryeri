@@ -1,0 +1,289 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   OzyConnect — ortak bileşen kitaplığı (mağaza + admin)
+   Referans dil: düz beyaz yüzey · 1px çizgi · 12px kart / 8px kontrol ·
+   gölge YOK · gradient YOK · vurgu = marka rengi (rgb(var(--brand)))
+   Token'lar ozy.css :root'tan gelir (--border, --text-*, --bg-*, --radius-*).
+   Her sınıf .ui- öneklidir; sayfalar bunları KOMPOZE eder, ezmez.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Sayfa başlığı ─────────────────────────────────────────────────────── */
+.ui-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 18px}
+.ui-page-head .ui-eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin:0 0 4px}
+.ui-page-head h1{font-size:22px;font-weight:600;line-height:1.2;letter-spacing:-.01em;color:var(--text-primary);margin:0}
+.ui-page-head p{font-size:13px;color:var(--text-muted);margin:4px 0 0}
+.ui-page-actions{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+
+/* ─── Kart ──────────────────────────────────────────────────────────────── */
+.ui-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md,12px);overflow:hidden}
+.ui-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.ui-card-head h3{font-size:15px;font-weight:600;color:var(--text-primary);margin:0;display:flex;align-items:center;gap:8px}
+.ui-card-head h3 [data-lucide]{width:16px;height:16px;color:var(--text-muted)}
+.ui-card-head .ui-sub{font-size:12px;color:var(--text-muted);font-weight:400;margin-left:2px}
+.ui-card-body{padding:18px}
+.ui-card-body.is-flush{padding:0}
+.ui-card-foot{padding:12px 18px;border-top:1px solid var(--border);background:var(--bg-page)}
+.ui-card + .ui-card{margin-top:16px}
+
+/* ─── İstatistik kartı ──────────────────────────────────────────────────── */
+.ui-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:0 0 18px}
+.ui-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md,12px);padding:16px 18px;display:flex;align-items:center;gap:14px;min-width:0;transition:border-color .15s}
+.ui-stat:hover{border-color:var(--border-strong,#d1d5db)}
+.ui-stat-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;background:rgb(var(--brand) / .10);color:rgb(var(--brand))}
+.ui-stat-icon [data-lucide]{width:22px;height:22px}
+.ui-stat-body{min-width:0;flex:1}
+.ui-stat-label{font-size:12px;font-weight:500;color:var(--text-secondary);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ui-stat-value{font-size:26px;font-weight:700;line-height:1.05;letter-spacing:-.02em;color:var(--text-primary);margin:3px 0 2px;font-variant-numeric:tabular-nums}
+.ui-stat-caption{font-size:11px;color:var(--text-muted);margin:0}
+.ui-stat-delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;margin-left:8px;vertical-align:middle}
+.ui-stat-delta.is-up{background:rgba(16,185,129,.12);color:#047857}
+.ui-stat-delta.is-down{background:rgba(239,68,68,.12);color:#b91c1c}
+/* Renk çeşitleri — anlam taşır, sıra takip etmez */
+.ui-stat-icon.is-green{background:rgba(16,185,129,.12);color:#047857}
+.ui-stat-icon.is-amber{background:rgba(245,158,11,.14);color:#b45309}
+.ui-stat-icon.is-red{background:rgba(239,68,68,.12);color:#b91c1c}
+.ui-stat-icon.is-violet{background:rgba(124,58,237,.12);color:#6d28d9}
+.ui-stat-icon.is-cyan{background:rgba(6,182,212,.12);color:#0e7490}
+.ui-stat-icon.is-slate{background:var(--bg-badge);color:var(--text-secondary)}
+
+/* ─── Rozet ─────────────────────────────────────────────────────────────── */
+.ui-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;line-height:1.5;white-space:nowrap;background:var(--bg-badge);color:var(--text-secondary)}
+.ui-badge [data-lucide]{width:11px;height:11px}
+.ui-badge.is-success{background:rgba(16,185,129,.12);color:#047857}
+.ui-badge.is-warning{background:rgba(245,158,11,.14);color:#b45309}
+.ui-badge.is-danger{background:rgba(239,68,68,.12);color:#b91c1c}
+.ui-badge.is-info{background:rgb(var(--brand) / .10);color:rgb(var(--brand))}
+.ui-badge.is-muted{background:var(--bg-badge);color:var(--text-muted)}
+.ui-badge .ui-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ─── Düğme ─────────────────────────────────────────────────────────────── */
+.ui-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 15px;border-radius:var(--radius-sm,8px);font-size:13px;font-weight:600;font-family:inherit;line-height:1;border:1px solid transparent;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+.ui-btn [data-lucide]{width:15px;height:15px;flex-shrink:0}
+.ui-btn.is-sm{height:32px;padding:0 11px;font-size:12px;gap:5px}
+.ui-btn.is-sm [data-lucide]{width:13px;height:13px}
+.ui-btn.is-icon{width:38px;padding:0}
+.ui-btn.is-icon.is-sm{width:32px}
+.ui-btn:disabled{opacity:.55;cursor:not-allowed}
+.ui-btn-primary{background:rgb(var(--brand));color:#fff;border-color:rgb(var(--brand))}
+.ui-btn-primary:hover{filter:brightness(.94)}
+.ui-btn-outline{background:var(--bg-card);color:var(--text-primary);border-color:var(--border)}
+.ui-btn-outline:hover{background:var(--bg-page);border-color:var(--border-strong,#d1d5db)}
+.ui-btn-ghost{background:transparent;color:var(--text-secondary)}
+.ui-btn-ghost:hover{background:var(--bg-sidebar-hover);color:var(--text-primary)}
+.ui-btn-soft{background:rgb(var(--brand) / .10);color:rgb(var(--brand))}
+.ui-btn-soft:hover{background:rgb(var(--brand) / .16)}
+.ui-btn-success{background:#10b981;color:#fff}
+.ui-btn-success:hover{filter:brightness(.94)}
+.ui-btn-danger{background:#ef4444;color:#fff}
+.ui-btn-danger:hover{filter:brightness(.94)}
+.ui-btn-danger-soft{background:rgba(239,68,68,.10);color:#b91c1c}
+.ui-btn-danger-soft:hover{background:rgba(239,68,68,.16)}
+
+/* ─── Form kontrolleri ──────────────────────────────────────────────────── */
+.ui-field{display:flex;flex-direction:column;gap:5px}
+.ui-label{font-size:12px;font-weight:600;color:var(--text-secondary)}
+.ui-label .ui-req{color:#ef4444;margin-left:2px}
+.ui-hint{font-size:11.5px;color:var(--text-muted)}
+.ui-input,.ui-select,.ui-textarea{width:100%;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius-sm,8px);background:var(--bg-card);color:var(--text-primary);font-size:13px;font-family:inherit;transition:border-color .15s,box-shadow .15s}
+.ui-textarea{height:auto;min-height:96px;padding:10px 12px;resize:vertical;line-height:1.5}
+.ui-input::placeholder,.ui-textarea::placeholder{color:var(--text-muted)}
+.ui-input:focus,.ui-select:focus,.ui-textarea:focus{outline:none;border-color:rgb(var(--brand));box-shadow:0 0 0 3px rgb(var(--brand) / .15)}
+.ui-input.is-error,.ui-select.is-error{border-color:#ef4444}
+.ui-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;cursor:pointer}
+.ui-input-wrap{position:relative;display:flex;align-items:center}
+.ui-input-wrap>[data-lucide]{position:absolute;left:11px;width:16px;height:16px;color:var(--text-muted);pointer-events:none}
+.ui-input-wrap>.ui-input{padding-left:36px}
+.ui-check{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);cursor:pointer}
+.ui-check input{width:16px;height:16px;accent-color:rgb(var(--brand))}
+
+/* ─── Araç çubuğu / süzgeç satırı ───────────────────────────────────────── */
+.ui-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md,12px);margin:0 0 16px}
+.ui-toolbar .ui-input-wrap{flex:1 1 240px;min-width:200px}
+.ui-toolbar .ui-select{width:auto;min-width:150px}
+.ui-toolbar .ui-spacer{flex:1}
+
+/* ─── Sekmeler (sayfa içi alt nav) ──────────────────────────────────────── */
+.ui-tabs{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--border);margin:0 0 18px;overflow-x:auto}
+.ui-tab{position:relative;padding:10px 12px;font-size:13.5px;font-weight:500;color:var(--text-muted);text-decoration:none;white-space:nowrap;border:0;background:none;font-family:inherit;cursor:pointer}
+.ui-tab:hover{color:var(--text-primary)}
+.ui-tab.is-active{color:var(--text-primary);font-weight:600}
+.ui-tab.is-active::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;border-radius:2px;background:rgb(var(--brand))}
+.ui-tab .ui-count{margin-left:6px;font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--bg-badge);color:var(--text-muted)}
+.ui-tab.is-active .ui-count{background:rgb(var(--brand));color:#fff}
+
+/* ─── Tablo ─────────────────────────────────────────────────────────────── */
+.ui-table-wrap{overflow-x:auto}
+.ui-table{width:100%;border-collapse:collapse;font-size:13px}
+.ui-table thead th{padding:11px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);background:var(--bg-page);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.ui-table tbody td{padding:12px 14px;border-bottom:1px solid var(--border-light);vertical-align:middle;color:var(--text-primary)}
+.ui-table tbody tr:last-child td{border-bottom:0}
+.ui-table tbody tr:hover td{background:var(--bg-table-hover)}
+.ui-table .is-num{text-align:right;font-variant-numeric:tabular-nums}
+.ui-table .is-muted{color:var(--text-muted)}
+.ui-table .is-strong{font-weight:600}
+.ui-table .ui-cell-title{font-weight:600;color:var(--text-primary);line-height:1.3}
+.ui-table .ui-cell-sub{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.ui-table .ui-cell-actions{display:flex;gap:6px;justify-content:flex-end}
+
+/* ─── Liste satırı (kart içi sıralı öğeler) ────────────────────────────── */
+.ui-list{list-style:none;margin:0;padding:0}
+.ui-list-item{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border-light)}
+.ui-list-item:last-child{border-bottom:0}
+.ui-list-icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:rgb(var(--brand) / .10);color:rgb(var(--brand))}
+.ui-list-icon [data-lucide]{width:15px;height:15px}
+.ui-list-icon.is-green{background:rgba(16,185,129,.12);color:#047857}
+.ui-list-icon.is-amber{background:rgba(245,158,11,.14);color:#b45309}
+.ui-list-icon.is-red{background:rgba(239,68,68,.12);color:#b91c1c}
+.ui-list-body{flex:1;min-width:0}
+.ui-list-title{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ui-list-sub{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+.ui-list-meta{font-size:11px;color:var(--text-muted);white-space:nowrap}
+
+/* ─── Pazaryeri kartı (logo + durum + eylem) ────────────────────────────── */
+.ui-mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+.ui-mp-card{position:relative;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md,12px);padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;transition:border-color .15s}
+.ui-mp-card:hover{border-color:var(--border-strong,#d1d5db)}
+.ui-mp-card.is-active{border-color:#10b981}
+.ui-mp-card.is-active::before{content:"";position:absolute;inset:0 0 auto 0;height:58px;background:rgba(16,185,129,.07);border-radius:var(--radius-md,12px) var(--radius-md,12px) 0 0;pointer-events:none}
+.ui-mp-card .ui-badge{position:absolute;top:10px;right:10px}
+.ui-mp-card.is-active .ui-badge{left:10px;right:auto}
+.ui-mp-logo{height:30px;max-width:120px;object-fit:contain;margin-top:22px;position:relative}
+.ui-mp-name{font-size:13px;font-weight:600;color:var(--text-primary);margin-top:6px}
+.ui-mp-desc{font-size:11.5px;color:var(--text-muted);line-height:1.45}
+.ui-mp-value{font-size:26px;font-weight:700;color:var(--text-primary);line-height:1;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.ui-mp-card .ui-btn{width:100%;margin-top:auto}
+
+/* ─── Bilgi bandı ───────────────────────────────────────────────────────── */
+.ui-banner{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid rgb(var(--brand) / .25);background:rgb(var(--brand) / .06);border-radius:var(--radius-md,12px)}
+.ui-banner-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:var(--bg-card);border:1px solid rgb(var(--brand) / .30);color:rgb(var(--brand))}
+.ui-banner-icon [data-lucide]{width:17px;height:17px}
+.ui-banner-body{flex:1;min-width:0}
+.ui-banner-title{font-size:13px;font-weight:600;color:rgb(var(--brand));margin:0}
+.ui-banner-text{font-size:12.5px;color:var(--text-secondary);margin:2px 0 0}
+.ui-banner.is-success{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)}
+.ui-banner.is-success .ui-banner-icon{border-color:rgba(16,185,129,.35);color:#047857}
+.ui-banner.is-success .ui-banner-title{color:#047857}
+.ui-banner.is-warning{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}
+.ui-banner.is-warning .ui-banner-icon{border-color:rgba(245,158,11,.4);color:#b45309}
+.ui-banner.is-warning .ui-banner-title{color:#b45309}
+.ui-banner.is-danger{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.07)}
+.ui-banner.is-danger .ui-banner-icon{border-color:rgba(239,68,68,.35);color:#b91c1c}
+.ui-banner.is-danger .ui-banner-title{color:#b91c1c}
+
+/* ─── Boş durum ─────────────────────────────────────────────────────────── */
+.ui-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px;gap:6px}
+.ui-empty-icon{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:var(--bg-badge);color:var(--text-muted);margin-bottom:8px}
+.ui-empty-icon [data-lucide]{width:26px;height:26px}
+.ui-empty h4{font-size:15px;font-weight:600;color:var(--text-primary);margin:0}
+.ui-empty p{font-size:13px;color:var(--text-muted);margin:0;max-width:380px;line-height:1.5}
+.ui-empty .ui-btn{margin-top:12px}
+
+/* ─── İlerleme çubuğu ───────────────────────────────────────────────────── */
+.ui-progress{height:8px;background:var(--bg-badge);border-radius:99px;overflow:hidden}
+.ui-progress>span{display:block;height:100%;border-radius:99px;background:rgb(var(--brand))}
+.ui-progress.is-green>span{background:#10b981}
+.ui-progress.is-amber>span{background:#f59e0b}
+.ui-progress.is-red>span{background:#ef4444}
+
+/* ─── Ayraç / yardımcılar ───────────────────────────────────────────────── */
+.ui-divider{height:1px;background:var(--border);margin:16px 0}
+.ui-grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.ui-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.ui-grid-73{display:grid;grid-template-columns:7fr 5fr;gap:16px}
+.ui-grid-64{display:grid;grid-template-columns:6fr 4fr;gap:16px}
+@media(max-width:1024px){.ui-grid-3,.ui-grid-73,.ui-grid-64{grid-template-columns:1fr}}
+@media(max-width:720px){.ui-grid-2{grid-template-columns:1fr}.ui-page-head h1{font-size:19px}.ui-stat-value{font-size:22px}}
+.ui-kbd{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--bg-badge);color:var(--text-secondary)}
+.ui-mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px}
+.ui-avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:rgb(var(--brand));flex-shrink:0}
+.ui-avatar.is-lg{width:40px;height:40px;font-size:14px}
+.ui-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 18px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-muted)}
+.ui-pagination .ui-pages{display:flex;gap:4px}
+.ui-pagination .ui-pages a,.ui-pagination .ui-pages span{min-width:32px;height:32px;padding:0 8px;display:inline-grid;place-items:center;border-radius:var(--radius-sm,8px);border:1px solid var(--border);color:var(--text-secondary);text-decoration:none;font-weight:500}
+.ui-pagination .ui-pages .is-active{background:rgb(var(--brand));border-color:rgb(var(--brand));color:#fff}
+
+/* ─── Koyu tema — token'lar ozy.css .dark'tan gelir; yalnız sabitler ────── */
+.dark .ui-stat-delta.is-up,.dark .ui-badge.is-success,.dark .ui-list-icon.is-green,.dark .ui-stat-icon.is-green{color:#34d399}
+.dark .ui-badge.is-warning,.dark .ui-list-icon.is-amber,.dark .ui-stat-icon.is-amber{color:#fbbf24}
+.dark .ui-badge.is-danger,.dark .ui-stat-delta.is-down,.dark .ui-list-icon.is-red,.dark .ui-stat-icon.is-red{color:#f87171}
+.dark .ui-stat-icon.is-violet{color:#a78bfa}
+.dark .ui-stat-icon.is-cyan{color:#22d3ee}
+.dark .ui-banner-title{color:rgb(var(--brand) / 1)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ESKİ SINIF HİZALAMASI — görünüm <style> bloklarındaki yerel bileşenleri
+   referans diline çeker (html[data-panel] özgüllüğü: sonra gelen yerel
+   kuralları ezer). Düğme 8px/600 · kontrol 8px · panel 12px · başlık 22px/600
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-panel] .o-btn,
+html[data-panel] .sup-btn,
+html[data-panel] .us-btn,
+html[data-panel] .uf-btn,
+html[data-panel] .rl-btn,
+html[data-panel] .rf-btn,
+html[data-panel] .bf-btn,
+html[data-panel] .btn{border-radius:var(--radius-sm,8px);font-weight:600}
+html[data-panel] .o-btn-sm{border-radius:var(--radius-sm,8px)}
+html[data-panel] .o-search,
+html[data-panel] .o-sel{border-radius:var(--radius-sm,8px)}
+html[data-panel] .o-panel,
+html[data-panel] .o-card,
+html[data-panel] .sup-panel,
+html[data-panel] .sup-card,
+html[data-panel] .us-card,
+html[data-panel] .uf-card,
+html[data-panel] .rl-card,
+html[data-panel] .rf-card,
+html[data-panel] .up-card,
+html[data-panel] .cd-card,
+html[data-panel] .is-card,
+html[data-panel] .fsd-card,
+html[data-panel] .xpf-card,
+html[data-panel] .fd-card,
+html[data-panel] .at-card,
+html[data-panel] .az-stat,
+html[data-panel] .sc-ov,
+html[data-panel] .ie-card{border-radius:var(--radius-md,12px);box-shadow:none}
+html[data-panel] .az-stat:hover,
+html[data-panel] .rl-card:hover,
+html[data-panel] .at-card:hover{box-shadow:none;transform:none}
+html[data-panel] .mp-seg-tab{border-radius:var(--radius-sm,8px);height:42px}
+html[data-panel] .o-badge{border-radius:99px;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase}
+/* Yerel sayfa başlıkları → .ui-page-head tipografisi */
+html[data-panel] .us-head h1,
+html[data-panel] .uf-head h1,
+html[data-panel] .rl-head h1,
+html[data-panel] .rf-head h1,
+html[data-panel] .sup-title,
+html[data-panel] .up-title,
+html[data-panel] .at-header h1,
+html[data-panel] .pf-top h2{font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1.2;color:var(--text-primary)}
+html[data-panel] .us-head p,
+html[data-panel] .uf-head p,
+html[data-panel] .rl-head p,
+html[data-panel] .rf-head p,
+html[data-panel] .up-sub{font-size:13px;color:var(--text-muted)}
+/* AI Suite: dolgulu marka "hero" başlıklar → düz sayfa başlığı */
+html[data-panel] .adv-head,
+html[data-panel] .bf-head,
+html[data-panel] .cp-head,
+html[data-panel] .tr-head{background:transparent;color:var(--text-primary);padding:0 0 4px;border-radius:0}
+html[data-panel] .adv-head h2,
+html[data-panel] .bf-head h2,
+html[data-panel] .cp-head h2,
+html[data-panel] .tr-head h2{font-size:22px;font-weight:600;letter-spacing:-.01em}
+html[data-panel] .adv-head h2 [data-lucide],
+html[data-panel] .bf-head h2 [data-lucide],
+html[data-panel] .cp-head h2 [data-lucide],
+html[data-panel] .tr-head h2 [data-lucide]{color:var(--primary)}
+html[data-panel] .adv-head .meta,
+html[data-panel] .bf-head .meta,
+html[data-panel] .cp-head .meta,
+html[data-panel] .tr-head .meta{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);font-weight:600}
+html[data-panel] .aic-hero{background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary)}
+html[data-panel] .aic-hero .lbl{color:var(--text-muted);opacity:1}
+html[data-panel] .aic-hero .st{background:rgb(var(--brand) / .10);color:var(--primary)}
+/* Eski app.css filtre çubuğu + form kontrolleri */
+html[data-panel] .filter-bar{border-radius:var(--radius-md,12px);box-shadow:none;border:1px solid var(--border)}
+html[data-panel] .form-input,
+html[data-panel] .form-select,
+html[data-panel] .form-control{border-radius:var(--radius-sm,8px)}

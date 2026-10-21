@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   OzyConnect — giriş ekranları (login / şifremi unuttum / şifre sıfırla)
+   Referans dil: sol beyaz form paneli · sağ düz lacivert panel (gradient YOK,
+   animasyon YOK) · 1px çizgi · 12px kart · marka mavisi vurgu · Poppins
+   --brand RGB kanalı site_auth.php tarafından markalama ayarından yazılır.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --brand:37 99 235;
+  --au-ink:#0f172a;
+  --au-ink-2:#475569;
+  --au-ink-3:#64748b;
+  --au-line:#e5e7eb;
+  --au-line-2:#d1d5db;
+  --au-page:#f8fafc;
+  --au-card:#fff;
+  --au-navy:#0f172a;
+  --au-navy-2:#1e293b;
+  --au-navy-line:rgba(255,255,255,.10);
+  --au-r:12px;
+  --au-rs:8px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body.auth-body{font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--au-ink);background:var(--au-card);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ─── Kabuk: 1fr 1fr bölünmüş ──────────────────────────────────────────── */
+.auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media(max-width:960px){.auth-shell{grid-template-columns:1fr}.auth-aside{display:none}}
+
+/* ─── Sol: form paneli ──────────────────────────────────────────────────── */
+.auth-panel{display:flex;flex-direction:column;justify-content:center;padding:40px 24px;background:var(--au-card)}
+.auth-inner{width:100%;max-width:400px;margin:0 auto}
+.auth-back{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--au-ink-3);text-decoration:none;margin-bottom:28px;transition:color .15s}
+.auth-back:hover{color:var(--au-ink)}
+.auth-back [data-lucide]{width:15px;height:15px}
+.auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:32px;text-decoration:none;color:inherit}
+.auth-brand img{height:34px;width:auto;max-width:200px;object-fit:contain}
+.auth-brand-mark{width:38px;height:38px;border-radius:10px;background:rgb(var(--brand));color:#fff;display:grid;place-items:center;font-weight:700;font-size:17px;flex-shrink:0}
+.auth-brand-name{font-size:16px;font-weight:600;color:var(--au-ink);letter-spacing:-.01em}
+.auth-title{font-size:24px;font-weight:600;line-height:1.2;letter-spacing:-.015em;color:var(--au-ink);margin:0 0 6px}
+.auth-sub{font-size:13.5px;line-height:1.55;color:var(--au-ink-3);margin:0 0 26px}
+
+/* ─── Uyarı bantları ────────────────────────────────────────────────────── */
+.auth-alert{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--au-r);border:1px solid;font-size:13px;line-height:1.5;margin:0 0 18px}
+.auth-alert [data-lucide]{width:17px;height:17px;flex-shrink:0;margin-top:1px}
+.auth-alert.is-ok{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.3);color:#047857}
+.auth-alert.is-error{background:rgba(239,68,68,.07);border-color:rgba(239,68,68,.3);color:#b91c1c}
+.auth-alert.is-info{background:rgb(var(--brand) / .06);border-color:rgb(var(--brand) / .25);color:var(--au-ink-2)}
+
+/* ─── Form ──────────────────────────────────────────────────────────────── */
+.auth-form{display:flex;flex-direction:column;gap:16px}
+.auth-field{display:flex;flex-direction:column;gap:6px}
+.auth-label{font-size:12.5px;font-weight:600;color:var(--au-ink-2)}
+.auth-input-wrap{position:relative;display:flex;align-items:center}
+.auth-input-wrap>[data-lucide]{position:absolute;left:13px;width:17px;height:17px;color:var(--au-ink-3);pointer-events:none}
+.auth-input{width:100%;height:46px;padding:0 44px 0 42px;border:1px solid var(--au-line);border-radius:var(--au-rs);background:var(--au-card);color:var(--au-ink);font-size:14px;font-family:inherit;transition:border-color .15s,box-shadow .15s}
+.auth-input::placeholder{color:#94a3b8}
+.auth-input:focus{outline:none;border-color:rgb(var(--brand));box-shadow:0 0 0 3px rgb(var(--brand) / .15)}
+.auth-toggle{position:absolute;right:6px;width:34px;height:34px;border:0;background:transparent;border-radius:6px;color:var(--au-ink-3);display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s}
+.auth-toggle:hover{background:var(--au-page);color:var(--au-ink)}
+.auth-toggle [data-lucide]{width:17px;height:17px}
+.auth-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;margin-top:-4px}
+.auth-remember{display:inline-flex;align-items:center;gap:8px;color:var(--au-ink-2);cursor:pointer}
+.auth-remember input{width:16px;height:16px;accent-color:rgb(var(--brand));margin:0}
+.auth-meta a,.auth-link{color:rgb(var(--brand));font-weight:600;text-decoration:none}
+.auth-meta a:hover,.auth-link:hover{text-decoration:underline}
+.auth-submit{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;height:46px;margin-top:4px;border:0;border-radius:var(--au-rs);background:rgb(var(--brand));color:#fff;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:filter .15s}
+.auth-submit:hover{filter:brightness(.94)}
+.auth-submit:disabled{opacity:.6;cursor:not-allowed}
+.auth-submit [data-lucide]{width:17px;height:17px}
+.auth-foot{font-size:12.5px;line-height:1.7;color:var(--au-ink-3);margin:24px 0 0}
+.auth-foot small{display:block;font-size:11.5px;color:#94a3b8;margin-top:6px}
+
+/* ─── Şifre gücü ────────────────────────────────────────────────────────── */
+.auth-strength{height:5px;background:var(--au-page);border-radius:99px;overflow:hidden;margin-top:2px}
+.auth-strength>span{display:block;height:100%;width:0;border-radius:99px;transition:width .2s,background .2s}
+.auth-strength-text{font-size:11.5px;font-weight:600;min-height:16px}
+.auth-match{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;min-height:16px}
+.auth-match.is-match{color:#047857}
+.auth-match.is-mismatch{color:#b91c1c}
+.auth-match [data-lucide]{width:13px;height:13px}
+
+/* ─── Kod kartı (SMTP yokken kod ekranda) ───────────────────────────────── */
+.auth-code{border:1px solid var(--au-line);border-radius:var(--au-r);background:var(--au-page);padding:18px;margin:0 0 18px}
+.auth-code-head{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--au-ink);margin-bottom:6px}
+.auth-code-head [data-lucide]{width:18px;height:18px;color:rgb(var(--brand))}
+.auth-code-desc{font-size:12.5px;line-height:1.55;color:var(--au-ink-3);margin:0 0 12px}
+.auth-code-value{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:20px;font-weight:600;letter-spacing:.12em;text-align:center;padding:12px;border:1px dashed var(--au-line-2);border-radius:var(--au-rs);background:var(--au-card);color:var(--au-ink);user-select:all}
+.auth-code-actions{display:flex;gap:8px;margin-top:12px}
+.auth-code-actions>*{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;border-radius:var(--au-rs);font-size:12.5px;font-weight:600;font-family:inherit;text-decoration:none;cursor:pointer;border:1px solid var(--au-line);background:var(--au-card);color:var(--au-ink);transition:background .15s}
+.auth-code-actions>*:hover{background:var(--au-page)}
+.auth-code-actions>.is-primary{background:rgb(var(--brand));border-color:rgb(var(--brand));color:#fff}
+.auth-code-actions>.is-primary:hover{filter:brightness(.94);background:rgb(var(--brand))}
+.auth-code-actions>.is-copied{border-color:#10b981;color:#047857}
+.auth-code-actions [data-lucide]{width:14px;height:14px}
+.auth-code-timer{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--au-ink-3);margin:10px 0 0}
+.auth-code-timer [data-lucide]{width:12px;height:12px}
+
+/* ─── Sağ: ürün paneli (düz lacivert) ───────────────────────────────────── */
+.auth-aside{position:relative;display:flex;flex-direction:column;justify-content:center;padding:48px 56px;background:var(--au-navy);color:#fff;border-left:1px solid var(--au-line)}
+.auth-aside-inner{max-width:520px;margin:0 auto;width:100%}
+.auth-aside h2{font-size:26px;font-weight:600;line-height:1.25;letter-spacing:-.015em;margin:0 0 10px}
+.auth-aside p{font-size:14px;line-height:1.65;color:rgba(255,255,255,.72);margin:0 0 28px}
+.auth-shot{border:1px solid var(--au-navy-line);border-radius:var(--au-r);overflow:hidden;background:var(--au-navy-2);margin-bottom:28px}
+.auth-shot-bar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--au-navy-line)}
+.auth-shot-bar span{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.18)}
+.auth-shot img{display:block;width:100%;height:auto}
+.auth-points{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.auth-points li{display:flex;align-items:flex-start;gap:12px;font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.88)}
+.auth-points [data-lucide]{width:18px;height:18px;flex-shrink:0;margin-top:2px;color:#34d399}
+.auth-points strong{display:block;font-weight:600;color:#fff}
+.auth-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.auth-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;border:1px solid var(--au-navy-line);background:rgba(255,255,255,.05);font-size:12px;font-weight:500;color:rgba(255,255,255,.85)}
+.auth-pill [data-lucide]{width:13px;height:13px;color:#93c5fd}
+
+@keyframes auth-spin{to{transform:rotate(360deg)}}
+.auth-spin{animation:auth-spin 1s linear infinite}
+@media(prefers-reduced-motion:reduce){.auth-spin{animation:none}}

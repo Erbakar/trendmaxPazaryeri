@@ -1,0 +1,29 @@
+# Ortam değişkenleri
+.env
+
+# Vendor (hosting'e upload edilecek)
+# vendor/
+
+# Storage
+storage/logs/*.log
+storage/cache/*
+storage/feeds/*
+storage/invoices/*
+!storage/logs/.gitkeep
+!storage/cache/.gitkeep
+!storage/feeds/.gitkeep
+!storage/invoices/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Installer tamamlandı dosyası
+installer_done.php

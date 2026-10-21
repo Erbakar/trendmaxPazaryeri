@@ -1,0 +1,740 @@
+/* ============================================================================
+   OzyConnect — Admin Konsol UI  ·  YENİDEN İNŞA (parça parça)
+   ----------------------------------------------------------------------------
+   Bu dosya sıfırdan, bölüm bölüm dolduruluyor. Her bölüm beraber onaylanır.
+     ✅ 1) Tokens        — tasarım değişkenleri (her şeyin temeli)
+     ✅ 2) Base          — gövde / tipografi / scrollbar
+     ✅ 3) Header+gövde   — floating boxed bar + beyaz içerik paneli (.ad-container)
+     ✅ 4) Page header   — boss_page_header() · "Klasik" (breadcrumb üstte + büyük başlık + aksiyon sağda)
+     ✅ 5) Kartlar       — .card · "Kompakt/Yoğun" (dar padding, ince ayraç, uppercase başlık)
+     ✅ 6) KPI / stat     — boss-stat-* · "Trend/Delta" (etiket + büyük değer + ▲▼ delta)
+     ✅ 7) Ops/liste      — ad-listrow + chip svg (Tailwind ops/logs → yeni tasarım rebuild destek)
+     ✅ 8) Tablolar       — .table · "Zebra" + DataTables tema (arama/sıralama/sayfalama)
+     ✅ 9) Formlar        — .form-* · "Kompakt" + .ad-form-grid (auto-fill, genişliği doldurur)
+     ✅ 10) Butonlar      — .btn · "Kompakt" (küçük/sıkı, düz, accent primary + outline/ghost)
+     ✅ 11) Badge/durum   — .badge · "Minimal" (renkli nokta + sade metin, zeminsiz)
+     ✅ 12) Alert/flash   — .alert · "İkon Kutulu" (kart + renkli ikon kutusu + başlık)
+     ✅ 13) Tabs / misc   — .nav-tabs/.nav-pills "Segmented" + code/hr
+     ── TASARIM SİSTEMİ TAMAM (header→tabs) ──
+     ── DARK MODE bölümü daima EN SONDA (token override) ──
+
+   • Yalnız admin panelinde yüklenir → scope: body.ozy-admin / [data-panel=admin]
+   • Vurgu rengi DİNAMİK → layout brand_color'dan --bs-primary set eder; --ad-accent ona bağlanır.
+   • Eski tam sürüm referans: docs/saas-redesign/ozy-admin.legacy.css
+   ========================================================================== */
+
+/* ── 1) Tokens ──────────────────────────────────────────────────────────── */
+body.ozy-admin{
+  /* Lumina teması — yumuşak aydınlık, DÜZ (gölge/gradient YOK), Poppins, mor aksan */
+  --ad-bg:#f8fafc;
+  --ad-surface:#ffffff;
+  --ad-surface-2:#f8fafc;
+  --ad-surface-3:#f1f5f9;
+  --ad-border:#e5e7eb;
+  --ad-border-strong:#d1d5db;
+  --ad-text:#0f172a;
+  --ad-text-soft:#475569;
+  --ad-muted:#64748b;
+
+  --ad-accent: var(--bs-primary, #2563eb);
+  --ad-accent-rgb: var(--bs-primary-rgb, 37,99,235);
+
+  --ad-radius:12px;
+  --ad-radius-sm:8px;
+  --ad-radius-lg:16px;
+  --ad-pill:999px;
+
+  /* Lumina: düz yüzeyler — dekoratif gölge YOK (gerekirse yalnız ince bordür ile ayrışır) */
+  --ad-shadow-card:none;
+  --ad-shadow-pop:none;
+
+  --ad-maxw:1480px;
+
+  font-family:'Poppins','Inter','Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  background:var(--ad-bg);
+  color:var(--ad-text);
+  letter-spacing:-.005em;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+
+  /* Bootstrap köprüleri */
+  --bs-body-bg:var(--ad-bg);
+  --bs-body-color:var(--ad-text);
+  --bs-border-color:var(--ad-border);
+  --bs-link-color:var(--ad-accent);
+  --bs-link-hover-color:var(--ad-accent);
+  --bs-emphasis-color:var(--ad-text);
+  --bs-secondary-color:var(--ad-text-soft);
+  --bs-tertiary-color:var(--ad-muted);
+  --bs-body-font-family:'Poppins','Inter','Segoe UI',system-ui,sans-serif;
+
+  /* legacy app.css köprüleri */
+  --primary:var(--ad-accent);
+  --primary-light:var(--ad-accent);
+  --primary-dark:var(--ad-accent);
+  --primary-bg:rgba(var(--ad-accent-rgb),.10);
+  --border-focus:var(--ad-accent);
+}
+
+/* ── 2) Base ────────────────────────────────────────────────────────────── */
+html[data-panel="admin"], html[data-panel="admin"] body{ background:var(--ad-bg); }
+body.ozy-admin{ min-height:100vh; margin:0; background:var(--ad-bg); }
+body.ozy-admin ::selection{ background:rgba(var(--ad-accent-rgb),.18); }
+body.ozy-admin a{ text-decoration:none; }
+body.ozy-admin .text-muted{ color:var(--ad-muted)!important; }
+body.ozy-admin .text-body{ color:var(--ad-text)!important; }
+body.ozy-admin .text-primary{ color:var(--ad-accent)!important; }
+body.ozy-admin h1,body.ozy-admin h2,body.ozy-admin h3,
+body.ozy-admin h4,body.ozy-admin h5,body.ozy-admin h6{
+  color:var(--ad-text); font-weight:700; letter-spacing:-.018em;
+}
+body.ozy-admin .font-monospace{ font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace; }
+
+/* premium kaydırma çubuğu */
+body.ozy-admin *::-webkit-scrollbar{ width:10px; height:10px; }
+body.ozy-admin *::-webkit-scrollbar-thumb{ background:#cfd5e0; border-radius:99px; border:3px solid var(--ad-bg); }
+body.ozy-admin *::-webkit-scrollbar-thumb:hover{ background:#b7bfce; }
+body.ozy-admin *::-webkit-scrollbar-track{ background:transparent; }
+
+/* ── 3) Header — YoraUI tarzı (2 satır beyaz: topbar + nav) ──────────────────
+   Üst: marka + büyük ortalı arama + araçlar · Alt: ikon-etiket nav (aktif=accent).
+   Sticky, beyaz (surface), ince border-bottom. İçerik paneli (.ad-container) korunur. */
+.ad-header{ position:sticky; top:0; z-index:1031; background:var(--ad-surface); border-bottom:1px solid var(--ad-border); }
+
+/* üst satır */
+.ad-topbar{ border-bottom:1px solid var(--ad-border); }
+.ad-topbar-inner{ width:100%; max-width:var(--ad-maxw); margin:0 auto; height:66px; padding:0 24px; display:flex; align-items:center; gap:18px; }
+
+/* marka */
+.ad-brand{ display:flex; align-items:center; gap:10px; color:var(--ad-text); flex:0 0 auto; }
+.ad-brand:hover{ color:var(--ad-text); }
+.ad-brand-logo{
+  width:34px; height:34px; border-radius:10px; flex:0 0 auto;
+  background:var(--ad-accent);
+  color:#fff; display:grid; place-items:center; font-weight:800; font-size:16px; line-height:1;
+}
+.ad-brand-name{ font-weight:800; font-size:18px; letter-spacing:-.02em; }
+
+/* büyük arama (⌘K tetikler) */
+.ad-search{
+  flex:1 1 auto; max-width:560px; margin:0 auto; min-width:0;
+  display:flex; align-items:center; gap:9px; height:42px; padding:0 18px;
+  border:1px solid var(--ad-border); background:var(--ad-surface-2); border-radius:var(--ad-pill);
+  color:var(--ad-muted); font:inherit; font-size:13.5px; cursor:text; text-align:left;
+}
+.ad-search:hover{ border-color:var(--ad-border-strong); }
+.ad-search>i{ font-size:19px; flex:0 0 auto; }
+.ad-search .ad-search-txt{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ad-search kbd{ flex:0 0 auto; font-family:inherit; font-size:11px; border:1px solid var(--ad-border); border-radius:6px; padding:1px 6px; color:var(--ad-muted); background:var(--ad-surface); }
+
+/* alt satır: nav — ikon-etiket, aktif=accent renk (YoraUI sade) */
+.ad-nav{ background:var(--ad-surface); }
+.ad-nav-inner{ width:100%; max-width:var(--ad-maxw); margin:0 auto; padding:0 24px; display:flex; align-items:center; }
+.ad-nav-list{ display:flex; align-items:center; gap:4px; list-style:none; margin:0; padding:0; }
+.ad-nav-item{ position:relative; flex:0 0 auto; }
+.ad-nav-link{
+  display:flex; align-items:center; gap:8px; height:40px; margin:7px 0; padding:0 13px; border-radius:10px;
+  font-size:14px; font-weight:500; color:var(--ad-text-soft); white-space:nowrap;
+  border:0; background:none; cursor:pointer; transition:color .14s, background-color .14s;
+}
+.ad-nav-link .ti{ font-size:19px; color:var(--ad-muted); transition:color .14s; }
+.ad-nav-link .ad-nav-caret{ font-size:15px; margin-left:-3px; opacity:.6; }
+.ad-nav-link:hover{ color:var(--ad-text); background:var(--ad-surface-2); }
+.ad-nav-link:hover .ti{ color:var(--ad-text); }
+.ad-nav-item.active>.ad-nav-link{ color:var(--ad-accent); font-weight:600; background:rgba(var(--ad-accent-rgb),.10); }
+.ad-nav-item.active>.ad-nav-link .ti{ color:var(--ad-accent); }
+.ad-nav-badge{ min-width:17px; height:17px; padding:0 5px; border-radius:99px; background:#ef4444; color:#fff; font-size:10.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+
+/* araçlar (sağ) */
+.ad-tools{ display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+.ad-tool{
+  width:40px; height:40px; border-radius:12px; border:0; background:transparent;
+  display:grid; place-items:center; color:var(--ad-text-soft); cursor:pointer;
+  position:relative; transition:background .15s, color .15s;
+}
+.ad-tool:hover{ background:var(--ad-surface-2); color:var(--ad-text); }
+.ad-tool .ti{ font-size:21px; }
+.ad-tool .ad-dot{ position:absolute; top:9px; right:10px; width:7px; height:7px; border-radius:50%; background:#ef4444; border:2px solid var(--ad-surface); }
+.ad-tool .ad-badge{ position:absolute; top:3px; right:4px; min-width:16px; height:16px; padding:0 4px; border-radius:9px; background:#ef4444; color:#fff; font-size:10px; font-weight:700; line-height:16px; text-align:center; border:2px solid var(--ad-surface); }
+.ad-profile-meta{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.15; margin-right:2px; }
+.ad-profile-name{ font-size:13px; font-weight:600; color:var(--ad-text); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ad-profile-role{ font-size:11px; color:var(--ad-muted); }
+.ad-avatar{
+  width:38px; height:38px; border-radius:50%; background:var(--ad-accent); color:#fff;
+  display:grid; place-items:center; font-weight:700; font-size:15px;
+}
+.ad-profile-btn{ display:flex; align-items:center; gap:6px; border:0; background:transparent; padding:1px 4px; border-radius:99px; cursor:pointer; color:var(--ad-text-soft); margin-left:2px; }
+.ad-profile-btn:hover{ background:var(--ad-surface-2); }
+.ad-burger{ display:none; width:40px; height:40px; border-radius:10px; border:1px solid var(--ad-border); background:var(--ad-surface); color:var(--ad-text); align-items:center; justify-content:center; cursor:pointer; }
+.ad-burger .ti{ font-size:22px; }
+
+/* header dropdown menüleri (nav grupları + araçlar) */
+body.ozy-admin .dropdown-menu{
+  --bs-dropdown-bg:var(--ad-surface); --bs-dropdown-border-color:var(--ad-border-strong);
+  --bs-dropdown-border-radius:var(--ad-radius); --bs-dropdown-link-color:var(--ad-text-soft);
+  --bs-dropdown-box-shadow:none;
+  border:1px solid var(--ad-border-strong); border-radius:var(--ad-radius);
+  padding:6px; min-width:218px; box-shadow:none;
+}
+body.ozy-admin .dropdown-item{ border-radius:9px; padding:.5rem .7rem; font-size:13.5px; font-weight:500; color:var(--ad-text-soft); display:flex; align-items:center; gap:.55rem; }
+body.ozy-admin .dropdown-item .ti{ font-size:18px; color:var(--ad-muted); }
+body.ozy-admin .dropdown-item:hover{ background:var(--ad-surface-2); color:var(--ad-text); }
+body.ozy-admin .dropdown-item:hover .ti{ color:var(--ad-text); }
+body.ozy-admin .dropdown-item.active,body.ozy-admin .dropdown-item:active{ background:rgba(var(--ad-accent-rgb),.12); color:var(--ad-accent); }
+body.ozy-admin .dropdown-item.active .ti{ color:var(--ad-accent); }
+body.ozy-admin .dropdown-divider{ border-color:var(--ad-border); margin:.35rem 0; }
+
+/* araç açılırları (bildirim / profil) — geniş kart */
+.ad-menu-card{ min-width:280px; padding:0!important; overflow:hidden; }
+.ad-menu-head{ padding:.85rem 1rem; border-bottom:1px solid var(--ad-border); }
+.ad-menu-row{ display:flex; align-items:center; gap:.7rem; padding:.7rem 1rem; color:var(--ad-text-soft); }
+.ad-menu-row:hover{ background:var(--ad-surface-2); color:var(--ad-text); }
+.ad-menu-foot{ padding:.7rem 1rem; border-top:1px solid var(--ad-border); }
+.ad-ico-badge{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center; flex:0 0 auto; }
+
+/* mobil menü (<1200px) */
+.ad-mobile{ display:none; background:var(--ad-surface); border:1px solid var(--ad-border); border-radius:14px; margin:0 14px; max-height:80vh; overflow:auto; }
+.ad-mobile.open{ display:block; }
+.ad-mobile-inner{ padding:10px 12px 16px; }
+.ad-mobile-group{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ad-muted); padding:.85rem .3rem .3rem; }
+.ad-mobile-link{ display:flex; align-items:center; gap:.6rem; padding:.6rem .55rem; border-radius:10px; color:var(--ad-text-soft); font-size:14px; font-weight:500; }
+.ad-mobile-link .ti{ font-size:19px; color:var(--ad-muted); }
+.ad-mobile-link:hover{ background:var(--ad-surface-2); color:var(--ad-text); }
+.ad-mobile-link.active{ background:rgba(var(--ad-accent-rgb),.12); color:var(--ad-accent); }
+.ad-mobile-link.active .ti{ color:var(--ad-accent); }
+
+/* ── içerik kabuğu — kartlar gri zemin üstünde (YoraUI; beyaz panel kaldırıldı) ──
+   .ad-main header ile aynı sarmal (max-width + 24px). .ad-container şeffaf genişlik
+   kısıtı; kartlar (.card) doğrudan gri zemin (--ad-bg) üstünde bordürle ayrışır. */
+.ad-main{ width:100%; max-width:var(--ad-maxw); margin:0 auto; padding:24px 24px 48px; }
+.ad-container{ width:100%; }
+
+/* responsive */
+@media (max-width:1199.98px){
+  .ad-nav{ display:none; }
+  .ad-burger{ display:flex; }
+}
+@media (max-width:767.98px){
+  .ad-topbar-inner{ padding:0 14px; gap:12px; }
+  .ad-nav-inner{ padding:0 14px; }
+  .ad-main{ padding:16px 14px 40px; }
+  .ad-search kbd{ display:none; }
+}
+@media (max-width:575.98px){
+  .ad-topbar-inner{ padding:0 12px; }
+  .ad-main{ padding:12px 12px 32px; }
+  .ad-brand-name{ display:none; }
+  .ad-search{ max-width:none; }
+}
+
+/* ── 4) Page header — "Klasik" (boss_page_header) ───────────────────────────
+   Çıktı: .boss-page-header > (.bph-title > nav>ol.breadcrumb + h1 [+ .bph-subtitle]) [+ .bph-actions]
+   Breadcrumb üstte (muted, chevron ayraç, hover→accent) · büyük başlık · aksiyonlar sağda.
+   Tüm renkler --ad-* token'larından → dark mode otomatik. */
+body.ozy-admin .boss-page-header{
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:14px 20px; flex-wrap:wrap; margin-bottom:28px;
+}
+body.ozy-admin .boss-page-header .bph-title{ min-width:0; flex:1 1 auto; }
+
+/* breadcrumb — Bootstrap varsayılanı nazikçe ezilir, üstte */
+body.ozy-admin .boss-page-header .breadcrumb{
+  --bs-breadcrumb-divider:none;
+  display:flex; flex-wrap:wrap; align-items:center; gap:4px;
+  margin:0 0 12px; padding:0;
+  font-size:12px; font-weight:500; line-height:1.2; color:var(--ad-muted);
+}
+body.ozy-admin .boss-page-header .breadcrumb-item{ display:flex; align-items:center; color:var(--ad-muted); }
+body.ozy-admin .boss-page-header .breadcrumb-item a{
+  display:inline-flex; align-items:center; gap:4px;
+  color:var(--ad-muted); text-decoration:none; transition:color .14s;
+}
+body.ozy-admin .boss-page-header .breadcrumb-item a:hover{ color:var(--ad-accent); }
+body.ozy-admin .boss-page-header .breadcrumb-item a .ti{ font-size:15px; }
+body.ozy-admin .boss-page-header .breadcrumb-item:first-child a .ti{ font-size:16px; }
+body.ozy-admin .boss-page-header .breadcrumb-item.active{ color:var(--ad-text-soft); }
+
+/* chevron ayraç — Tabler ti-chevron-right glyph (ilk öğeden sonraki her öğeden önce) */
+body.ozy-admin .boss-page-header .breadcrumb-item+.breadcrumb-item{ padding-left:0; }
+body.ozy-admin .boss-page-header .breadcrumb-item+.breadcrumb-item::before{
+  content:"\ea61"; font-family:"tabler-icons"; font-weight:400; font-style:normal;
+  -webkit-font-smoothing:antialiased; speak:none; float:none; width:auto; padding:0;
+  margin:0 3px; font-size:13px; line-height:1; opacity:.6; color:var(--ad-muted);
+}
+
+/* başlık */
+body.ozy-admin .boss-page-header h1{
+  margin:0; font-size:22px; font-weight:700; letter-spacing:-.025em; line-height:1.15; color:var(--ad-text);
+  margin-top: 25px;
+}
+/* subtitle — boss_page_header 4. param ile (opsiyonel) */
+body.ozy-admin .boss-page-header .bph-subtitle{
+  margin:8px 0 0; font-size:13.5px; line-height:1.4; color:var(--ad-muted);
+}
+
+/* aksiyonlar — sağda, sarabilir; dokunma hedefi ≥40px */
+body.ozy-admin .boss-page-header .bph-actions{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:0 0 auto;
+}
+/* buton boyut/stili §10'dan gelir (Kompakt) */
+
+/* mobil — aksiyonlar başlığın altına tam genişlikte */
+@media (max-width:575.98px){
+  body.ozy-admin .boss-page-header{ align-items:stretch; }
+  body.ozy-admin .boss-page-header .bph-actions{ width:100%; }
+  body.ozy-admin .boss-page-header .bph-actions .btn{ flex:1 1 auto; justify-content:center; }
+}
+
+/* ── 5) Kartlar — "Kompakt / Yoğun" (.card) ─────────────────────────────────
+   Dar padding · ince ayraçlar · uppercase mini başlık · radius 12px.
+   Beyaz panel içinde ince bordür + çok hafif gölge ile ayrışır. Renkler --ad-* → dark otomatik. */
+body.ozy-admin .card{
+  background:var(--ad-surface); border:1px solid var(--ad-border);
+  border-radius:var(--ad-radius); overflow:hidden; box-shadow:var(--ad-shadow-card);
+  margin-bottom:1.5rem;
+  --bs-card-bg:var(--ad-surface); --bs-card-border-color:var(--ad-border); --bs-card-border-radius:var(--ad-radius);
+}
+body.ozy-admin .card-header{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:15px 20px; border-bottom:1px solid var(--ad-border);
+  background:transparent; font-weight:700; color:var(--ad-text);
+}
+body.ozy-admin .card-title{
+  font-size:15px; font-weight:700; margin:0; letter-spacing:-.01em; color:var(--ad-text);
+}
+body.ozy-admin .card-subtitle{ font-size:12.5px; font-weight:500; color:var(--ad-muted); margin:3px 0 0; }
+body.ozy-admin .card-body{ padding:20px; }
+body.ozy-admin .card-footer{
+  padding:14px 20px; border-top:1px solid var(--ad-border); background:var(--ad-surface-2);
+}
+
+/* ── 6) KPI / stat kartları — "Trend / Delta'lı" (boss-stat-*) ──────────────
+   Etiket → büyük değer → ▲/▼ delta + "vs geçen ay". .card tabanı üstüne biner. Gölge yok. */
+body.ozy-admin .boss-stat-card{ transition:border-color .15s, background .15s; }
+body.ozy-admin a.boss-stat-card:hover{ border-color:var(--ad-border-strong); background:var(--ad-surface-2); }
+body.ozy-admin .boss-stat-label{ font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ad-text-soft); }
+body.ozy-admin .boss-stat-value{ font-size:27px; font-weight:700; letter-spacing:-.03em; line-height:1.05; color:var(--ad-text); font-variant-numeric:tabular-nums; }
+body.ozy-admin .boss-stat-chip{ width:42px; height:42px; border-radius:12px; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; }
+body.ozy-admin .boss-stat-chip .ti{ font-size:21px; }
+body.ozy-admin .boss-stat-trend{ display:flex; align-items:center; gap:6px; margin-top:10px; }
+body.ozy-admin .boss-stat-delta{ display:inline-flex; align-items:center; gap:3px; font-size:12px; font-weight:700; }
+body.ozy-admin .boss-stat-delta .ti{ font-size:14px; }
+body.ozy-admin .boss-stat-delta.up{ color:#16a34a; }
+body.ozy-admin .boss-stat-delta.down{ color:#dc2626; }
+body.ozy-admin .boss-stat-trend-note{ font-size:12px; font-weight:500; color:var(--ad-muted); }
+/* Lumina okunabilirlik: kart açıklamaları (yönetim kısayolları vb.) daha büyük + koyu */
+body.ozy-admin .boss-stat-card p.text-muted,
+body.ozy-admin .card p.text-muted.fs-2{ font-size:13px; line-height:1.5; color:var(--ad-text-soft)!important; }
+body.ozy-admin .boss-stat-card h6{ font-size:15px; }
+
+/* ── 7) Ops & liste yardımcıları (Tailwind ops/logs → yeni tasarım rebuild) ──
+   Lucide svg chip boyutu + panel/liste satırı deseni (ad-listrow). */
+body.ozy-admin .boss-stat-chip svg{ width:21px; height:21px; }
+body.ozy-admin .ad-listrow{ display:flex; align-items:center; gap:14px; padding:13px 16px; border-bottom:1px solid var(--ad-border); color:var(--ad-text-soft); text-decoration:none; transition:background .14s; }
+body.ozy-admin .ad-listrow:last-child{ border-bottom:0; }
+body.ozy-admin .ad-listrow:hover{ background:var(--ad-surface-2); }
+body.ozy-admin .ad-listrow-ico{ width:40px; height:40px; border-radius:11px; flex:0 0 auto; display:grid; place-items:center; background:var(--ad-surface-2); color:var(--ad-muted); }
+body.ozy-admin .ad-listrow:hover .ad-listrow-ico{ background:var(--ad-surface-3); }
+body.ozy-admin .ad-listrow-ico svg{ width:19px; height:19px; }
+body.ozy-admin .ad-listrow-main{ min-width:0; flex:1 1 auto; display:flex; flex-direction:column; gap:2px; }
+body.ozy-admin .ad-listrow-title{ font-size:14px; font-weight:600; color:var(--ad-text); }
+body.ozy-admin .ad-listrow-sub{ font-size:12.5px; color:var(--ad-muted); }
+body.ozy-admin .ad-listrow-arrow{ color:var(--ad-muted); flex:0 0 auto; }
+body.ozy-admin .ad-listrow-arrow svg{ width:16px; height:16px; }
+
+/* ── 8) Tablolar — "Zebra" (.table) ─────────────────────────────────────────
+   Onaylı mockup: docs/saas-redesign/tablo-secenekler-v2.html → .tv2 (Zebra).
+   uppercase muted thead + dönüşümlü satır zemini (tek satır surface-2) + accent hover.
+   Admin tabloları DataTables ile geliştirilir (arama/sıralama/sayfalama) — layout JS otomatik
+   init eder (opt-out: .no-dt). Düz .table (ops küçük tablolar) da aynı Zebra'yı alır.
+   Gölge yok, dikey hücre bordürü yok; ayrım yalnız zebra + thead alt çizgisi. Renkler --ad-* → dark otomatik. */
+body.ozy-admin .table{
+  --bs-table-bg:transparent; --bs-table-color:var(--ad-text);
+  --bs-table-border-color:var(--ad-border);
+  --bs-table-striped-bg:var(--ad-surface-2); --bs-table-striped-color:var(--ad-text);
+  --bs-table-hover-bg:rgba(var(--ad-accent-rgb),.07); --bs-table-hover-color:var(--ad-text);
+  width:100%; margin:0; color:var(--ad-text); vertical-align:middle;
+}
+body.ozy-admin .table>thead>tr>th,
+body.ozy-admin .table>thead>tr>td{
+  padding:11px 14px; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--ad-muted); text-align:left; white-space:nowrap; vertical-align:middle;
+  background:transparent; border-bottom:1px solid var(--ad-border); border-top:0;
+}
+body.ozy-admin .table>tbody>tr>td,
+body.ozy-admin .table>tbody>tr>th{
+  padding:13px 14px; vertical-align:middle; color:var(--ad-text); background:transparent; border:0;
+}
+body.ozy-admin .table>tbody>tr:nth-of-type(odd)>*{ background-color:var(--ad-surface-2); }
+body.ozy-admin .table>tbody>tr:hover>*{ background-color:rgba(var(--ad-accent-rgb),.07); }
+
+/* DataTables kontrolleri (arama · bilgi · sayfalama · sıralama) — düz, tokenlı, gölgesiz.
+   Vendor jquery.dataTables varsayılanı ozy-admin.css'ten ÖNCE yüklenir → scope + !important ile yenilir. */
+body.ozy-admin .dataTables_wrapper{ overflow:hidden; }
+/* üst satır (arama) ve alt satır (bilgi+sayfalama) — flex; float YOK → hizalı, tek çizgili footer */
+body.ozy-admin .dataTables_wrapper .dt-top{ display:flex; justify-content:flex-end; align-items:center; }
+body.ozy-admin .dataTables_wrapper .dt-bottom{
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  border-top:1px solid var(--ad-border); padding:4px 6px;
+}
+body.ozy-admin .dataTables_wrapper .dt-bottom .dataTables_info,
+body.ozy-admin .dataTables_wrapper .dt-bottom .dataTables_paginate{ float:none; padding:8px 10px; }
+body.ozy-admin .dataTables_wrapper .dataTables_filter{ padding:12px 16px; text-align:right; }
+body.ozy-admin .dataTables_wrapper .dataTables_filter label{ margin:0; color:var(--ad-text-soft); font-size:13px; }
+body.ozy-admin .dataTables_wrapper .dataTables_filter input{
+  margin:0 0 0 8px; height:38px; padding:0 12px; min-width:240px; font-size:13px;
+  border:1px solid var(--ad-border); border-radius:var(--ad-radius-sm);
+  background:var(--ad-surface-2); color:var(--ad-text); outline:none; box-shadow:none;
+}
+body.ozy-admin .dataTables_wrapper .dataTables_filter input::placeholder{ color:var(--ad-muted); }
+body.ozy-admin .dataTables_wrapper .dataTables_filter input:focus{ border-color:var(--ad-accent); }
+body.ozy-admin .dataTables_wrapper .dataTables_info{ padding:12px 16px; font-size:12.5px; color:var(--ad-muted); float:left; }
+body.ozy-admin .dataTables_wrapper .dataTables_paginate{ padding:10px 16px; float:right; }
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button{
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  min-width:32px; height:32px; padding:0 8px; margin-left:4px;
+  border:1px solid var(--ad-border)!important; border-radius:8px!important;
+  background:transparent!important; color:var(--ad-text-soft)!important;
+  font-size:13px; cursor:pointer; box-shadow:none!important;
+}
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
+  background:var(--ad-surface-2)!important; color:var(--ad-text)!important; border-color:var(--ad-border)!important;
+}
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover{
+  background:var(--ad-accent)!important; border-color:transparent!important; color:#fff!important;
+}
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
+body.ozy-admin .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover{
+  opacity:.4; background:transparent!important; color:var(--ad-text-soft)!important; cursor:default;
+}
+/* sıralama okları — DT üçgenlerini muted'a boya (aktif yön DT opaklığıyla) */
+body.ozy-admin table.dataTable thead>tr>th.sorting,
+body.ozy-admin table.dataTable thead>tr>th.sorting_asc,
+body.ozy-admin table.dataTable thead>tr>th.sorting_desc{ cursor:pointer; }
+body.ozy-admin table.dataTable thead>tr>th.sorting::before,
+body.ozy-admin table.dataTable thead>tr>th.sorting::after,
+body.ozy-admin table.dataTable thead>tr>th.sorting_asc::before,
+body.ozy-admin table.dataTable thead>tr>th.sorting_asc::after,
+body.ozy-admin table.dataTable thead>tr>th.sorting_desc::before,
+body.ozy-admin table.dataTable thead>tr>th.sorting_desc::after{ color:var(--ad-muted)!important; }
+
+/* Tablo satır-içi aksiyon ikonları — eşit boyutlu, ferah, daha büyük ikonlu kare butonlar.
+   Kullanım: aksiyon hücresini <div class="ad-row-actions">…</div> ile sar (buton/link/form). */
+body.ozy-admin .ad-row-actions{ display:inline-flex; align-items:center; gap:3px; justify-content:flex-end; }
+body.ozy-admin .ad-row-actions form{ display:inline-flex; margin:0; }
+body.ozy-admin .ad-row-actions .btn{
+  width:34px; height:34px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+  border-radius:9px; line-height:1;
+}
+body.ozy-admin .ad-row-actions .btn .ti{ font-size:18px; }
+
+/* ── 9) Formlar — "Kompakt" (.form-* + .ad-form-grid auto-fill) ──────────────
+   Dar/flat alanlar; .ad-form-grid panele kaç sütun sığarsa o kadar dizer (2/3/4…,
+   boş alan bırakmaz). Gölge yok (Bootstrap focus ring kapatıldı). Renkler --ad-* → dark otomatik. */
+body.ozy-admin .form-label{ font-size:12px; font-weight:600; color:var(--ad-text-soft); margin-bottom:5px; }
+body.ozy-admin .form-control,
+body.ozy-admin .form-select{
+  min-height:36px; height:36px; padding:0 11px; font-size:13px; line-height:1.4;
+  color:var(--ad-text); background-color:var(--ad-surface);
+  border:1px solid var(--ad-border); border-radius:var(--ad-radius-sm);
+  box-shadow:none; transition:border-color .14s;
+}
+body.ozy-admin textarea.form-control{ height:auto; min-height:82px; padding:8px 11px; line-height:1.5; }
+body.ozy-admin .form-control:focus,
+body.ozy-admin .form-select:focus{ border-color:var(--ad-accent); box-shadow:none; background-color:var(--ad-surface); color:var(--ad-text); }
+body.ozy-admin .form-control::placeholder{ color:var(--ad-muted); opacity:1; }
+body.ozy-admin .form-control:disabled,
+body.ozy-admin .form-select:disabled{ background-color:var(--ad-surface-2); color:var(--ad-muted); }
+/* dosya input — sabit height file-selector butonunu kırpıyordu; height:auto + buton flush biçimlenir */
+body.ozy-admin input[type=file].form-control{
+  display:block; width:100%; height:auto; min-height:36px;
+  padding:6px 11px; line-height:1.4; cursor:pointer; overflow:hidden;
+}
+body.ozy-admin input[type=file].form-control::file-selector-button{
+  margin:-6px 11px -6px -11px; padding:6px 13px;
+  border:0; border-right:1px solid var(--ad-border);
+  background:var(--ad-surface-2); color:var(--ad-text-soft);
+  font-size:12.5px; font-weight:600; cursor:pointer; transition:background .14s,color .14s;
+}
+body.ozy-admin input[type=file].form-control::file-selector-button:hover{
+  background:var(--ad-surface-3); color:var(--ad-text);
+}
+/* select chevron — token'lı (dark uyumlu), Bootstrap'ın koyu svg'sini ez */
+body.ozy-admin .form-select{
+  background-image:linear-gradient(45deg,transparent 50%,var(--ad-muted) 50%),linear-gradient(135deg,var(--ad-muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) center,calc(100% - 10px) center;
+  background-size:5px 5px,5px 5px; background-repeat:no-repeat; padding-right:32px;
+}
+body.ozy-admin .form-text{ font-size:11.5px; color:var(--ad-muted); margin-top:4px; }
+/* checkbox / radio / switch — accent, gölgesiz */
+body.ozy-admin .form-check-input{ border-color:var(--ad-border-strong); background-color:var(--ad-surface); box-shadow:none!important; }
+body.ozy-admin .form-check-input:checked{ background-color:var(--ad-accent); border-color:var(--ad-accent); }
+body.ozy-admin .form-check-input:focus{ border-color:var(--ad-accent); box-shadow:none; }
+body.ozy-admin .form-check-label{ font-size:13px; color:var(--ad-text); }
+body.ozy-admin .form-switch .form-check-input{ width:38px; height:21px; }
+/* form grid — 12 kolon, anlamlı span'lerle DOLU satırlar (cram değil).
+   Varsayılan alan 3/satır; .c3=4/satır, .c6=2/satır, .full=tam genişlik.
+   Uniform alan grupları (limit/checkbox) için .cols-auto → auto-fit eşit doldurur. */
+body.ozy-admin .ad-form-grid{ display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px 16px; align-items:start; }
+body.ozy-admin .ad-form-grid>*{ grid-column:span 4; }
+body.ozy-admin .ad-form-grid .full{ grid-column:1 / -1; }
+body.ozy-admin .ad-form-grid .c3{ grid-column:span 3; }
+body.ozy-admin .ad-form-grid .c4{ grid-column:span 4; }
+body.ozy-admin .ad-form-grid .c6{ grid-column:span 6; }
+body.ozy-admin .ad-form-grid.cols-auto{ grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); }
+body.ozy-admin .ad-form-grid.cols-auto>*{ grid-column:auto; }
+@media (max-width:900px){
+  body.ozy-admin .ad-form-grid>*,
+  body.ozy-admin .ad-form-grid .c3,
+  body.ozy-admin .ad-form-grid .c4{ grid-column:span 6; }
+}
+@media (max-width:560px){
+  body.ozy-admin .ad-form-grid>*,
+  body.ozy-admin .ad-form-grid .c3,
+  body.ozy-admin .ad-form-grid .c4,
+  body.ozy-admin .ad-form-grid .c6{ grid-column:span 12; }
+}
+
+/* ── 10) Butonlar — "Kompakt" (.btn + varyantlar) ───────────────────────────
+   Küçük/sıkı, düz (gölge yok; focus = outline). accent primary + outline/ghost/danger.
+   Renkler --ad-* → dark otomatik. page-header/form/ops/tablo butonları hep buradan. */
+body.ozy-admin .btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  height:34px; min-height:34px; padding:0 13px; border-radius:8px;
+  font-size:13px; font-weight:600; line-height:1; white-space:nowrap;
+  border:1px solid transparent; cursor:pointer; box-shadow:none!important;
+  transition:background-color .14s, border-color .14s, color .14s, filter .14s;
+}
+body.ozy-admin .btn .ti{ font-size:16px; }
+body.ozy-admin .btn:disabled,
+body.ozy-admin .btn.disabled{ opacity:.5; }
+body.ozy-admin .btn:focus-visible{ outline:2px solid var(--ad-accent); outline-offset:2px; }
+body.ozy-admin .btn-sm{ height:30px; min-height:30px; padding:0 10px; font-size:12.5px; border-radius:7px; }
+body.ozy-admin .btn-sm .ti{ font-size:15px; }
+body.ozy-admin .btn-lg{ height:40px; min-height:40px; padding:0 18px; font-size:14px; border-radius:var(--ad-radius-sm); }
+
+/* primary = accent */
+body.ozy-admin .btn-primary{ background-color:var(--ad-accent); border-color:var(--ad-accent); color:#fff; }
+body.ozy-admin .btn-primary:hover{ background-color:var(--ad-accent); border-color:var(--ad-accent); color:#fff; filter:brightness(.92); }
+/* secondary = yüzey + bordür */
+body.ozy-admin .btn-secondary{ background-color:var(--ad-surface); border-color:var(--ad-border-strong); color:var(--ad-text); }
+body.ozy-admin .btn-secondary:hover{ background-color:var(--ad-surface-2); border-color:var(--ad-border-strong); color:var(--ad-text); }
+/* outline-secondary = şeffaf + bordür (Vazgeç vb.) */
+body.ozy-admin .btn-outline-secondary{ background-color:transparent; border-color:var(--ad-border-strong); color:var(--ad-text); }
+body.ozy-admin .btn-outline-secondary:hover{ background-color:var(--ad-surface-2); border-color:var(--ad-border-strong); color:var(--ad-text); }
+/* outline-primary */
+body.ozy-admin .btn-outline-primary{ background-color:transparent; border-color:var(--ad-accent); color:var(--ad-accent); }
+body.ozy-admin .btn-outline-primary:hover{ background-color:rgba(var(--ad-accent-rgb),.1); border-color:var(--ad-accent); color:var(--ad-accent); }
+/* danger */
+body.ozy-admin .btn-danger{ background-color:#dc2626; border-color:#dc2626; color:#fff; }
+body.ozy-admin .btn-danger:hover{ filter:brightness(.92); color:#fff; }
+body.ozy-admin .btn-outline-danger{ background-color:transparent; border-color:#dc2626; color:#dc2626; }
+body.ozy-admin .btn-outline-danger:hover{ background-color:rgba(220,38,38,.1); color:#dc2626; }
+/* success / warning / info — anlamsal solid, düz */
+body.ozy-admin .btn-success{ background-color:#16a34a; border-color:#16a34a; color:#fff; }
+body.ozy-admin .btn-success:hover{ filter:brightness(.92); color:#fff; }
+body.ozy-admin .btn-outline-success{ background-color:transparent; border-color:#16a34a; color:#16a34a; }
+body.ozy-admin .btn-outline-success:hover{ background-color:rgba(22,163,74,.1); color:#16a34a; }
+body.ozy-admin .btn-warning{ background-color:#f59e0b; border-color:#f59e0b; color:#fff; }
+body.ozy-admin .btn-warning:hover{ filter:brightness(.92); color:#fff; }
+body.ozy-admin .btn-info{ background-color:#0ea5e9; border-color:#0ea5e9; color:#fff; }
+body.ozy-admin .btn-info:hover{ filter:brightness(.92); color:#fff; }
+/* ghost / link / light */
+body.ozy-admin .btn-link,
+body.ozy-admin .btn-light{ background-color:transparent; border-color:transparent; color:var(--ad-text-soft); text-decoration:none; }
+body.ozy-admin .btn-link:hover,
+body.ozy-admin .btn-light:hover{ background-color:var(--ad-surface-2); color:var(--ad-text); }
+
+/* ── 11) Badge / durum — "Minimal" (renkli nokta + sade metin, zeminsiz) ─────
+   .badge bg-*-subtle → zemin kalkar; semantik renk küçük noktaya (::before) taşınır; metin nötr.
+   YALNIZ .badge'i etkiler — ikon chip'leri (.ad-ico-badge / .boss-stat-chip) ayrı sınıf, dokunulmaz.
+   $opsBadge/$opsStatusPill ve boss_status_badge dot'suz çıktı verir; nokta buradan gelir. */
+body.ozy-admin .badge{
+  display:inline-flex; align-items:center; gap:6px; padding:0;
+  background-color:transparent!important; border:0; border-radius:0;
+  font-size:12px; font-weight:600; line-height:1.5; color:var(--ad-text)!important; vertical-align:baseline;
+}
+body.ozy-admin .badge.bg-success-subtle::before,
+body.ozy-admin .badge.bg-warning-subtle::before,
+body.ozy-admin .badge.bg-danger-subtle::before,
+body.ozy-admin .badge.bg-info-subtle::before,
+body.ozy-admin .badge.bg-primary-subtle::before,
+body.ozy-admin .badge.bg-secondary-subtle::before{
+  content:""; width:7px; height:7px; border-radius:50%; flex:0 0 auto; background:var(--ad-muted);
+}
+body.ozy-admin .badge.bg-success-subtle::before{ background:#16a34a; }
+body.ozy-admin .badge.bg-warning-subtle::before{ background:#f59e0b; }
+body.ozy-admin .badge.bg-danger-subtle::before{ background:#dc2626; }
+body.ozy-admin .badge.bg-info-subtle::before{ background:#0ea5e9; }
+body.ozy-admin .badge.bg-primary-subtle::before{ background:var(--ad-accent); }
+body.ozy-admin .badge.bg-secondary-subtle::before{ background:#94a3b8; }
+
+/* ── 12) Alert / flash — "İkon Kutulu" (kart + renkli ikon kutusu) ───────────
+   Yüzey kart + ince bordür + baş ikon renkli kutuda + nötr metin. Gölge yok.
+   Flash (layout) başlık+mesaj verir; satır-içi .alert-* kutuları da kart görünümü alır. */
+body.ozy-admin .alert{
+  display:flex; align-items:center; gap:13px; padding:13px 15px; margin-bottom:1rem;
+  background-color:var(--ad-surface); border:1px solid var(--ad-border); border-radius:var(--ad-radius);
+  color:var(--ad-text); font-size:13.5px; font-weight:500; box-shadow:none;
+}
+body.ozy-admin .alert-success,
+body.ozy-admin .alert-danger,
+body.ozy-admin .alert-warning,
+body.ozy-admin .alert-info{
+  background-color:var(--ad-surface); border-color:var(--ad-border); color:var(--ad-text);
+}
+/* baş ikon → renkli kutu */
+body.ozy-admin .alert>i:first-child{
+  width:38px; height:38px; border-radius:10px; flex:0 0 auto; margin:0;
+  display:inline-grid; place-items:center; font-size:20px;
+}
+body.ozy-admin .alert-success>i:first-child{ background:rgba(22,163,74,.14); color:#16a34a; }
+body.ozy-admin .alert-warning>i:first-child{ background:rgba(245,158,11,.16); color:#b45309; }
+body.ozy-admin .alert-danger >i:first-child{ background:rgba(220,38,38,.14); color:#dc2626; }
+body.ozy-admin .alert-info   >i:first-child{ background:rgba(14,165,233,.14); color:#0369a1; }
+/* başlık + gövde (flash mesajları) */
+body.ozy-admin .alert .alert-body{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+body.ozy-admin .alert .alert-title{ font-weight:700; font-size:13.5px; color:var(--ad-text); }
+body.ozy-admin .alert .alert-body>:not(.alert-title){ font-size:12.5px; color:var(--ad-muted); }
+/* dark: ikon rengi parlasın */
+html[data-bs-theme="dark"] body.ozy-admin .alert-success>i:first-child{ color:#4ade80; }
+html[data-bs-theme="dark"] body.ozy-admin .alert-warning>i:first-child{ color:#fcd34d; }
+html[data-bs-theme="dark"] body.ozy-admin .alert-danger >i:first-child{ color:#fda4af; }
+html[data-bs-theme="dark"] body.ozy-admin .alert-info   >i:first-child{ color:#7dd3fc; }
+
+/* ── 13) Tabs / nav-pills — "Segmented" + misc (code / hr) ───────────────────
+   Sekme: gri kanal (track) + aktif beyaz kapsül. Admin'de henüz tab yok (ileriye dönük).
+   code/hr admin'de kullanılıyor (ops job_type vb.) → tokenlı, gölgesiz. */
+body.ozy-admin .nav-tabs,
+body.ozy-admin .nav-pills{
+  display:inline-flex; gap:2px; padding:4px; margin-bottom:1.25rem;
+  background:var(--ad-surface-2); border:1px solid var(--ad-border); border-radius:11px;
+}
+body.ozy-admin .nav-tabs .nav-link,
+body.ozy-admin .nav-pills .nav-link{
+  display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; margin:0;
+  border:0; border-radius:8px; background:transparent; color:var(--ad-text-soft);
+  font-size:13px; font-weight:500;
+}
+body.ozy-admin .nav-tabs .nav-link .ti,
+body.ozy-admin .nav-pills .nav-link .ti{ font-size:16px; }
+body.ozy-admin .nav-tabs .nav-link:hover,
+body.ozy-admin .nav-pills .nav-link:hover{ color:var(--ad-text); border-color:transparent; background:transparent; }
+body.ozy-admin .nav-tabs .nav-link.active,
+body.ozy-admin .nav-pills .nav-link.active,
+body.ozy-admin .nav-pills .show>.nav-link{
+  background:var(--ad-surface); color:var(--ad-accent); font-weight:600; border:0;
+}
+
+/* misc */
+body.ozy-admin code{
+  font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace; font-size:.86em;
+  background:var(--ad-surface-3); color:var(--ad-accent); padding:.14em .42em; border-radius:6px;
+}
+body.ozy-admin hr{ border:0; border-top:1px solid var(--ad-border); opacity:1; margin:1rem 0; }
+
+/* ── 14) Toggle — "Aktif/Pasif" switch (boss_switch → .ozy-switch) ───────────
+   Düz, gölgesiz; kapalı=gri kanal, açık=accent. Durum kelimesi canlı (layout JS). */
+body.ozy-admin .ozy-switch-field{ display:inline-flex; align-items:center; gap:10px; }
+body.ozy-admin .ozy-switch-title{ font-size:13px; font-weight:600; color:var(--ad-text-soft); margin:0; cursor:pointer; }
+body.ozy-admin .ozy-switch{ position:relative; display:inline-flex; align-items:center; margin:0; cursor:pointer; }
+body.ozy-admin .ozy-switch-input{ position:absolute; opacity:0; width:0; height:0; }
+body.ozy-admin .ozy-switch-track{
+  width:48px; height:26px; border-radius:999px; padding:2px;
+  background:var(--ad-surface-3); border:1px solid var(--ad-border-strong);
+  display:inline-flex; align-items:center; transition:background .18s, border-color .18s;
+}
+body.ozy-admin .ozy-switch-thumb{ width:20px; height:20px; border-radius:50%; background:#fff; border:1px solid rgba(16,24,40,.06); transition:transform .18s; }
+body.ozy-admin .ozy-switch-input:checked + .ozy-switch-track{ background:var(--ad-accent); border-color:var(--ad-accent); }
+body.ozy-admin .ozy-switch-input:checked + .ozy-switch-track .ozy-switch-thumb{ transform:translateX(22px); border-color:transparent; }
+body.ozy-admin .ozy-switch-input:focus-visible + .ozy-switch-track{ outline:2px solid var(--ad-accent); outline-offset:2px; }
+body.ozy-admin .ozy-switch-state{ font-size:13px; font-weight:600; color:var(--ad-muted); min-width:40px; }
+body.ozy-admin .ozy-switch-state.on{ color:var(--ad-accent); }
+
+/* ── 15) Summernote (WYSIWYG) — Lumina: düz, gölgesiz, accent ────────────────
+   İçerik alanları (blog/SSS/changelog/mail/referans/modül) textarea.summernote ile. */
+body.ozy-admin .note-editor.note-frame,
+body.ozy-admin .note-editor.note-airframe{ border:1px solid var(--ad-border); border-radius:var(--ad-radius-sm); box-shadow:none; overflow:hidden; background:var(--ad-surface); margin:0; }
+body.ozy-admin .note-toolbar{ background:var(--ad-surface-2); border-bottom:1px solid var(--ad-border); padding:6px 8px; gap:2px; }
+body.ozy-admin .note-toolbar .note-btn-group{ margin:0 4px 0 0; }
+body.ozy-admin .note-btn{ background:var(--ad-surface); border:1px solid var(--ad-border); color:var(--ad-text-soft); border-radius:7px; box-shadow:none!important; height:30px; display:inline-flex; align-items:center; }
+body.ozy-admin .note-btn:hover{ background:var(--ad-surface-3); color:var(--ad-text); border-color:var(--ad-border-strong); }
+body.ozy-admin .note-btn.active,body.ozy-admin .note-btn:active{ background:rgba(var(--ad-accent-rgb),.12); color:var(--ad-accent); border-color:transparent; }
+body.ozy-admin .note-editable{ background:var(--ad-surface); color:var(--ad-text); font-size:14px; line-height:1.6; padding:14px 16px; min-height:200px; }
+body.ozy-admin .note-placeholder{ color:var(--ad-muted); }
+body.ozy-admin .note-statusbar{ background:var(--ad-surface-2); border-top:1px solid var(--ad-border); }
+body.ozy-admin .note-statusbar .note-resizebar{ border-top:none; }
+body.ozy-admin .note-codable{ background:#0e1422; color:#e8ecf5; font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace; font-size:13px; }
+body.ozy-admin .note-dropdown-menu{ border:1px solid var(--ad-border-strong)!important; border-radius:var(--ad-radius-sm); box-shadow:none!important; background:var(--ad-surface); }
+body.ozy-admin .note-modal .modal-content{ border:1px solid var(--ad-border-strong); border-radius:var(--ad-radius); box-shadow:none; }
+/* Toolbar ikon fontunu ZORLA (modernize/bootstrap reset'leri ezmesin → boş/tofu ikon olmasın) */
+body.ozy-admin [class^="note-icon-"]:before,
+body.ozy-admin [class*=" note-icon-"]:before{ font-family:'summernote'!important; font-style:normal!important; font-weight:400!important; font-variant:normal!important; text-transform:none!important; line-height:1!important; -webkit-font-smoothing:antialiased; }
+body.ozy-admin .note-btn i{ font-style:normal; }
+/* Editör başlatılınca kaynak <textarea> görünmesin (inline display:none ezilirse yedek) */
+body.ozy-admin textarea.summernote:has(+ .note-editor){ display:none!important; }
+/* Summernote diyalogları (link/görsel/tablo) üstte kalsın */
+body.ozy-admin .note-modal{ z-index:1060; }
+body.ozy-admin .note-popover.popover{ z-index:1061; }
+
+/* ── DARK MODE (token override · daima EN SON) ──────────────────────────── */
+html[data-bs-theme="dark"] body.ozy-admin,
+body.ozy-admin[data-bs-theme="dark"]{
+  --ad-bg:#0b0e15; --ad-surface:#141926; --ad-surface-2:#1b2230; --ad-surface-3:#222a3a;
+  --ad-border:#262e3f; --ad-border-strong:#33405a; --ad-text:#e8ecf5; --ad-text-soft:#a3adc0; --ad-muted:#6f7991;
+}
+/* dark'ta delta renkleri biraz parlak */
+html[data-bs-theme="dark"] body.ozy-admin .boss-stat-delta.up{ color:#4ade80; }
+html[data-bs-theme="dark"] body.ozy-admin .boss-stat-delta.down{ color:#f87171; }
+
+/* ── İkon Seçici (boss_icon_picker → .ozy-iconpicker) — düz, gölgesiz/gradyansız ── */
+body.ozy-admin .ozy-iconpicker{ position:relative; display:inline-block; max-width:100%; }
+body.ozy-admin .ozy-ip-trigger{ display:inline-flex; align-items:center; gap:10px; height:36px; padding:0 11px; min-width:210px; background:var(--ad-surface); border:1px solid var(--ad-border); border-radius:var(--ad-radius-sm); color:var(--ad-text); cursor:pointer; transition:border-color .14s; }
+body.ozy-admin .ozy-iconpicker.open>.ozy-ip-trigger,
+body.ozy-admin .ozy-ip-trigger:hover{ border-color:var(--ad-accent); }
+body.ozy-admin .ozy-ip-cur{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:var(--ad-surface-3); color:var(--ad-accent); flex-shrink:0; }
+body.ozy-admin .ozy-ip-cur svg{ width:17px; height:17px; }
+body.ozy-admin .ozy-ip-name{ font-size:13px; font-family:var(--bs-font-monospace, ui-monospace, monospace); color:var(--ad-text-soft); flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body.ozy-admin .ozy-ip-caret{ width:15px; height:15px; color:var(--ad-muted); flex-shrink:0; }
+body.ozy-admin .ozy-ip-panel{ position:absolute; z-index:1050; top:calc(100% + 6px); left:0; width:328px; max-width:88vw; background:var(--ad-surface); border:1px solid var(--ad-border-strong); border-radius:12px; padding:10px; }
+body.ozy-admin .ozy-ip-search{ display:flex; align-items:center; gap:7px; height:34px; padding:0 9px; border:1px solid var(--ad-border); border-radius:9px; margin-bottom:8px; color:var(--ad-muted); }
+body.ozy-admin .ozy-ip-search svg{ width:15px; height:15px; flex-shrink:0; }
+body.ozy-admin .ozy-ip-q{ flex:1; border:0; background:transparent; outline:none; font-size:13px; color:var(--ad-text); }
+body.ozy-admin .ozy-ip-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; max-height:232px; overflow-y:auto; }
+body.ozy-admin .ozy-ip-item{ display:inline-flex; align-items:center; justify-content:center; aspect-ratio:1; border:1px solid transparent; border-radius:8px; background:var(--ad-surface-2); color:var(--ad-text-soft); cursor:pointer; transition:background .12s,color .12s,border-color .12s; }
+body.ozy-admin .ozy-ip-item:hover{ background:var(--ad-surface-3); color:var(--ad-accent); }
+body.ozy-admin .ozy-ip-item.active{ border-color:var(--ad-accent); color:var(--ad-accent); background:var(--ad-surface-3); }
+body.ozy-admin .ozy-ip-item svg{ width:18px; height:18px; }
+body.ozy-admin .ozy-ip-manual{ display:flex; align-items:center; gap:8px; margin-top:9px; padding-top:9px; border-top:1px solid var(--ad-border); }
+body.ozy-admin .ozy-ip-manual span{ font-size:11.5px; color:var(--ad-muted); white-space:nowrap; }
+body.ozy-admin .ozy-ip-custom{ flex:1; min-width:0; height:30px; padding:0 9px; font-size:12.5px; font-family:var(--bs-font-monospace, ui-monospace, monospace); border:1px solid var(--ad-border); border-radius:8px; background:var(--ad-surface); color:var(--ad-text); outline:none; }
+body.ozy-admin .ozy-ip-custom:focus{ border-color:var(--ad-accent); }
+
+/* ── Toast bildirimleri (flash → sağ üst, otomatik kaybolur) — düz, gölgesiz/gradyansız ── */
+body.ozy-admin .ozy-toasts{ position:fixed; top:16px; right:16px; z-index:2000; display:flex; flex-direction:column; gap:10px; width:380px; max-width:calc(100vw - 32px); pointer-events:none; }
+body.ozy-admin .ozy-toasts .alert{ margin:0; width:100%; border-color:var(--ad-border-strong); pointer-events:auto; cursor:pointer; animation:ozyToastIn .28s cubic-bezier(.2,.7,.3,1) both; }
+body.ozy-admin .ozy-toasts .alert.ozy-toast-out{ animation:ozyToastOut .34s ease forwards; }
+@keyframes ozyToastIn{ from{ opacity:0; transform:translateX(26px); } to{ opacity:1; transform:none; } }
+@keyframes ozyToastOut{ from{ opacity:1; transform:none; } to{ opacity:0; transform:translateX(26px); } }
+@media (max-width:560px){ body.ozy-admin .ozy-toasts{ left:16px; right:16px; width:auto; } }
+
+/* ── Sekme içerikleri — app.css (Tailwind) '.tab-content{display:none}' çakışmasını ez + Bootstrap tab CSS eksik ── */
+body.ozy-admin .tab-content{ display:block; animation:none; }
+body.ozy-admin .tab-content > .tab-pane{ display:none; }
+body.ozy-admin .tab-content > .tab-pane.active{ display:block; }
+
+/* ── Modern resim yükleme (boss_image_upload → .ozy-imgup) — düz, gölgesiz ── */
+body.ozy-admin .ozy-imgup{ display:flex; align-items:center; gap:12px; }
+body.ozy-admin .ozy-imgup-thumb{ width:64px; height:64px; flex:0 0 auto; border:1px solid var(--ad-border); border-radius:10px; background:var(--ad-surface-2); display:grid; place-items:center; overflow:hidden; }
+body.ozy-admin .ozy-imgup-thumb img{ width:100%; height:100%; object-fit:contain; }
+body.ozy-admin .ozy-imgup-thumb[data-empty]{ color:var(--ad-muted); }
+body.ozy-admin .ozy-imgup-thumb[data-empty] svg{ width:24px; height:24px; }
+body.ozy-admin .ozy-imgup-drop{ position:relative; flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; justify-content:center; padding:10px 14px; border:1.5px dashed var(--ad-border-strong); border-radius:10px; cursor:pointer; transition:border-color .14s, background .14s; }
+body.ozy-admin .ozy-imgup-drop:hover, body.ozy-admin .ozy-imgup-drop.drag{ border-color:var(--ad-accent); background:var(--ad-surface-2); }
+body.ozy-admin .ozy-imgup-input{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
+body.ozy-admin .ozy-imgup-cta{ font-size:13px; font-weight:600; color:var(--ad-text); display:inline-flex; align-items:center; gap:6px; }
+body.ozy-admin .ozy-imgup-cta svg{ width:16px; height:16px; color:var(--ad-accent); }
+body.ozy-admin .ozy-imgup-or{ font-weight:400; color:var(--ad-muted); }
+body.ozy-admin .ozy-imgup-hint{ font-size:11.5px; color:var(--ad-muted); }
+body.ozy-admin .ozy-imgup-file{ font-size:11.5px; color:var(--ad-accent); font-weight:600; }

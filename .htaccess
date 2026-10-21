@@ -1,0 +1,87 @@
+RewriteEngine On
+
+# Front-controller: extensionless URL'lerin (örn /ozellikler) docroot'taki bir
+# dosyaya (ozellikler.png/.md) content-negotiation ile eşleşip route'u gölgelemesini engelle.
+Options -MultiViews
+
+# Set directory index to public/index.php
+DirectoryIndex public/index.php index.php
+
+# Block installer after a completed install.
+RewriteCond %{DOCUMENT_ROOT}/installer_done.lock -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/OzyConnect/installer_done.lock -f
+RewriteRule ^installer\.php$ - [F,L]
+
+# Keep sensitive application folders private.
+RewriteRule ^(app|config|database|storage|views|cron|electron|vendor|tools|node_modules)(/|$) - [F,L]
+
+# Block common temporary/debug scripts.
+# RewriteRule ^(check_|fix_|test_|tmp_|diag|phptest)[^/]*\.(php|txt)$ - [F,L]
+
+# Optional short asset path: /assets/... -> /public/assets/...
+RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+
+# Allow direct access to /public/ folder (CSS, JS, images, etc.)
+RewriteRule ^public/ - [L]
+
+# Serve real files and folders directly.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route all panel requests to the front controller.
+RewriteRule ^$ public/index.php [L]
+RewriteRule ^(.*)$ public/index.php [QSA,L]
+
+# Cache headers for assets (CSS, JS, images, fonts)
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot|webp)$">
+    <IfModule mod_headers.c>
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "^(\.env|\.gitignore|composer\.(json|lock)|README\.md|CHANGELOG\.md|installer_done\.lock|version\.txt)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(bak|orig|swp|sql|log)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+# AddOutputFilterByType komutu Apache 2.4'te mod_filter tarafından sağlanır.
+# mod_filter yüklü değilse Apache 500 verir; bu yüzden ÖNCE mod_filter guard'ı.
+<IfModule mod_filter.c>
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+</IfModule>

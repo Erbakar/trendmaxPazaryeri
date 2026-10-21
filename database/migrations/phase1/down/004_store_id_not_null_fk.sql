@@ -1,0 +1,56 @@
+-- DOWN 004 — FK'leri kaldır + store_id'yi tekrar NULLABLE yap (down/002 kolonu düşürmeden önce).
+-- MariaDB "DROP FOREIGN KEY IF EXISTS" ile idempotent.
+ALTER TABLE `products`                     DROP FOREIGN KEY IF EXISTS `fk_products_store`;
+ALTER TABLE `orders`                       DROP FOREIGN KEY IF EXISTS `fk_orders_store`;
+ALTER TABLE `order_items`                  DROP FOREIGN KEY IF EXISTS `fk_order_items_store`;
+ALTER TABLE `customers`                    DROP FOREIGN KEY IF EXISTS `fk_customers_store`;
+ALTER TABLE `invoices`                     DROP FOREIGN KEY IF EXISTS `fk_invoices_store`;
+ALTER TABLE `returns`                      DROP FOREIGN KEY IF EXISTS `fk_returns_store`;
+ALTER TABLE `questions`                    DROP FOREIGN KEY IF EXISTS `fk_questions_store`;
+ALTER TABLE `stock_movements`              DROP FOREIGN KEY IF EXISTS `fk_stock_movements_store`;
+ALTER TABLE `marketplace_products`         DROP FOREIGN KEY IF EXISTS `fk_mp_products_store`;
+ALTER TABLE `brand_marketplace_mapping`    DROP FOREIGN KEY IF EXISTS `fk_bmm_store`;
+ALTER TABLE `category_marketplace_mapping` DROP FOREIGN KEY IF EXISTS `fk_cmm_store`;
+ALTER TABLE `category_attributes`          DROP FOREIGN KEY IF EXISTS `fk_category_attributes_store`;
+ALTER TABLE `product_attribute_values`     DROP FOREIGN KEY IF EXISTS `fk_pav_store`;
+ALTER TABLE `xml_feeds`                    DROP FOREIGN KEY IF EXISTS `fk_xml_feeds_store`;
+ALTER TABLE `product_import_jobs`          DROP FOREIGN KEY IF EXISTS `fk_import_jobs_store`;
+ALTER TABLE `financial_transactions`       DROP FOREIGN KEY IF EXISTS `fk_fin_tx_store`;
+ALTER TABLE `price_rules`                  DROP FOREIGN KEY IF EXISTS `fk_price_rules_store`;
+ALTER TABLE `sync_logs`                    DROP FOREIGN KEY IF EXISTS `fk_sync_logs_store`;
+ALTER TABLE `sync_jobs`                    DROP FOREIGN KEY IF EXISTS `fk_sync_jobs_store`;
+ALTER TABLE `enrichment_logs`              DROP FOREIGN KEY IF EXISTS `fk_enrichment_logs_store`;
+ALTER TABLE `brands`                       DROP FOREIGN KEY IF EXISTS `fk_brands_store`;
+ALTER TABLE `categories`                   DROP FOREIGN KEY IF EXISTS `fk_categories_store`;
+ALTER TABLE `brand_aliases`                DROP FOREIGN KEY IF EXISTS `fk_brand_aliases_store`;
+ALTER TABLE `api_logs`                     DROP FOREIGN KEY IF EXISTS `fk_api_logs_store`;
+ALTER TABLE `api_tokens`                   DROP FOREIGN KEY IF EXISTS `fk_api_tokens_store`;
+ALTER TABLE `users`                        DROP FOREIGN KEY IF EXISTS `fk_users_store`;
+
+-- store_id'yi nullable yap (kolon down/002'de düşürülecek; bu güvenli ara adım)
+ALTER TABLE `products`                     MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `orders`                       MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `order_items`                  MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `customers`                    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `invoices`                     MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `returns`                      MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `questions`                    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `stock_movements`              MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `marketplace_products`         MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `brand_marketplace_mapping`    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `category_marketplace_mapping` MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `category_attributes`          MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `product_attribute_values`     MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `xml_feeds`                    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `product_import_jobs`          MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `financial_transactions`       MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `price_rules`                  MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `sync_logs`                    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `sync_jobs`                    MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `enrichment_logs`              MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `brands`                       MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `categories`                   MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `brand_aliases`                MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `api_logs`                     MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `api_tokens`                   MODIFY `store_id` int(10) UNSIGNED NULL;
+ALTER TABLE `users`                        MODIFY `store_id` int(10) UNSIGNED NULL;

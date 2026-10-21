@@ -1,0 +1,243 @@
+/* ============================================================
+   boss-pages.css — Yeni admin sayfaları için ortak stiller.
+   Modernize (styles.css) ÜZERINE ince eklemeler. Köprü DEĞİLDİR;
+   yalnızca dönüştürülmüş (native Modernize) sayfalar kullanır.
+   ============================================================ */
+
+/* ===== Gilroy font (Plus Jakarta Sans yerine) ===== */
+@font-face { font-family:'Gilroy'; font-weight:200; font-display:swap; src:url('fonts/gilroy/Gilroy-UltraLight.otf') format('opentype'); }
+@font-face { font-family:'Gilroy'; font-weight:300; font-display:swap; src:url('fonts/gilroy/Gilroy-Light.otf') format('opentype'); }
+@font-face { font-family:'Gilroy'; font-weight:400; font-display:swap; src:url('fonts/gilroy/subset-Gilroy-Regular.woff2') format('woff2'); }
+@font-face { font-family:'Gilroy'; font-weight:500; font-display:swap; src:url('fonts/gilroy/subset-Gilroy-Medium.woff2') format('woff2'); }
+@font-face { font-family:'Gilroy'; font-weight:600; font-display:swap; src:url('fonts/gilroy/subset-Gilroy-Semibold.woff2') format('woff2'); }
+@font-face { font-family:'Gilroy'; font-weight:700; font-display:swap; src:url('fonts/gilroy/subset-Gilroy-Bold.woff2') format('woff2'); }
+@font-face { font-family:'Gilroy'; font-weight:800; font-display:swap; src:url('fonts/gilroy/Gilroy-Extrabold.otf') format('opentype'); }
+@font-face { font-family:'Gilroy'; font-weight:900; font-display:swap; src:url('fonts/gilroy/Gilroy-Black.otf') format('opentype'); }
+
+:root {
+  --bs-font-sans-serif: 'Gilroy', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bs-body-font-family: 'Gilroy', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+body { font-family: 'Gilroy', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important; }
+
+/* Sayfa başlık kartı */
+.boss-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.boss-page-header .bph-title { position: relative; padding-left: 14px; }
+.boss-page-header .bph-title::before {
+  content: ""; position: absolute; left: 0; top: 3px; bottom: 3px;
+  width: 4px; border-radius: 4px; background: var(--bs-primary);
+}
+.boss-page-header .bph-title h4 { margin: 0; font-weight: 700; font-size: 22px; letter-spacing: -.01em; }
+.boss-page-header .breadcrumb { margin: 5px 0 0; font-size: 12.5px; }
+.boss-page-header .bph-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Tema (ay/güneş) toggle ortalama: pasif anchor'ı TAMAMEN gizle (boş anchor yer kaplayıp ikonu kaydırmasın) */
+html[data-bs-theme="light"] .app-header .nav-icon-hover-bg .light-layout { display: none !important; }
+html[data-bs-theme="dark"]  .app-header .nav-icon-hover-bg .dark-layout  { display: none !important; }
+.app-header .nav-icon-hover-bg { display: inline-flex !important; align-items: center; justify-content: center; }
+.app-header .nav-icon-hover-bg > .nav-link { display: inline-flex; align-items: center; justify-content: center; }
+
+/* === KÖK DÜZELTME: --bs-card-bg global tanımı ===
+   Bu Modernize sürümünde --bs-card-bg yalnızca .card içinde tanımlı; :root'ta YOK.
+   var(--bs-card-bg) kullanan TÜM özel kartlar (tumurunler .stat-card/.filter-card/
+   .table-card/.btn-action, .card-box, sayfa-içi .nav-pills) boş token yüzünden
+   transparan kalıp altındaki gri sayfa zeminini (#f5f5f5) gösteriyordu.
+   --bs-body-bg üzerinden tanımla → light:#fff  dark:#202936 (otomatik tema-uyumlu). */
+:root { --bs-card-bg: var(--bs-body-bg); }
+
+/* === Kart alanları (tüm sayfalar): tutarlı beyaz (light) / koyu (dark) === */
+/* Eski .card-box sınıfının yeni temada arka planı yoktu → gri/koyu zemin görünüyordu.
+   Gerçek kart yap (onaykuyrugu, katalogimport vb.). */
+.card-box {
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+/* Sayfa-içi sekme barı (ayarlar/form): raw gri zemin yerine kart benzeri kapsül */
+.body-wrapper .nav-pills.mb-4 {
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: 6px;
+  gap: 4px;
+}
+/* Dark: sert kenarlık ÇİZGİLERİNİ yumuşat (kart/box/başlık/sekme) — kötü görünen çizgiler */
+html[data-bs-theme="dark"] .card,
+html[data-bs-theme="dark"] .card-box,
+html[data-bs-theme="dark"] .body-wrapper .nav-pills.mb-4 { border-color: rgba(255,255,255,.07) !important; }
+html[data-bs-theme="dark"] .card-header,
+html[data-bs-theme="dark"] .card-footer { border-color: rgba(255,255,255,.07) !important; }
+
+/* DataTables (bs5) ince düzeltmeler */
+table.dataTable thead th { white-space: nowrap; }
+.dataTables_wrapper .row { align-items: center; }
+.dataTables_wrapper .dataTables_filter input { border-radius: 7px; }
+div.dataTables_wrapper div.dataTables_length select { min-width: 70px; }
+
+/* Tablo içi durum rozetleri / aksiyon butonları */
+.boss-table td { vertical-align: middle; }
+.boss-table .table-actions { display: inline-flex; gap: 6px; }
+.boss-table .table-actions .btn { padding: 4px 9px; line-height: 1; }
+
+/* Form kartı yardımcıları */
+.boss-form .form-label { font-weight: 500; }
+.boss-form .form-section-title {
+  font-size: 13px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--bs-secondary-color);
+  margin: 4px 0 14px;
+}
+
+/* Toggle (BS5 form-switch) — ürün/form aç-kapa satırları */
+.boss-switch-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--bs-border-color);
+}
+.boss-switch-row:last-child { border-bottom: 0; }
+.boss-switch-row .form-switch { padding-left: 2.6em; }
+.boss-switch-row .form-check-input { width: 2.1em; height: 1.1em; cursor: pointer; }
+
+/* Quill editör min yükseklik */
+.boss-editor .ql-container { min-height: 180px; font-size: 14px; }
+
+/* === Yatay düzen: üst logo ile alt menü çubuğu sol hizası === */
+html[data-layout="horizontal"] .app-header .navbar { padding-left: 12px !important; padding-right: 12px !important; }
+html[data-layout="horizontal"] .left-sidebar .scroll-sidebar { padding-left: 12px !important; padding-right: 12px !important; }
+/* logo: nav-link varsayılan sol boşluğunu sıfırla → menü çubuğunun sol kenarıyla hizalanır */
+html[data-layout="horizontal"] .app-header .boss-logo-link { padding-left: 0 !important; }
+
+/* === Yatay menü — Minimal/Ferah (alt-çizgi aktif, dolgusuz) === */
+html[data-layout="horizontal"] .left-sidebar.with-horizontal { border-bottom: 1px solid var(--bs-border-color); }
+/* Üst menü TEK SATIRA sığsın (alta taşmasın): sarma yok + sıkı aralık */
+html[data-layout="horizontal"] #sidebarnav { flex-wrap: nowrap !important; }
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item { margin: 0; flex: 0 0 auto; }
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link {
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+  padding: 14px 9px !important;
+  border-radius: 0;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+  font-size: 13px; font-weight: 600;
+  color: var(--bs-secondary-color);
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: color .15s ease, border-color .15s ease;
+}
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link .ti {
+  font-size: 16px; color: var(--bs-secondary-color); transition: color .15s ease;
+}
+/* hover — dolgu yok, sadece koyulaşır */
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link:hover {
+  color: var(--bs-body-color); background: transparent !important;
+}
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link:hover .ti { color: var(--bs-body-color); }
+/* aktif — alt çizgi (underline tab), dolgu yok */
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item.selected > .sidebar-link,
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link.active {
+  color: var(--bs-primary) !important;
+  background: transparent !important;
+  border-bottom-color: var(--bs-primary);
+  font-weight: 700;
+}
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item.selected > .sidebar-link .ti,
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link.active .ti {
+  color: var(--bs-primary) !important;
+}
+/* dropdown oku: Modernize'ın absolute (sağ-üst) okunu satır içi aşağı-chevron yap */
+html[data-layout="horizontal"] #sidebarnav > .sidebar-item > .sidebar-link.has-arrow::after {
+  position: static !important;
+  inset: auto !important; top: auto !important; right: auto !important; left: auto !important;
+  display: inline-block;
+  content: "";
+  width: 6px; height: 6px;
+  margin: -3px 0 0 5px !important;
+  border: solid currentColor;
+  border-width: 0 1.4px 1.4px 0 !important;
+  transform: rotate(45deg);
+  vertical-align: middle;
+  opacity: .55;
+}
+/* açılan alt menü kartı */
+html[data-layout="horizontal"] #sidebarnav .first-level {
+  box-shadow: 0 6px 24px rgba(0,0,0,.12); border-radius: 10px; padding: 6px; min-width: 220px;
+}
+html[data-layout="horizontal"] #sidebarnav .first-level .sidebar-link {
+  border-radius: 7px; font-size: 13.5px; padding: 8px 12px; gap: 10px;
+}
+html[data-layout="horizontal"] #sidebarnav .first-level .sidebar-link .ti { font-size: 17px; color: #7c8fac; }
+html[data-layout="horizontal"] #sidebarnav .first-level .sidebar-link:hover { background: var(--bs-primary-bg-subtle); color: var(--bs-primary); }
+html[data-layout="horizontal"] #sidebarnav .first-level .sidebar-link:hover .ti { color: var(--bs-primary); }
+
+/* === HOVER dropdown — boşlukta kapanmasın (görünmez köprü) ===
+   Modernize'ın :hover{display:block} kuralı KORUNUR. Tek sorun, parent link ile
+   dropdown arasındaki boşlukta mouse'un hover'ı kaybetmesiydi. Çözüm: dropdown'ı
+   parent'a yaklaştır + dropdown'ın üstüne görünmez bir köprü (::before) koy.
+   Köprü .first-level'in çocuğu olduğundan üzerine gelince .sidebar-item:hover sürer. */
+html[data-layout="horizontal"] .sidebar-nav #sidebarnav > .sidebar-item > ul.first-level {
+  top: calc(100% + 4px) !important;
+  margin-top: 0 !important;
+}
+html[data-layout="horizontal"] .sidebar-nav #sidebarnav > .sidebar-item > ul.first-level::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 22px; background: transparent;
+}
+/* hover'da chevron yukarı döner */
+html[data-layout="horizontal"] .sidebar-nav #sidebarnav > .sidebar-item:hover > .sidebar-link.has-arrow::after {
+  transform: rotate(-135deg) !important; opacity: .9;
+}
+
+/* === Light mod: sayfa/içerik arka planı #f5f5f5 (kartlar beyaz kalır) === */
+html[data-bs-theme="light"] body,
+html[data-bs-theme="light"] #main-wrapper,
+html[data-bs-theme="light"] .page-wrapper,
+html[data-bs-theme="light"] .body-wrapper { background-color: #f5f5f5 !important; }
+/* chrome (üst header + yatay menü çubuğu) beyaz kalsın */
+html[data-bs-theme="light"] .app-header,
+html[data-bs-theme="light"] .topbar,
+html[data-bs-theme="light"] .left-sidebar { background-color: #ffffff !important; }
+
+/* Küçük yardımcılar */
+.boss-img-thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; border: 1px solid var(--bs-border-color); }
+.cursor-pointer { cursor: pointer; }
+.min-width-0 { min-width: 0; }
+.hover-bg { transition: background-color .15s ease; }
+.hover-bg:hover { background-color: var(--bs-secondary-bg); }
+
+
+/* === Yatay ust menu tasma duzeltmesi (14 grup: %100 genislik + zorunlu wrap) === */
+html[data-layout=horizontal] #sidebarnavh.scroll-sidebar{max-width:100% !important;margin:0 !important;padding:0 14px !important;overflow:visible !important;}
+html[data-layout=horizontal] .sidebar-nav #sidebarnav{display:flex !important;flex-wrap:wrap !important;width:100% !important;row-gap:1px;justify-content:flex-start;}
+html[data-layout=horizontal] .sidebar-nav #sidebarnav>.sidebar-item>.sidebar-link{padding:9px 11px !important;font-size:13px !important;white-space:nowrap;}
+html[data-layout=horizontal] .sidebar-nav #sidebarnav>.sidebar-item>.sidebar-link .ti{font-size:18px !important;margin-right:5px !important;}
+html[data-layout=horizontal] .app-header.with-horizontal,html[data-layout=horizontal] .left-sidebar.with-horizontal{height:60px !important;min-height:0 !important;overflow:visible !important;}
+
+/* === UST SIRA menu (logo yani, 2 kademeli) === */
+.boss-topnav{gap:1px}
+.boss-topnav .boss-topnav-link{display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:8px;font-weight:600;font-size:13.5px;white-space:nowrap;line-height:1.2}
+.boss-topnav .boss-topnav-link i:first-child{font-size:18px}
+.boss-topnav .boss-topnav-caret{font-size:13px;opacity:.5}
+.boss-topnav .boss-topnav-link:hover,.boss-topnav .boss-topnav-link.active{color:var(--bs-primary,#5d87ff)!important}
+.boss-topnav .dropdown-menu.boss-topnav-dd{padding:6px;border-radius:12px;min-width:222px;box-shadow:0 12px 32px rgba(0,0,0,.14)}
+.boss-topnav .boss-topnav-dd .dropdown-item{border-radius:8px;padding:8px 10px;font-size:13.5px}
+.boss-topnav .boss-topnav-dd .dropdown-item.active{background:var(--bs-primary,#5d87ff);color:#fff}
+
+/* === J2b: admin ust bar hamburger gizle (masaustu) + alt menu hiza/font === */
+@media (min-width:1200px){ html[data-layout=horizontal] .app-header .nav-item.d-xl-none{ display:none !important; } }
+html[data-layout=horizontal] #sidebarnavh.scroll-sidebar{ padding:0 !important; }
+html[data-layout=horizontal] .sidebar-nav #sidebarnav>.sidebar-item>.sidebar-link{ padding:9px 12px !important; font-size:13.5px !important; font-weight:600 !important; }
+html[data-layout=horizontal] .sidebar-nav #sidebarnav>.sidebar-item>.sidebar-link .ti{ font-size:18px !important; margin-right:6px !important; }
+
+/* === J2c: alt menu logoyla hizala (logo sol ~66px) + font ustle esit (14px) === */
+html[data-layout=horizontal] #sidebarnavh.scroll-sidebar{ padding:0 25px 0 58px !important; }
+html[data-layout=horizontal] .sidebar-nav #sidebarnav>.sidebar-item>.sidebar-link{ font-size:14px !important; }
+html[data-layout=horizontal] .boss-topnav .boss-topnav-link{ font-size:14px !important; }

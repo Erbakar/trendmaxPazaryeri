@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ön Koşullar · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>Ön Koşullar</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="02-kimlik-dogrulama.html" class="btn btn-primary">Sonraki: Kimlik Doğrulama →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 1 / 7</span>
+                <h1>Ön Koşullar</h1>
+                <p class="lead">
+                    Entegrasyona başlamadan önce sisteminizin, sunucunuzun ve
+                    OzyConnect hesabınızın aşağıdaki koşulları sağladığını doğrulayın.
+                    Bu adım, sonraki aşamalarda yaşanacak sorunların büyük çoğunluğunu
+                    baştan ortadan kaldırır.
+                </p>
+            </section>
+
+            <!-- CLIENT REQUIREMENTS -->
+            <h2>İstemci (Müşteri) Tarafı Gereksinimleri</h2>
+            <p>Sizin (müşterimiz) tarafınızda API çağrılarını gerçekleştirecek sunucu ya da uygulamanın aşağıdakileri desteklemesi gerekir:</p>
+
+            <ul class="check-list">
+                <li>HTTPS üzerinden dış bağlantı kurabilme (giden 443/TCP portu açık olmalı).</li>
+                <li>HMAC-SHA256 desteği olan bir programlama dili (PHP 7.4+, Node.js 14+, Python 3.8+, .NET 6+, Java 11+ vb.).</li>
+                <li>JSON serileştirme / deserileştirme kütüphanesi.</li>
+                <li>Sunucu saatinin <strong>NTP</strong> ile senkron tutulması (timestamp farkı ±5 dakikayı geçemez).</li>
+                <li>API Key ve Secret değerlerini güvenli bir şekilde saklayabileceğiniz bir ortam (ENV değişkeni, secret manager vs.).</li>
+            </ul>
+
+            <div class="callout callout-warning">
+                <p><strong>Önemli.</strong> Sunucunuzun saati yanlışsa, imzalar <em>401 Unauthorized</em> hatası verebilir. Üretim ortamlarınızda NTP zorunludur.</p>
+            </div>
+
+            <!-- NETWORK -->
+            <h2>Ağ ve Bağlantı</h2>
+
+            <h3>Giden Bağlantı</h3>
+            <p>OzyConnect API'sine yapılacak her çağrı, müşteri sunucunuzdan bizim altyapımıza <strong>HTTPS (TCP/443)</strong> üzerinden gerçekleşir. Firewall veya proxy cihazlarınızın bu trafiği engellemediğinden emin olun.</p>
+
+            <h3>IP Whitelist (Opsiyonel)</h3>
+            <p>Güvenlik seviyenizi arttırmak için API anahtarınıza IP kısıtlaması tanımlayabilirsiniz. Sadece belirttiğiniz IP adreslerinden gelen istekler kabul edilir.</p>
+
+            <pre class="has-lang"><span class="code-lang">bash</span><code><span class="tok-com"># Sunucunuzun çıkış IP'sini öğrenmek için:</span>
+curl -s https://api.ipify.org
+<span class="tok-com"># Örn: 185.xxx.xxx.xxx</span></code></pre>
+
+            <div class="callout callout-info">
+                <p><strong>İpucu.</strong> Üretim sunucunuz ve test sunucunuz farklı IP'lerde ise iki adresi de whitelist'e eklemeyi unutmayın. Yük dengeleyici / NAT arkasında iseniz çıkış IP'lerinin tamamı eklenmelidir.</p>
+            </div>
+
+            <!-- ACCOUNT REQUIREMENTS -->
+            <h2>OzyConnect Hesap Gereksinimleri</h2>
+            <p>Aşağıdaki bilgiler entegrasyondan önce tarafınıza iletilmiş olmalıdır. Eğer eksik veya bilmediğiniz bir bilgi varsa <a href="07-sss-destek.html">Destek</a> sayfamızdan iletişime geçin.</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:28%">Bilgi</th>
+                            <th style="width:20%">Durum</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>OzyConnect Panel URL'i</td>
+                            <td><span class="badge badge-success">Zorunlu</span></td>
+                            <td>Örn: <code>https://panel.musteri.com/ozyconnect</code></td>
+                        </tr>
+                        <tr>
+                            <td>API Key</td>
+                            <td><span class="badge badge-success">Zorunlu</span></td>
+                            <td>Panel üzerinden <em>Ayarlar → API Tokens</em> ekranından üretilir.</td>
+                        </tr>
+                        <tr>
+                            <td>API Secret</td>
+                            <td><span class="badge badge-success">Zorunlu</span></td>
+                            <td>Sadece oluşturma anında bir kez gösterilir. Güvenli bir yerde saklayın.</td>
+                        </tr>
+                        <tr>
+                            <td>Permission Scope</td>
+                            <td><span class="badge badge-success">Zorunlu</span></td>
+                            <td>Örn: <code>products:*</code>, <code>orders:read</code>. İhtiyacınıza göre belirlenir.</td>
+                        </tr>
+                        <tr>
+                            <td>IP Whitelist</td>
+                            <td><span class="badge badge-info">Önerilir</span></td>
+                            <td>Üretimde mutlaka etkinleştirin.</td>
+                        </tr>
+                        <tr>
+                            <td>Rate Limit</td>
+                            <td><span class="badge badge-neutral">Opsiyonel</span></td>
+                            <td>Varsayılan 10 req/sn. Daha yüksek limit için talepte bulunun.</td>
+                        </tr>
+                        <tr>
+                            <td>Cron Token</td>
+                            <td><span class="badge badge-neutral">Opsiyonel</span></td>
+                            <td>Sadece sunucu taraflı planlı işler için gereklidir.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- CHECKLIST -->
+            <h2>Kontrol Listesi</h2>
+            <p>Bir sonraki adıma geçmeden önce aşağıdaki maddelerin tamamının karşılandığını doğrulayın:</p>
+
+            <ul class="check-list">
+                <li>Sunucumun çıkış IP'sini biliyorum ve OzyConnect tarafına bildirdim.</li>
+                <li>Panel URL'im, API Key ve API Secret bilgilerim elimde.</li>
+                <li>Kodlayacağım dilde HMAC-SHA256 desteği mevcut.</li>
+                <li>Sunucu saatim NTP ile senkron (<code>timedatectl</code> veya <code>w32tm /query /status</code>).</li>
+                <li>Secret değerini ENV dosyasına yazacağım, asla kaynak kodla birlikte commit'lemeyeceğim.</li>
+                <li>Rate limit değerini biliyorum ve uygulamam buna göre ölçeklenecek.</li>
+            </ul>
+
+            <div class="callout callout-success">
+                <p><strong>Hazırsınız!</strong> Bu listeyi doğruladıysanız sonraki adıma — <a href="02-kimlik-dogrulama.html">Kimlik Doğrulama</a> — geçebilirsiniz.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="index.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">0. Genel Bakış</div>
+                </a>
+                <a href="02-kimlik-dogrulama.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">2. Kimlik Doğrulama</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

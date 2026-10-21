@@ -1,0 +1,2 @@
+-- DOWN 003 — Backfill geri alınamaz/gereksiz: store_id kolonu down/002'de tamamen kaldırılıyor.
+-- Bilinçli no-op (splitter 0 ifade görür).

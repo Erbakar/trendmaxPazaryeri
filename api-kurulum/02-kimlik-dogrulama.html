@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kimlik Doğrulama · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>Kimlik Doğrulama</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="03-hizli-baslangic.html" class="btn btn-primary">Sonraki: Hızlı Başlangıç →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 2 / 7</span>
+                <h1>Kimlik Doğrulama</h1>
+                <p class="lead">
+                    OzyConnect REST API tüm isteklerde <strong>HMAC-SHA256</strong> tabanlı
+                    imzalı kimlik doğrulama kullanır. Bu sayede API Secret değeriniz ağ
+                    üzerinden asla iletilmez, sadece her istekte anlık olarak hesaplanan
+                    imza gönderilir.
+                </p>
+            </section>
+
+            <!-- TOKEN CREATION -->
+            <h2>1. Token Oluşturma</h2>
+            <p>Panel yöneticiniz, OzyConnect üzerinden size özel bir API Key &amp; Secret çifti oluşturur. Bu işlem panelde şu adımla yapılır:</p>
+
+            <ol class="steps">
+                <li>
+                    <h3>Panele Giriş Yapın</h3>
+                    <p>Sağ üstteki kullanıcı menüsünden <strong>Ayarlar</strong> sayfasına gidin.</p>
+                </li>
+                <li>
+                    <h3>API Tokens Sekmesini Açın</h3>
+                    <p><strong>Ayarlar → API Tokens</strong> ekranından <em>Yeni Token Oluştur</em> butonuna tıklayın.</p>
+                </li>
+                <li>
+                    <h3>Yetkileri ve Limitleri Belirleyin</h3>
+                    <p>Token adı, izinler (<code>products:read</code>, <code>orders:*</code> vb.), IP whitelist, rate limit ve son kullanma tarihini belirleyin.</p>
+                </li>
+                <li>
+                    <h3>Secret Değerini Kaydedin</h3>
+                    <p>Oluştur butonuna bastığınızda <strong>API Secret</strong> yalnızca bir kez görüntülenir. Güvenli bir yerde saklayın — kayıp durumunda yeniden üretmeniz gerekir.</p>
+                </li>
+            </ol>
+
+            <div class="callout callout-danger">
+                <p><strong>Uyarı.</strong> Secret değerini kaynak kodunuza, Git deponuza veya genel loglarınıza asla yazmayın. Üretimde <code>.env</code>, secret manager veya vault benzeri yapılar kullanın.</p>
+            </div>
+
+            <!-- TOKEN STRUCTURE -->
+            <h2>2. Token Yapısı</h2>
+            <p>Size teslim edilen her token aşağıdaki alanlara sahiptir:</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:26%">Alan</th>
+                            <th style="width:20%">Örnek</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>API Key</code></td>
+                            <td><code>oxy_abc123def456</code></td>
+                            <td>Genel kimlik. Her istekte açıkça gönderilir.</td>
+                        </tr>
+                        <tr>
+                            <td><code>API Secret</code></td>
+                            <td><code>s3cr3t_xxxxxxxxxxxxxxxx</code></td>
+                            <td>Yalnızca imzalamada kullanılır. Hiçbir zaman iletilmez.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Permissions</code></td>
+                            <td><code>products:*</code></td>
+                            <td>Scope bazlı yetkilendirme. <code>*</code> wildcard desteklenir.</td>
+                        </tr>
+                        <tr>
+                            <td><code>IP Whitelist</code></td>
+                            <td><code>185.1.2.3</code></td>
+                            <td>Sadece bu IP'lerden gelen istekler kabul edilir.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Rate Limit</code></td>
+                            <td><code>10 / sn</code></td>
+                            <td>Saniye başı maksimum istek.</td>
+                        </tr>
+                        <tr>
+                            <td><code>Expiration</code></td>
+                            <td><code>2027-01-01</code></td>
+                            <td>İsteğe bağlı son kullanma tarihi.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SIGNATURE ALGORITHM -->
+            <h2>3. İmza Algoritması</h2>
+            <p>Her istek için aşağıdaki adımları uygulayarak bir HMAC-SHA256 imzası üretmeniz gerekir:</p>
+
+            <h3>3.1 — İmzalanacak Mesajı Oluşturun</h3>
+            <p>Mesaj dört parçanın <code>\n</code> karakteriyle birleştirilmesinden oluşur:</p>
+
+            <pre class="has-lang"><span class="code-lang">format</span><code>{HTTP_METHOD}\n{ENDPOINT_PATH}\n{TIMESTAMP}\n{NONCE}</code></pre>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:20%">Parça</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>HTTP_METHOD</code></td><td>Büyük harfle HTTP metodu: <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>.</td></tr>
+                        <tr><td><code>ENDPOINT_PATH</code></td><td>Sorgu parametreleri <strong>hariç</strong> endpoint yolu. Örn: <code>/api/v1/products</code></td></tr>
+                        <tr><td><code>TIMESTAMP</code></td><td>Unix timestamp (saniye). Mevcut zamandan ±5 dakika içinde olmalıdır.</td></tr>
+                        <tr><td><code>NONCE</code></td><td>Rasgele 16 karakterli hex string. Her istekte farklı olmalıdır.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>3.2 — HMAC-SHA256 ile İmzalayın</h3>
+            <p>Oluşturduğunuz mesajı API Secret ile imzalayın ve hex formatında çıktı alın.</p>
+
+            <h3>3.3 — Authorization Header'ını Oluşturun</h3>
+
+            <pre class="has-lang"><span class="code-lang">header</span><code>Authorization: Bearer {API_KEY}:{SIGNATURE}:{TIMESTAMP}:{NONCE}
+Content-Type: application/json</code></pre>
+
+            <!-- CODE EXAMPLE -->
+            <h2>4. İmza Üretim Örneği</h2>
+            <p>Aşağıdaki örnekler <code>GET /api/v1/products</code> isteği için geçerli bir imza üretir.</p>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">PHP</button>
+                    <button type="button">Node.js</button>
+                    <button type="button">Python</button>
+                    <button type="button">C# (.NET)</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">&lt;?php</span>
+<span class="tok-key">$apiKey</span>    = <span class="tok-str">'oxy_abc123def456'</span>;
+<span class="tok-key">$apiSecret</span> = <span class="tok-str">'your_api_secret_here'</span>;
+
+<span class="tok-key">$method</span>   = <span class="tok-str">'GET'</span>;
+<span class="tok-key">$endpoint</span> = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">$timestamp</span>= time();
+<span class="tok-key">$nonce</span>    = bin2hex(random_bytes(<span class="tok-num">8</span>));
+
+<span class="tok-key">$message</span>   = <span class="tok-str">"{$method}\n{$endpoint}\n{$timestamp}\n{$nonce}"</span>;
+<span class="tok-key">$signature</span> = hash_hmac(<span class="tok-str">'sha256'</span>, <span class="tok-key">$message</span>, <span class="tok-key">$apiSecret</span>);
+
+<span class="tok-key">$auth</span> = <span class="tok-str">"Bearer {$apiKey}:{$signature}:{$timestamp}:{$nonce}"</span>;
+
+<span class="tok-key">$ch</span> = curl_init(<span class="tok-str">'https://panel.musteri.com/api/v1/products'</span>);
+curl_setopt_array(<span class="tok-key">$ch</span>, [
+    CURLOPT_RETURNTRANSFER =&gt; <span class="tok-key">true</span>,
+    CURLOPT_HTTPHEADER     =&gt; [
+        <span class="tok-str">"Authorization: {$auth}"</span>,
+        <span class="tok-str">'Content-Type: application/json'</span>,
+    ],
+]);
+<span class="tok-key">$response</span> = curl_exec(<span class="tok-key">$ch</span>);
+echo <span class="tok-key">$response</span>;</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Node.js</span><code><span class="tok-key">const</span> crypto = <span class="tok-fn">require</span>(<span class="tok-str">'crypto'</span>);
+
+<span class="tok-key">const</span> apiKey    = <span class="tok-str">'oxy_abc123def456'</span>;
+<span class="tok-key">const</span> apiSecret = <span class="tok-str">'your_api_secret_here'</span>;
+
+<span class="tok-key">const</span> method    = <span class="tok-str">'GET'</span>;
+<span class="tok-key">const</span> endpoint  = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">const</span> timestamp = Math.floor(Date.now() / <span class="tok-num">1000</span>);
+<span class="tok-key">const</span> nonce     = crypto.randomBytes(<span class="tok-num">8</span>).toString(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> message   = <span class="tok-str">`${method}\n${endpoint}\n${timestamp}\n${nonce}`</span>;
+<span class="tok-key">const</span> signature = crypto.createHmac(<span class="tok-str">'sha256'</span>, apiSecret)
+                         .update(message)
+                         .digest(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> auth = <span class="tok-str">`Bearer ${apiKey}:${signature}:${timestamp}:${nonce}`</span>;
+
+<span class="tok-fn">fetch</span>(<span class="tok-str">'https://panel.musteri.com/api/v1/products'</span>, {
+    headers: {
+        <span class="tok-str">'Authorization'</span>: auth,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+})
+.then(r =&gt; r.json())
+.then(console.log);</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Python</span><code><span class="tok-key">import</span> hmac, hashlib, time, secrets, requests
+
+api_key    = <span class="tok-str">'oxy_abc123def456'</span>
+api_secret = <span class="tok-str">'your_api_secret_here'</span>
+
+method    = <span class="tok-str">'GET'</span>
+endpoint  = <span class="tok-str">'/api/v1/products'</span>
+timestamp = <span class="tok-fn">str</span>(<span class="tok-fn">int</span>(time.time()))
+nonce     = secrets.token_hex(<span class="tok-num">8</span>)
+
+message   = <span class="tok-str">f'{method}\n{endpoint}\n{timestamp}\n{nonce}'</span>
+signature = hmac.new(
+    api_secret.encode(),
+    message.encode(),
+    hashlib.sha256
+).hexdigest()
+
+headers = {
+    <span class="tok-str">'Authorization'</span>: <span class="tok-str">f'Bearer {api_key}:{signature}:{timestamp}:{nonce}'</span>,
+    <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+}
+
+r = requests.get(<span class="tok-str">'https://panel.musteri.com/api/v1/products'</span>, headers=headers)
+<span class="tok-fn">print</span>(r.json())</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">C#</span><code><span class="tok-key">using</span> System;
+<span class="tok-key">using</span> System.Net.Http;
+<span class="tok-key">using</span> System.Security.Cryptography;
+<span class="tok-key">using</span> System.Text;
+
+<span class="tok-key">var</span> apiKey    = <span class="tok-str">"oxy_abc123def456"</span>;
+<span class="tok-key">var</span> apiSecret = <span class="tok-str">"your_api_secret_here"</span>;
+
+<span class="tok-key">var</span> method    = <span class="tok-str">"GET"</span>;
+<span class="tok-key">var</span> endpoint  = <span class="tok-str">"/api/v1/products"</span>;
+<span class="tok-key">var</span> timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+<span class="tok-key">var</span> nonce     = Convert.ToHexString(RandomNumberGenerator.GetBytes(<span class="tok-num">8</span>)).ToLower();
+
+<span class="tok-key">var</span> message   = <span class="tok-str">$"{method}\n{endpoint}\n{timestamp}\n{nonce}"</span>;
+<span class="tok-key">using</span> <span class="tok-key">var</span> hmac = <span class="tok-key">new</span> HMACSHA256(Encoding.UTF8.GetBytes(apiSecret));
+<span class="tok-key">var</span> signature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(message))).ToLower();
+
+<span class="tok-key">using</span> <span class="tok-key">var</span> http = <span class="tok-key">new</span> HttpClient();
+http.DefaultRequestHeaders.Add(<span class="tok-str">"Authorization"</span>, <span class="tok-str">$"Bearer {apiKey}:{signature}:{timestamp}:{nonce}"</span>);
+
+<span class="tok-key">var</span> res = <span class="tok-key">await</span> http.GetAsync(<span class="tok-str">"https://panel.musteri.com/api/v1/products"</span>);
+Console.WriteLine(<span class="tok-key">await</span> res.Content.ReadAsStringAsync());</code></pre>
+                </div>
+            </div>
+
+            <!-- BEST PRACTICES -->
+            <h2>5. En İyi Uygulamalar</h2>
+            <ul class="check-list">
+                <li><strong>Nonce tekrarlamayın.</strong> Her istek için yeni bir rasgele nonce üretin; aynı nonce reddedilebilir.</li>
+                <li><strong>Timestamp güncel olsun.</strong> Mevcut saatten ±5 dakika dışında üretilmiş imzalar reddedilir.</li>
+                <li><strong>HTTPS kullanın.</strong> HTTP üzerinden çalışan istekler üretim ortamında kapatılmıştır.</li>
+                <li><strong>Secret'ı döndürün.</strong> Yılda en az bir kez API Secret değerini yenileyin.</li>
+                <li><strong>Minimum yetki prensibi.</strong> Her entegrasyona sadece ihtiyacı kadar permission scope verin.</li>
+                <li><strong>Logları maskeleyin.</strong> Authorization header'ı üretim loglarına yazılmamalıdır.</li>
+            </ul>
+
+            <!-- CRON TOKEN -->
+            <h2>6. Cron Token (Planlı İşler)</h2>
+            <p>Planlı senkronizasyon işleri (<code>/cron/*</code> endpointleri) farklı bir mekanizma kullanır. Cron isteklerinde HMAC yerine ayrı bir başlık gönderilir:</p>
+
+            <pre class="has-lang"><span class="code-lang">bash</span><code>curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-orders"</span> \
+     -H <span class="tok-str">"X-Cron-Token: your_cron_token_here"</span></code></pre>
+
+            <div class="callout callout-warning">
+                <p><strong>Önemli.</strong> Cron token'ı sadece sunucu taraflı planlı görevlerde kullanın. Tarayıcıdan veya mobil uygulamadan çağırmayın.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="01-onkosullar.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">1. Ön Koşullar</div>
+                </a>
+                <a href="03-hizli-baslangic.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">3. Hızlı Başlangıç</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

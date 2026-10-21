@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="420" viewBox="0 0 1600 420" fill="none">
+  <circle cx="142" cy="188" r="63" stroke="#B8CCFF" stroke-width="12"/>
+  <circle cx="184" cy="188" r="63" stroke="#5F8FFF" stroke-width="12"/>
+  <circle cx="226" cy="188" r="63" stroke="#1967F2" stroke-width="12"/>
+  <circle cx="186" cy="188" r="17" fill="#AABEFF" stroke="#4547C8" stroke-width="8"/>
+  <circle cx="186" cy="188" r="6" fill="#4547C8"/>
+  <text x="310" y="220" fill="#101826" font-family="Gilroy, Arial, sans-serif" font-size="98" font-weight="800">Ozy</text>
+  <text x="471" y="220" fill="#1967F2" font-family="Gilroy, Arial, sans-serif" font-size="98" font-weight="800">Connect</text>
+</svg>

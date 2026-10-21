@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hızlı Başlangıç · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>Hızlı Başlangıç</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="04-endpointler.html" class="btn btn-primary">Sonraki: Endpointler →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 3 / 7</span>
+                <h1>Hızlı Başlangıç</h1>
+                <p class="lead">
+                    5 dakikada ilk API isteğinizi göndermek ve canlı yanıtı görmek için
+                    ihtiyacınız olan her şey burada. Aşağıdaki adımları sırayla takip
+                    etmeniz yeterli.
+                </p>
+            </section>
+
+            <!-- 5 MIN PLAN -->
+            <h2>5 Dakikalık Entegrasyon Planı</h2>
+
+            <ol class="steps">
+                <li>
+                    <h3>Taban URL'i Yapılandırın</h3>
+                    <p>Panelinize özel URL'i değişken olarak tanımlayın.</p>
+                    <pre class="has-lang"><span class="code-lang">env</span><code>OZY_BASE_URL=https://panel.musteri.com
+OZY_API_KEY=oxy_abc123def456
+OZY_API_SECRET=your_api_secret_here</code></pre>
+                </li>
+
+                <li>
+                    <h3>Bağlantıyı Test Edin (Ping)</h3>
+                    <p>Kimlik doğrulamaya gerek duymayan <code>/api/v1/ping</code> endpoint'i ile iletişimi doğrulayın.</p>
+                    <pre class="has-lang"><span class="code-lang">bash</span><code>curl -s <span class="tok-str">"$OZY_BASE_URL/api/v1/ping"</span>
+
+<span class="tok-com"># Beklenen yanıt:</span>
+<span class="tok-com"># {"status":"ok","version":"1.0.0","time":"2026-04-28T09:21:14Z"}</span></code></pre>
+                </li>
+
+                <li>
+                    <h3>İlk Kimlik Doğrulamalı İsteği Gönderin</h3>
+                    <p><code>GET /api/v1/products?page=1&amp;per_page=5</code> çağrısı ile ilk ürünleri alın.</p>
+                    <pre class="has-lang"><span class="code-lang">bash</span><code><span class="tok-com"># Bu örnek önceden üretilmiş bir imza ile çalışır.</span>
+<span class="tok-com"># Gerçek projede aşağıdaki Authorization'ı dinamik üretmelisiniz.</span>
+curl -s <span class="tok-str">"$OZY_BASE_URL/api/v1/products?page=1&amp;per_page=5"</span> \
+     -H <span class="tok-str">"Authorization: Bearer $OZY_API_KEY:$SIGNATURE:$TIMESTAMP:$NONCE"</span> \
+     -H <span class="tok-str">"Content-Type: application/json"</span></code></pre>
+                </li>
+
+                <li>
+                    <h3>Yanıtı Doğrulayın</h3>
+                    <p>Başarılı yanıt aşağıdaki yapıda gelir. Eğer <code>401</code> alıyorsanız <a href="02-kimlik-dogrulama.html">Kimlik Doğrulama</a> adımını, <code>403</code> alıyorsanız token'ınızın yetki kapsamını kontrol edin.</p>
+                    <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"data"</span>: [
+    {
+      <span class="tok-str">"id"</span>: <span class="tok-num">1</span>,
+      <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD001"</span>,
+      <span class="tok-str">"name"</span>: <span class="tok-str">"Ürün Adı"</span>,
+      <span class="tok-str">"price"</span>: <span class="tok-num">99.99</span>,
+      <span class="tok-str">"stock"</span>: <span class="tok-num">100</span>,
+      <span class="tok-str">"status"</span>: <span class="tok-str">"published"</span>
+    }
+  ],
+  <span class="tok-str">"pagination"</span>: {
+    <span class="tok-str">"total"</span>: <span class="tok-num">250</span>,
+    <span class="tok-str">"page"</span>: <span class="tok-num">1</span>,
+    <span class="tok-str">"per_page"</span>: <span class="tok-num">5</span>
+  }
+}</code></pre>
+                </li>
+
+                <li>
+                    <h3>Entegrasyonunuzu Canlıya Alın</h3>
+                    <p>Staging ortamında testleri tamamladıktan sonra üretim ortamı için yeni bir API Key talep edin, IP whitelist tanımlayın ve trafiği kademeli olarak yönlendirin.</p>
+                </li>
+            </ol>
+
+            <!-- COMPLETE EXAMPLE -->
+            <h2>Uçtan Uca Çalışan Örnek (PHP)</h2>
+            <p>Aşağıdaki tek dosyalık örnek, tüm süreci tek bir yerde gösterir: imza üretimi, HTTP isteği, yanıt işleme ve hata yönetimi.</p>
+
+            <pre class="has-lang"><span class="code-lang">ozyconnect-client.php</span><code><span class="tok-key">&lt;?php</span>
+<span class="tok-key">declare</span>(strict_types=<span class="tok-num">1</span>);
+
+<span class="tok-key">class</span> <span class="tok-fn">OzyConnectClient</span>
+{
+    <span class="tok-key">private</span> string <span class="tok-key">$baseUrl</span>;
+    <span class="tok-key">private</span> string <span class="tok-key">$apiKey</span>;
+    <span class="tok-key">private</span> string <span class="tok-key">$apiSecret</span>;
+
+    <span class="tok-key">public function</span> <span class="tok-fn">__construct</span>(string <span class="tok-key">$baseUrl</span>, string <span class="tok-key">$apiKey</span>, string <span class="tok-key">$apiSecret</span>)
+    {
+        <span class="tok-key">$this</span>-&gt;baseUrl   = rtrim(<span class="tok-key">$baseUrl</span>, <span class="tok-str">'/'</span>);
+        <span class="tok-key">$this</span>-&gt;apiKey    = <span class="tok-key">$apiKey</span>;
+        <span class="tok-key">$this</span>-&gt;apiSecret = <span class="tok-key">$apiSecret</span>;
+    }
+
+    <span class="tok-key">public function</span> <span class="tok-fn">request</span>(string <span class="tok-key">$method</span>, string <span class="tok-key">$endpoint</span>, array <span class="tok-key">$query</span> = [], array <span class="tok-key">$body</span> = []): array
+    {
+        <span class="tok-key">$method</span>    = strtoupper(<span class="tok-key">$method</span>);
+        <span class="tok-key">$timestamp</span> = time();
+        <span class="tok-key">$nonce</span>     = bin2hex(random_bytes(<span class="tok-num">8</span>));
+
+        <span class="tok-key">$message</span>   = <span class="tok-str">"{$method}\n{$endpoint}\n{$timestamp}\n{$nonce}"</span>;
+        <span class="tok-key">$signature</span> = hash_hmac(<span class="tok-str">'sha256'</span>, <span class="tok-key">$message</span>, <span class="tok-key">$this</span>-&gt;apiSecret);
+
+        <span class="tok-key">$url</span> = <span class="tok-key">$this</span>-&gt;baseUrl . <span class="tok-key">$endpoint</span>;
+        <span class="tok-key">if</span> (<span class="tok-key">$query</span>) {
+            <span class="tok-key">$url</span> .= <span class="tok-str">'?'</span> . http_build_query(<span class="tok-key">$query</span>);
+        }
+
+        <span class="tok-key">$ch</span> = curl_init(<span class="tok-key">$url</span>);
+        curl_setopt_array(<span class="tok-key">$ch</span>, [
+            CURLOPT_CUSTOMREQUEST  =&gt; <span class="tok-key">$method</span>,
+            CURLOPT_RETURNTRANSFER =&gt; <span class="tok-key">true</span>,
+            CURLOPT_TIMEOUT        =&gt; <span class="tok-num">30</span>,
+            CURLOPT_HTTPHEADER     =&gt; [
+                <span class="tok-str">"Authorization: Bearer {$this-&gt;apiKey}:{$signature}:{$timestamp}:{$nonce}"</span>,
+                <span class="tok-str">'Content-Type: application/json'</span>,
+                <span class="tok-str">'Accept: application/json'</span>,
+            ],
+            CURLOPT_POSTFIELDS     =&gt; <span class="tok-key">$body</span> ? json_encode(<span class="tok-key">$body</span>, JSON_UNESCAPED_UNICODE) : <span class="tok-key">null</span>,
+        ]);
+
+        <span class="tok-key">$raw</span>    = curl_exec(<span class="tok-key">$ch</span>);
+        <span class="tok-key">$status</span> = curl_getinfo(<span class="tok-key">$ch</span>, CURLINFO_HTTP_CODE);
+        <span class="tok-key">$err</span>    = curl_error(<span class="tok-key">$ch</span>);
+        curl_close(<span class="tok-key">$ch</span>);
+
+        <span class="tok-key">if</span> (<span class="tok-key">$raw</span> === <span class="tok-key">false</span>) {
+            <span class="tok-key">throw new</span> <span class="tok-fn">RuntimeException</span>(<span class="tok-str">"HTTP hatası: {$err}"</span>);
+        }
+
+        <span class="tok-key">$data</span> = json_decode(<span class="tok-key">$raw</span>, <span class="tok-key">true</span>) ?? [];
+
+        <span class="tok-key">if</span> (<span class="tok-key">$status</span> &gt;= <span class="tok-num">400</span>) {
+            <span class="tok-key">throw new</span> <span class="tok-fn">RuntimeException</span>(<span class="tok-str">"API hatası {$status}: "</span> . (<span class="tok-key">$data</span>[<span class="tok-str">'message'</span>] ?? <span class="tok-str">'Bilinmeyen hata'</span>));
+        }
+
+        <span class="tok-key">return</span> <span class="tok-key">$data</span>;
+    }
+}
+
+<span class="tok-com">// --- Kullanım ---</span>
+<span class="tok-key">$client</span> = <span class="tok-key">new</span> <span class="tok-fn">OzyConnectClient</span>(
+    getenv(<span class="tok-str">'OZY_BASE_URL'</span>),
+    getenv(<span class="tok-str">'OZY_API_KEY'</span>),
+    getenv(<span class="tok-str">'OZY_API_SECRET'</span>)
+);
+
+<span class="tok-key">try</span> {
+    <span class="tok-key">$products</span> = <span class="tok-key">$client</span>-&gt;request(<span class="tok-str">'GET'</span>, <span class="tok-str">'/api/v1/products'</span>, [
+        <span class="tok-str">'page'</span>     =&gt; <span class="tok-num">1</span>,
+        <span class="tok-str">'per_page'</span> =&gt; <span class="tok-num">20</span>,
+    ]);
+    <span class="tok-key">foreach</span> (<span class="tok-key">$products</span>[<span class="tok-str">'data'</span>] <span class="tok-key">as</span> <span class="tok-key">$p</span>) {
+        echo <span class="tok-str">"#{$p['id']} {$p['sku']} — {$p['name']} ({$p['price']} TL)\n"</span>;
+    }
+} <span class="tok-key">catch</span> (<span class="tok-fn">RuntimeException</span> <span class="tok-key">$e</span>) {
+    fwrite(STDERR, <span class="tok-key">$e</span>-&gt;getMessage() . <span class="tok-str">"\n"</span>);
+    exit(<span class="tok-num">1</span>);
+}</code></pre>
+
+            <div class="callout callout-success">
+                <p><strong>Tebrikler!</strong> Bu örneği çalıştırabildiyseniz entegrasyonun temeli hazır demektir. Üretim öncesi mutlaka <a href="06-hata-yonetimi.html">Hata Yönetimi</a> sayfasını okuyun.</p>
+            </div>
+
+            <!-- COMMON PITFALLS -->
+            <h2>Sık Yapılan Hatalar</h2>
+
+            <div class="callout callout-warning">
+                <p><strong>Endpoint'e query string ekleyerek imzalamak.</strong> İmzalanan mesajda endpoint değeri <em>sorgu parametreleri hariç</em> olmalıdır. Aksi halde sunucu farklı bir imza hesaplar ve <code>401</code> alırsınız.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <p><strong>Timestamp'i milisaniye olarak göndermek.</strong> Unix timestamp saniye cinsinden olmalıdır. <code>time()</code> veya <code>Math.floor(Date.now() / 1000)</code> kullanın.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <p><strong>Boş POST body'si göndermek.</strong> <code>Content-Type: application/json</code> başlığı ile birlikte boş body gönderilirse bazı istemciler <code>{}</code> yerine hiçbir şey yollamaz. Bu sorun yaşıyorsanız açıkça <code>{}</code> yollayın.</p>
+            </div>
+
+            <div class="callout callout-warning">
+                <p><strong>Aynı nonce'u tekrar kullanmak.</strong> Her çağrı için yeni bir rasgele nonce üretin. Aynı nonce + timestamp kombinasyonu tekrar eden istek olarak algılanabilir.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="02-kimlik-dogrulama.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">2. Kimlik Doğrulama</div>
+                </a>
+                <a href="04-endpointler.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">4. API Endpointleri</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

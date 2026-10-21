@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OzyConnect API — Kurulum ve Entegrasyon Rehberi</title>
+    <meta name="description" content="OzyConnect Panel REST API'sine entegre olmak için müşteri kurulum rehberi. Kimlik doğrulama, endpointler, örnek kodlar ve hata yönetimi.">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><strong>OzyConnect API</strong> · Genel Bakış</div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="03-hizli-baslangic.html" class="btn btn-primary">Hızlı Başlangıç</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <!-- HERO -->
+            <section class="hero">
+                <span class="eyebrow">Sürüm 1.0.0 · Nisan 2026</span>
+                <h1>OzyConnect API Entegrasyon Rehberi</h1>
+                <p class="lead">
+                    Bu rehber, OzyConnect Panel REST API'sine entegre olmanız için gereken
+                    tüm adımları içerir. Kimlik doğrulama yapısından örnek kodlara ve hata
+                    yönetimine kadar her şeyi ayrıntılarıyla bulacaksınız.
+                </p>
+                <div class="hero-meta">
+                    <div>Sürüm: <strong>v1.0.0</strong></div>
+                    <div>Protokol: <strong>REST / JSON</strong></div>
+                    <div>Doğrulama: <strong>HMAC-SHA256</strong></div>
+                    <div>Taban URL: <strong>/api/v1</strong></div>
+                </div>
+            </section>
+
+            <!-- QUICK CARDS -->
+            <h2>Nereden Başlamalısınız?</h2>
+            <p>Bu rehber müşteri entegrasyon sürecini yedi adıma bölmüştür. İhtiyacınız olan adıma doğrudan gidebilir ya da sırayla ilerleyebilirsiniz.</p>
+
+            <div class="card-grid">
+                <a href="01-onkosullar.html" class="card">
+                    <div class="card-step">1</div>
+                    <h3>Ön Koşullar</h3>
+                    <p>Entegrasyon öncesi sistem gereksinimleri, sunucu IP'si ve OzyConnect erişim bilgileri.</p>
+                    <span class="card-link">Başla →</span>
+                </a>
+                <a href="02-kimlik-dogrulama.html" class="card">
+                    <div class="card-step">2</div>
+                    <h3>Kimlik Doğrulama</h3>
+                    <p>API Key + Secret oluşturma, HMAC-SHA256 imzalama ve güvenli Authorization başlığı.</p>
+                    <span class="card-link">İncele →</span>
+                </a>
+                <a href="03-hizli-baslangic.html" class="card">
+                    <div class="card-step">3</div>
+                    <h3>Hızlı Başlangıç</h3>
+                    <p>5 dakikada ilk isteğinizi gönderin ve canlı yanıtı görün.</p>
+                    <span class="card-link">Dene →</span>
+                </a>
+                <a href="04-endpointler.html" class="card">
+                    <div class="card-step">4</div>
+                    <h3>Endpoint Referansı</h3>
+                    <p>Ürünler, siparişler, kategoriler, markalar, stok ve cron işleri endpointleri.</p>
+                    <span class="card-link">Keşfet →</span>
+                </a>
+                <a href="05-ornek-kodlar.html" class="card">
+                    <div class="card-step">5</div>
+                    <h3>Kod Örnekleri</h3>
+                    <p>PHP, Node.js, Python, C# ve cURL örnekleri ile hazır entegrasyon kodları.</p>
+                    <span class="card-link">Kopyala →</span>
+                </a>
+                <a href="06-hata-yonetimi.html" class="card">
+                    <div class="card-step">6</div>
+                    <h3>Hata Yönetimi</h3>
+                    <p>HTTP kodları, rate limit davranışı ve üretim ortamında doğru hata işleme.</p>
+                    <span class="card-link">Hazırlan →</span>
+                </a>
+            </div>
+
+            <!-- WHAT YOU GET -->
+            <h2>Bu Entegrasyon Size Ne Sağlar?</h2>
+            <p>OzyConnect REST API, e-ticaret operasyonlarınızı tek bir yerden yönetmek için geliştirilmiştir. Aşağıdaki yetenekler entegrasyonunuzda doğrudan kullanılabilir:</p>
+
+            <ul class="feature-list">
+                <li><span class="check">✓</span><div><strong>Ürün Yönetimi</strong> — Listeleme, oluşturma, güncelleme ve pazaryerine senkronizasyon.</div></li>
+                <li><span class="check">✓</span><div><strong>Sipariş Akışı</strong> — Tüm pazaryerlerinden gelen siparişleri tek bir API üzerinden yönetin.</div></li>
+                <li><span class="check">✓</span><div><strong>Stok &amp; Fiyat</strong> — Gerçek zamanlı stok/fiyat güncellemeleri ve toplu işlem desteği.</div></li>
+                <li><span class="check">✓</span><div><strong>Kategori &amp; Marka</strong> — Ağaç yapısı, pazaryeri eşleştirmesi, otomatik senkronizasyon.</div></li>
+                <li><span class="check">✓</span><div><strong>Güvenli Erişim</strong> — HMAC-SHA256 imzalı istekler, IP whitelist, rate limit.</div></li>
+                <li><span class="check">✓</span><div><strong>Otomasyon</strong> — Cron endpointleri ile planlanmış görev desteği.</div></li>
+            </ul>
+
+            <!-- TECHNICAL FACTS -->
+            <h2>Teknik Özet</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:32%">Başlık</th>
+                            <th>Değer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Taban URL</td><td><code>https://{site-adresi}/api/v1</code></td></tr>
+                        <tr><td>Format</td><td>JSON (<code>Content-Type: application/json</code>)</td></tr>
+                        <tr><td>Karakter Seti</td><td>UTF-8</td></tr>
+                        <tr><td>Tarih Formatı</td><td>ISO 8601 — <code>YYYY-MM-DDTHH:MM:SSZ</code></td></tr>
+                        <tr><td>Sayfalama</td><td><code>page</code> (1 tabanlı) &amp; <code>per_page</code> (max: 100)</td></tr>
+                        <tr><td>Kimlik Doğrulama</td><td>Bearer token &amp; HMAC-SHA256 imzası</td></tr>
+                        <tr><td>Rate Limit</td><td>Token başına yapılandırılabilir (varsayılan 10 req/sn)</td></tr>
+                        <tr><td>TLS</td><td>Üretim ortamında HTTPS zorunludur</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout callout-info">
+                <p><strong>İpucu.</strong> Bu dokümantasyon set olarak teslim edilmiştir. Sol menüden adımlar arasında gezinebilir, üst menüdeki <em>Yazdır / PDF</em> bağlantısı ile PDF çıktısı alabilirsiniz.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <div></div>
+                <a href="01-onkosullar.html" class="next">
+                    <div class="label">Sonraki adım →</div>
+                    <div class="title">1. Ön Koşullar</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="assets/script.js"></script>
+</body>
+</html>

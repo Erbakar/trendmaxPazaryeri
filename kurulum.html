@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OzyConnect Panel Kurulum Rehberi</title>
+    <meta name="description" content="OzyConnect Panel için profesyonel kurulum, sistem gereksinimleri, ilk yapılandırma ve yayın sonrası kontrol rehberi.">
+    <style>
+        @font-face {
+            font-family: "Gilroy";
+            src: url("public/assets/fonts/subset-Gilroy-Regular.woff2") format("woff2");
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: "Gilroy";
+            src: url("public/assets/fonts/subset-Gilroy-Semibold.woff2") format("woff2");
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        @font-face {
+            font-family: "Gilroy";
+            src: url("public/assets/fonts/subset-Gilroy-Bold.woff2") format("woff2");
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            --bg: #f4f7fb;
+            --surface: #ffffff;
+            --surface-soft: #f8fafc;
+            --surface-strong: #0f172a;
+            --text: #101826;
+            --muted: #5f6f86;
+            --muted-2: #8a98aa;
+            --line: #dce4ef;
+            --line-soft: #edf2f7;
+            --primary: #1967f2;
+            --primary-dark: #0f52d4;
+            --primary-soft: #e9f1ff;
+            --success: #14946b;
+            --success-soft: #e6f7f0;
+            --warning: #b7791f;
+            --warning-soft: #fff5db;
+            --danger: #cc3340;
+            --danger-soft: #ffecef;
+            --cyan: #0891b2;
+            --cyan-soft: #e7f8fc;
+            --radius: 8px;
+            --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+            --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --font: "Gilroy", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font);
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        img {
+            max-width: 100%;
+            display: block;
+        }
+
+        code {
+            font-family: var(--mono);
+            font-size: 0.92em;
+            color: #17345e;
+            background: #eef4fb;
+            border: 1px solid #dce8f6;
+            border-radius: 6px;
+            padding: 2px 6px;
+        }
+
+        .shell {
+            min-height: 100vh;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.88);
+            border-bottom: 1px solid var(--line);
+            backdrop-filter: blur(18px);
+        }
+
+        .topbar-inner,
+        .wrap {
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        .topbar-inner {
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        .brand img {
+            width: 188px;
+            height: auto;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .nav a {
+            color: var(--muted);
+            padding: 8px 10px;
+            border-radius: 7px;
+        }
+
+        .nav a:hover {
+            color: var(--primary);
+            background: var(--primary-soft);
+        }
+
+        .hero {
+            padding: 56px 0 34px;
+            background:
+                linear-gradient(180deg, #ffffff 0%, #f8fbff 68%, var(--bg) 100%);
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+            align-items: center;
+            gap: 38px;
+        }
+
+        .kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 6px 10px;
+            border: 1px solid #cde0ff;
+            border-radius: 999px;
+            color: var(--primary-dark);
+            background: var(--primary-soft);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0 0 18px;
+            max-width: 780px;
+            font-size: clamp(34px, 6vw, 64px);
+            line-height: 1.02;
+            letter-spacing: 0;
+        }
+
+        .lead {
+            max-width: 720px;
+            margin: 0 0 26px;
+            color: var(--muted);
+            font-size: 18px;
+            line-height: 1.78;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            min-height: 42px;
+            padding: 10px 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            background: #ffffff;
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            border-color: #b7c8df;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary {
+            color: #ffffff;
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 8px 22px rgba(25, 103, 242, 0.22);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .btn svg,
+        .icon svg {
+            width: 17px;
+            height: 17px;
+            stroke-width: 2.2;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .hero-meta li {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #42526a;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .visual {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .visual-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .visual-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .icon-box {
+            width: 42px;
+            height: 42px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            color: var(--primary);
+            background: var(--primary-soft);
+            border-radius: 8px;
+        }
+
+        .visual-title strong {
+            display: block;
+            font-size: 15px;
+            line-height: 1.25;
+        }
+
+        .visual-title span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--success);
+            background: var(--success-soft);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .visual-body {
+            padding: 20px;
+        }
+
+        .setup-list {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .setup-list li {
+            display: grid;
+            grid-template-columns: 34px 1fr auto;
+            align-items: center;
+            gap: 12px;
+            min-height: 54px;
+            padding: 11px 12px;
+            border: 1px solid var(--line-soft);
+            border-radius: 8px;
+            background: var(--surface-soft);
+        }
+
+        .step-no {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            color: #ffffff;
+            background: var(--surface-strong);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .setup-list strong {
+            display: block;
+            font-size: 14px;
+            line-height: 1.25;
+        }
+
+        .setup-list span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 25px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            color: #33506f;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .section {
+            padding: 46px 0;
+        }
+
+        .section + .section {
+            border-top: 1px solid var(--line);
+        }
+
+        .section-heading {
+            display: grid;
+            grid-template-columns: minmax(0, 0.7fr) minmax(280px, 0.3fr);
+            gap: 24px;
+            align-items: end;
+            margin-bottom: 22px;
+        }
+
+        .section h2 {
+            margin: 0;
+            font-size: clamp(26px, 4vw, 38px);
+            line-height: 1.12;
+            letter-spacing: 0;
+        }
+
+        .section-desc {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .card,
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+        }
+
+        .card {
+            padding: 20px;
+        }
+
+        .card .icon-box {
+            margin-bottom: 14px;
+        }
+
+        .card h3,
+        .panel h3 {
+            margin: 0 0 8px;
+            font-size: 17px;
+            line-height: 1.3;
+        }
+
+        .card p,
+        .panel p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .panel {
+            overflow: hidden;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--line-soft);
+            background: #fbfdff;
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        .timeline {
+            display: grid;
+            gap: 12px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .timeline li {
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 14px;
+            position: relative;
+        }
+
+        .timeline li:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            left: 21px;
+            top: 48px;
+            bottom: -8px;
+            width: 2px;
+            background: var(--line);
+        }
+
+        .timeline-num {
+            position: relative;
+            z-index: 2;
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            background: var(--primary-soft);
+            border: 1px solid #cde0ff;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        .timeline-content {
+            padding: 10px 0 18px;
+        }
+
+        .timeline-content h3 {
+            margin: 0 0 6px;
+            font-size: 17px;
+            line-height: 1.32;
+        }
+
+        .timeline-content p {
+            margin: 0 0 10px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .check-list {
+            display: grid;
+            gap: 9px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .check-list li {
+            display: grid;
+            grid-template-columns: 24px 1fr;
+            gap: 10px;
+            align-items: start;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .check-list .icon {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--success);
+            background: var(--success-soft);
+            border-radius: 50%;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 13px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--line-soft);
+            vertical-align: top;
+        }
+
+        th {
+            color: #31425a;
+            background: #f8fafc;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.55px;
+            text-transform: uppercase;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        td {
+            color: var(--muted);
+        }
+
+        td strong {
+            color: var(--text);
+        }
+
+        .notice {
+            display: grid;
+            grid-template-columns: 42px 1fr;
+            gap: 14px;
+            align-items: start;
+            padding: 18px;
+            border: 1px solid #bfe5f0;
+            border-radius: var(--radius);
+            color: #12495b;
+            background: var(--cyan-soft);
+        }
+
+        .notice.warning {
+            border-color: #f1d597;
+            color: #604415;
+            background: var(--warning-soft);
+        }
+
+        .notice.danger {
+            border-color: #ffc8d0;
+            color: #6f1d27;
+            background: var(--danger-soft);
+        }
+
+        .notice strong {
+            display: block;
+            margin-bottom: 3px;
+            color: inherit;
+        }
+
+        .notice p {
+            margin: 0;
+            color: inherit;
+            font-size: 14px;
+        }
+
+        .command {
+            position: relative;
+            margin: 12px 0 0;
+            padding: 16px 52px 16px 16px;
+            border-radius: 8px;
+            color: #dbeafe;
+            background: #111827;
+            overflow-x: auto;
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 7px;
+            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.07);
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .kbd-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .kbd {
+            display: inline-flex;
+            align-items: center;
+            min-height: 30px;
+            padding: 5px 9px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            color: #31425a;
+            background: #ffffff;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .footer {
+            padding: 34px 0 44px;
+            color: var(--muted);
+            background: #ffffff;
+            border-top: 1px solid var(--line);
+        }
+
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+            font-size: 13px;
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 980px) {
+            .hero-grid,
+            .section-heading,
+            .split {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-3,
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .visual {
+                max-width: 680px;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .topbar-inner,
+            .wrap,
+            .footer-inner {
+                width: min(100% - 28px, 1180px);
+            }
+
+            .topbar-inner {
+                min-height: auto;
+                padding: 14px 0;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .brand img {
+                width: 162px;
+            }
+
+            .nav {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 2px;
+            }
+
+            .hero {
+                padding-top: 38px;
+            }
+
+            .lead {
+                font-size: 16px;
+            }
+
+            .setup-list li {
+                grid-template-columns: 34px 1fr;
+            }
+
+            .setup-list .tag {
+                grid-column: 2;
+                justify-self: start;
+            }
+
+            .panel-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .footer-inner {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                color: #000000;
+            }
+
+            .topbar,
+            .hero-actions,
+            .copy-btn,
+            .footer-links {
+                display: none !important;
+            }
+
+            .hero,
+            .section,
+            .footer {
+                padding: 22px 0;
+                background: #ffffff;
+            }
+
+            .visual,
+            .card,
+            .panel,
+            .table-wrap,
+            .notice {
+                box-shadow: none;
+                break-inside: avoid;
+            }
+
+            .wrap,
+            .footer-inner {
+                width: 100%;
+            }
+
+            a {
+                color: #000000;
+                text-decoration: underline;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <header class="topbar" aria-label="Üst menü">
+        <div class="topbar-inner">
+            <a class="brand" href="./kurulum.html" aria-label="OzyConnect kurulum rehberi">
+                <img src="public/assets/img/branding/ozyconnect/ozyconnect-logo-login-blue.svg" alt="OzyConnect">
+            </a>
+            <nav class="nav" aria-label="Sayfa bağlantıları">
+                <a href="#gereksinimler">Gereksinimler</a>
+                <a href="#adimlar">Kurulum</a>
+                <a href="#yayina-alma">Yayın</a>
+                <a href="#sorun-giderme">Destek</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="wrap hero-grid">
+                <div>
+                    <span class="kicker"><span data-lucide="shield-check"></span> Sürüm 1.0.0 Kurulum Dokümanı</span>
+                    <h1>OzyConnect Panel kurulumunu kontrollü ve temiz şekilde tamamlayın.</h1>
+                    <p class="lead">
+                        Bu rehber; sunucu hazırlığı, veritabanı kurulumu, installer sihirbazı, ilk giriş ve canlıya alma kontrollerini tek akışta toplar. WAMP, cPanel veya standart Apache/PHP ortamlarında güvenli kurulum için kullanılabilir.
+                    </p>
+                    <div class="hero-actions">
+                        <a class="btn btn-primary" href="installer.php" title="Kurulum sihirbazını aç">
+                            <span data-lucide="play-circle"></span>
+                            Kurulumu Başlat
+                        </a>
+                        <a class="btn" href="api-kurulum/index.html" title="API entegrasyon dokümanını aç">
+                            <span data-lucide="book-open"></span>
+                            API Rehberi
+                        </a>
+                        <button class="btn" type="button" data-print title="Bu rehberi yazdır">
+                            <span data-lucide="printer"></span>
+                            Yazdır
+                        </button>
+                    </div>
+                    <ul class="hero-meta" aria-label="Teknik özet">
+                        <li><span data-lucide="server"></span> PHP 8.2+</li>
+                        <li><span data-lucide="database"></span> MySQL / MariaDB</li>
+                        <li><span data-lucide="lock"></span> HTTPS önerilir</li>
+                        <li><span data-lucide="clock-3"></span> Europe/Istanbul</li>
+                    </ul>
+                </div>
+
+                <aside class="visual" aria-label="Kurulum özeti">
+                    <div class="visual-head">
+                        <div class="visual-title">
+                            <span class="icon-box"><span data-lucide="activity"></span></span>
+                            <div>
+                                <strong>Kurulum Akışı</strong>
+                                <span>Ortalama tamamlanma: 10-15 dakika</span>
+                            </div>
+                        </div>
+                        <span class="status-pill"><span class="status-dot"></span> Hazır</span>
+                    </div>
+                    <div class="visual-body">
+                        <ol class="setup-list">
+                            <li>
+                                <span class="step-no">1</span>
+                                <div>
+                                    <strong>Sunucuyu hazırla</strong>
+                                    <span>PHP eklentileri, mod_rewrite ve yazma izinleri</span>
+                                </div>
+                                <span class="tag">Kontrol</span>
+                            </li>
+                            <li>
+                                <span class="step-no">2</span>
+                                <div>
+                                    <strong>Veritabanını bağla</strong>
+                                    <span>Installer otomatik oluşturup schema/seed çalıştırır</span>
+                                </div>
+                                <span class="tag">MySQL</span>
+                            </li>
+                            <li>
+                                <span class="step-no">3</span>
+                                <div>
+                                    <strong>Admin hesabını oluştur</strong>
+                                    <span>İlk yetkili kullanıcı ve panel oturumu</span>
+                                </div>
+                                <span class="tag">Güvenlik</span>
+                            </li>
+                            <li>
+                                <span class="step-no">4</span>
+                                <div>
+                                    <strong>Canlı kontrolleri yap</strong>
+                                    <span>Pazaryeri, fatura, cron, yedekleme ve loglar</span>
+                                </div>
+                                <span class="tag">Yayın</span>
+                            </li>
+                        </ol>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <section class="section" id="gereksinimler">
+            <div class="wrap">
+                <div class="section-heading">
+                    <div>
+                        <h2>Sistem Gereksinimleri</h2>
+                    </div>
+                    <p class="section-desc">Kuruluma başlamadan önce aşağıdaki servislerin ve izinlerin hazır olması gerekir. Installer ilk adımda bunların çoğunu otomatik kontrol eder.</p>
+                </div>
+
+                <div class="grid-3">
+                    <article class="card">
+                        <span class="icon-box"><span data-lucide="cpu"></span></span>
+                        <h3>Çalışma Ortamı</h3>
+                        <p>PHP 8.2 veya üzeri, Apache, mod_rewrite ve UTF-8 uyumlu MySQL/MariaDB veritabanı.</p>
+                    </article>
+                    <article class="card">
+                        <span class="icon-box"><span data-lucide="package-check"></span></span>
+                        <h3>PHP Eklentileri</h3>
+                        <p><code>pdo_mysql</code>, <code>curl</code>, <code>openssl</code>, <code>mbstring</code>, <code>json</code> ve <code>fileinfo</code>.</p>
+                    </article>
+                    <article class="card">
+                        <span class="icon-box"><span data-lucide="folder-cog"></span></span>
+                        <h3>Yazma İzinleri</h3>
+                        <p><code>storage</code>, <code>public/uploads</code> ve installer sırasında oluşturulan <code>.env</code> dosyası yazılabilir olmalı.</p>
+                    </article>
+                </div>
+
+                <div style="height:16px"></div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Başlık</th>
+                                <th>Önerilen Değer</th>
+                                <th>Not</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PHP</strong></td>
+                                <td>8.2+</td>
+                                <td>Composer gereksinimi <code>php &gt;=8.2</code> olarak tanımlıdır.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Veritabanı</strong></td>
+                                <td>MySQL 5.7+ / MariaDB 10.4+</td>
+                                <td>Karakter seti <code>utf8mb4</code>, karşılaştırma <code>utf8mb4_unicode_ci</code> kullanılmalıdır.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Web Sunucusu</strong></td>
+                                <td>Apache + mod_rewrite</td>
+                                <td>Kök dizindeki <code>.htaccess</code> statik dosya, güvenlik ve rota yönlendirmelerini yönetir.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Dosya İzinleri</strong></td>
+                                <td>Yazılabilir storage klasörleri</td>
+                                <td><code>storage/logs</code>, <code>storage/cache</code>, <code>storage/feeds</code>, <code>storage/invoices</code>, <code>storage/backups</code>.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>URL</strong></td>
+                                <td><code>http://localhost</code> veya alan adınız</td>
+                                <td>Installer bu değeri <code>APP_URL</code> olarak <code>.env</code> dosyasına yazar.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Güvenlik</strong></td>
+                                <td>HTTPS, güçlü admin şifresi, kapalı debug</td>
+                                <td>Canlı ortamda <code>APP_ENV=production</code> ve <code>APP_DEBUG=false</code> kullanılmalıdır.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="adimlar">
+            <div class="wrap">
+                <div class="section-heading">
+                    <div>
+                        <h2>Adım Adım Kurulum</h2>
+                    </div>
+                    <p class="section-desc">Önerilen yöntem installer sihirbazıdır. Manuel müdahale sadece sunucu izinleri veya veritabanı erişimi kısıtlıysa gerekir.</p>
+                </div>
+
+                <div class="split">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Standart Installer Akışı</h3>
+                                <p>En hızlı ve düşük riskli kurulum yolu.</p>
+                            </div>
+                            <span class="tag">Önerilen</span>
+                        </div>
+                        <div class="panel-body">
+                            <ol class="timeline">
+                                <li>
+                                    <span class="timeline-num">1</span>
+                                    <div class="timeline-content">
+                                        <h3>Dosyaları sunucuya yükleyin</h3>
+                                        <p>Proje dosyalarını web köküne (<code>public_html</code> veya <code>www</code>) yükleyin. <code>vendor</code> klasörü yoksa composer bağımlılıklarını kurun.</p>
+                                        <div class="command" data-copy-text="composer install --no-dev --optimize-autoloader">
+                                            composer install --no-dev --optimize-autoloader
+                                            <button class="copy-btn" type="button" title="Komutu kopyala"><span data-lucide="copy"></span></button>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="timeline-num">2</span>
+                                    <div class="timeline-content">
+                                        <h3>Veritabanı bilgilerini hazırlayın</h3>
+                                        <p>Boş bir veritabanı adı, kullanıcı adı ve şifre belirleyin. Installer gerekirse veritabanını oluşturmayı dener.</p>
+                                        <div class="kbd-row">
+                                            <span class="kbd">DB_HOST</span>
+                                            <span class="kbd">DB_PORT</span>
+                                            <span class="kbd">DB_NAME</span>
+                                            <span class="kbd">DB_USER</span>
+                                        </div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="timeline-num">3</span>
+                                    <div class="timeline-content">
+                                        <h3><code>installer.php</code> dosyasını açın</h3>
+                                        <p>Tarayıcıdan <code>/installer.php</code> adresine gidin. Gereksinimler yeşilse veritabanı adımına geçin.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="timeline-num">4</span>
+                                    <div class="timeline-content">
+                                        <h3>Admin hesabını oluşturun</h3>
+                                        <p>Geçerli e-posta ve en az 8 karakterli güçlü şifre girin. Kurulum sonunda <code>.env</code> ve <code>installer_done.lock</code> oluşturulur.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="timeline-num">5</span>
+                                    <div class="timeline-content">
+                                        <h3>Panele giriş yapın</h3>
+                                        <p>Kurulum tamamlandığında <code>/login</code> adresinden giriş yapıp ilk ayarları tamamlayın.</p>
+                                    </div>
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <article class="card">
+                            <span class="icon-box"><span data-lucide="file-key-2"></span></span>
+                            <h3><code>.env</code> dosyası</h3>
+                            <p>Installer otomatik üretir. Canlı ortamda <code>APP_DEBUG=false</code>, doğru <code>APP_URL</code> ve güçlü <code>ENCRYPTION_KEY</code> kullanılmalıdır.</p>
+                        </article>
+                        <article class="card">
+                            <span class="icon-box"><span data-lucide="database-zap"></span></span>
+                            <h3>Schema ve seed</h3>
+                            <p><code>database/schema.sql</code> ve <code>database/seed.sql</code> kurulum sırasında veritabanına uygulanır.</p>
+                        </article>
+                        <article class="card">
+                            <span class="icon-box"><span data-lucide="route"></span></span>
+                            <h3>Rota kontrolü</h3>
+                            <p><code>.htaccess</code> kök istekleri <code>public/index.php</code> dosyasına yönlendirir. mod_rewrite kapalıysa panel açılmaz.</p>
+                        </article>
+                        <article class="card">
+                            <span class="icon-box"><span data-lucide="shield-alert"></span></span>
+                            <h3>Tekrar kurulum koruması</h3>
+                            <p><code>installer_done.lock</code> oluştuğunda installer erişimi engellenir. Bu dosyayı canlıda koruyun.</p>
+                        </article>
+                    </div>
+                </div>
+
+                <div style="height:16px"></div>
+
+                <div class="notice warning">
+                    <span class="icon-box" style="background:#ffffff;color:var(--warning)"><span data-lucide="triangle-alert"></span></span>
+                    <div>
+                        <strong>Kurulumdan önce yedek alın.</strong>
+                        <p>Mevcut bir kurulum üzerine işlem yapıyorsanız <code>.env</code>, <code>storage</code>, <code>public/uploads</code> ve veritabanını mutlaka yedekleyin.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="yayina-alma">
+            <div class="wrap">
+                <div class="section-heading">
+                    <div>
+                        <h2>İlk Yapılandırma ve Yayına Alma</h2>
+                    </div>
+                    <p class="section-desc">Panel açıldıktan sonra asıl operasyonel değer bu kontrollerle başlar: pazaryeri bağlantıları, cron işleri, fatura ayarları ve güvenlik.</p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Yayın Öncesi Kontrol Listesi</h3>
+                                <p>Canlı kullanım öncesinde tamamlanmalı.</p>
+                            </div>
+                            <span class="tag">8 kontrol</span>
+                        </div>
+                        <div class="panel-body">
+                            <ul class="check-list">
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Admin bilgileri:</strong> Varsayılan veya zayıf şifre bırakılmadı.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>APP_URL:</strong> Alan adı veya yerel yol doğru tanımlandı.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Debug:</strong> Canlı ortamda hata çıktısı kapatıldı.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Pazaryerleri:</strong> API anahtarları girildi ve bağlantı test edildi.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Fatura:</strong> GİB/e-Arşiv ayarları ve seri başlangıcı kontrol edildi.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Yedekleme:</strong> Otomatik veya manuel yedek akışı doğrulandı.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>Loglar:</strong> <code>storage/logs</code> yazılabilir ve erişime kapalı.</span></li>
+                                <li><span class="icon"><span data-lucide="check"></span></span><span><strong>HTTPS:</strong> Canlı domain SSL ile çalışıyor.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Cron Örnekleri</h3>
+                                <p>Panel otomasyonları için planlanmış görevler.</p>
+                            </div>
+                            <span class="tag">CLI</span>
+                        </div>
+                        <div class="panel-body">
+                            <p style="margin-top:0;color:var(--muted);font-size:14px">Sunucu cron paneline aşağıdaki komutları ihtiyaca göre ekleyin. Yolları kendi kurulum dizininize göre güncelleyin.</p>
+                            <div class="command" data-copy-text="php /home/kullanici/public_html/cron/sync_orders.php">
+                                php /home/kullanici/public_html/cron/sync_orders.php
+                                <button class="copy-btn" type="button" title="Komutu kopyala"><span data-lucide="copy"></span></button>
+                            </div>
+                            <div class="command" data-copy-text="php /home/kullanici/public_html/cron/sync_stock.php">
+                                php /home/kullanici/public_html/cron/sync_stock.php
+                                <button class="copy-btn" type="button" title="Komutu kopyala"><span data-lucide="copy"></span></button>
+                            </div>
+                            <div class="command" data-copy-text="php /home/kullanici/public_html/cron/generate_backups.php">
+                                php /home/kullanici/public_html/cron/generate_backups.php
+                                <button class="copy-btn" type="button" title="Komutu kopyala"><span data-lucide="copy"></span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:16px"></div>
+
+                <div class="notice">
+                    <span class="icon-box" style="background:#ffffff;color:var(--cyan)"><span data-lucide="info"></span></span>
+                    <div>
+                        <strong>API kullanacaksanız token oluşturun.</strong>
+                        <p>Panelde <code>Ayarlar / API Tokenları</code> bölümünden erişim anahtarı oluşturun. Entegrasyon detayları için <a href="api-kurulum/index.html">API kurulum rehberini</a> kullanabilirsiniz.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="sorun-giderme">
+            <div class="wrap">
+                <div class="section-heading">
+                    <div>
+                        <h2>Sorun Giderme</h2>
+                    </div>
+                    <p class="section-desc">Kurulum sırasında en sık görülen durumlar ve hızlı kontrol noktaları.</p>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Belirti</th>
+                                <th>Olası Neden</th>
+                                <th>Çözüm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Beyaz sayfa veya 500 hatası</strong></td>
+                                <td>PHP eklentisi eksik, veritabanı bağlantısı hatalı veya log dizini yazılamıyor.</td>
+                                <td><code>storage/logs</code> içindeki son logu kontrol edin, <code>.env</code> DB bilgilerini doğrulayın.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>404 veya rota çalışmıyor</strong></td>
+                                <td>Apache <code>mod_rewrite</code> kapalı ya da <code>.htaccess</code> okunmuyor.</td>
+                                <td>Apache yapılandırmasında <code>AllowOverride All</code> ve <code>mod_rewrite</code> aktif olmalı.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Installer devam etmiyor</strong></td>
+                                <td>Gereksinim kontrolünde eksik PHP eklentisi veya yazma izni var.</td>
+                                <td>Eksik satırı giderin, sayfayı yenileyin ve gereksinim kontrolünü tekrar çalıştırın.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Veritabanı bağlantı hatası</strong></td>
+                                <td>Kullanıcı yetkisi, host, port veya veritabanı adı yanlış.</td>
+                                <td>Kullanıcıya CREATE/ALTER/INSERT/UPDATE yetkisi verin veya mevcut DB adını girin.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Logo, CSS veya görseller gelmiyor</strong></td>
+                                <td>Statik dosya yolu veya web kök dizini yanlış konumlanmış olabilir.</td>
+                                <td>Kurulum klasörünün web kökünde olduğundan ve <code>public/assets</code> dosyalarının bulunduğundan emin olun.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="height:16px"></div>
+
+                <div class="notice danger">
+                    <span class="icon-box" style="background:#ffffff;color:var(--danger)"><span data-lucide="lock-keyhole"></span></span>
+                    <div>
+                        <strong>Canlı ortamda hassas dosyaları paylaşmayın.</strong>
+                        <p><code>.env</code>, veritabanı yedekleri, log dosyaları ve API anahtarları destek talebinde açık şekilde gönderilmemelidir. Gerekirse değerleri maskeleyin.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div>
+                <strong>OzyConnect Panel</strong><br>
+                Kurulum rehberi v1.0.0 - OziyWeb
+            </div>
+            <div class="footer-links">
+                <a href="LICENSING.html">Lisans</a>
+                <a href="api-kurulum/index.html">API Rehberi</a>
+                <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script src="public/assets/vendor/lucide/lucide.min.js"></script>
+<script>
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+
+    document.querySelector("[data-print]")?.addEventListener("click", function () {
+        window.print();
+    });
+
+    document.querySelectorAll(".command").forEach(function (block) {
+        const button = block.querySelector(".copy-btn");
+
+        button?.addEventListener("click", async function () {
+            const text = block.getAttribute("data-copy-text") || block.textContent.trim();
+
+            try {
+                await navigator.clipboard.writeText(text);
+                button.setAttribute("title", "Kopyalandı");
+                button.innerHTML = '<span data-lucide="check"></span>';
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+
+                window.setTimeout(function () {
+                    button.setAttribute("title", "Komutu kopyala");
+                    button.innerHTML = '<span data-lucide="copy"></span>';
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+                }, 1500);
+            } catch (error) {
+                button.setAttribute("title", "Kopyalama desteklenmiyor");
+            }
+        });
+    });
+</script>
+</body>
+</html>

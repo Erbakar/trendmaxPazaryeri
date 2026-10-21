@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Üst Menü Alternatifleri — 2 Satırlı</title>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@2.1.0/dist/iconify-icon.min.js"></script>
+<style>
+  :root{
+    --bg:#eef0f4; --card:#ffffff; --text:#1e2433; --muted:#7c8aa3; --border:#e6e9f0;
+    --primary:#4f46e5; --primary-2:#7c3aed; --primary-soft:rgba(79,70,229,.10);
+    --hover:#f1f3f8; --shadow:0 6px 22px rgba(40,50,90,.08); --logo2:#1e2433; --row2:#ffffff;
+  }
+  html[data-theme="dark"]{
+    --bg:#0f1320; --card:#171c2b; --text:#e7eaf3; --muted:#8b95ab; --border:#262d40;
+    --primary:#6d65f0; --primary-2:#9b6cf0; --primary-soft:rgba(109,101,240,.18);
+    --hover:#1e2435; --shadow:0 8px 28px rgba(0,0,0,.5); --logo2:#e7eaf3; --row2:#171c2b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,Roboto,sans-serif;-webkit-font-smoothing:antialiased;}
+  .page{max-width:1320px;margin:0 auto;padding:24px 22px 80px;}
+  .page-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .page-head h1{font-size:21px;margin:0;font-weight:800;letter-spacing:-.01em;}
+  .page-head p{margin:4px 0 0;color:var(--muted);font-size:13.5px;}
+  .tgl{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:30px;padding:8px 15px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--text);box-shadow:var(--shadow);}
+  .variant{margin-top:30px;}
+  .variant > .lbl{display:flex;align-items:center;gap:10px;margin:0 2px 11px;flex-wrap:wrap;}
+  .variant > .lbl .num{width:26px;height:26px;border-radius:8px;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;}
+  .variant > .lbl .name{font-weight:700;font-size:15px;}
+  .variant > .lbl .desc{color:var(--muted);font-size:12.5px;}
+
+  /* ===== shared 2-row shell ===== */
+  .hdr{border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+  .top{display:flex;align-items:center;gap:16px;height:58px;padding:0 18px;}
+  .logo{display:flex;align-items:center;gap:9px;flex-shrink:0;font-weight:800;font-size:18px;letter-spacing:-.02em;}
+  .logo .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;}
+  .logo .b{color:#f27a1a;} .logo .p{color:var(--logo2);} .logo small{font-size:8px;color:var(--muted);font-weight:600;margin-left:2px;}
+  .search{display:flex;align-items:center;gap:8px;flex:1;max-width:360px;height:38px;padding:0 13px;border-radius:9px;background:var(--hover);color:var(--muted);}
+  .search iconify-icon{font-size:18px;}
+  .search input{border:0;background:transparent;outline:0;color:var(--text);font-size:13.5px;width:100%;font-family:inherit;}
+  .search input::placeholder{color:var(--muted);}
+  .topr{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .ic{width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;}
+  .ic iconify-icon{font-size:20px;}
+  .ic:hover{background:var(--hover);}
+  .user{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 8px 4px 4px;border-radius:30px;}
+  .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+  .uname{font-weight:700;font-size:13px;white-space:nowrap;} .ucar{font-size:14px;opacity:.6;}
+  .row2{display:flex;align-items:center;gap:3px;height:50px;padding:0 12px;background:var(--row2);overflow-x:auto;scrollbar-width:none;}
+  .row2::-webkit-scrollbar{display:none;}
+  .row2 a{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;text-decoration:none;color:var(--text);font-size:13.5px;font-weight:600;cursor:pointer;height:100%;padding:0 13px;transition:.15s;position:relative;}
+  .row2 a iconify-icon{font-size:18px;color:var(--muted);} .row2 a .car{font-size:12px;opacity:.55;margin-left:-3px;}
+
+  /* ===== V1 — Solid Primary top + white nav (Fily klasik) ===== */
+  .v1 .top{background:var(--primary);}
+  .v1 .top .logo .p,.v1 .top .logo .b{color:#fff;} .v1 .top .logo small{color:rgba(255,255,255,.6);} .v1 .top .logo .mark{background:rgba(255,255,255,.2);}
+  .v1 .top .search{background:rgba(255,255,255,.16);color:rgba(255,255,255,.85);} .v1 .top .search input{color:#fff;} .v1 .top .search input::placeholder{color:rgba(255,255,255,.7);}
+  .v1 .top .ic{color:rgba(255,255,255,.85);} .v1 .top .ic:hover{background:rgba(255,255,255,.15);} .v1 .top .uname{color:#fff;} .v1 .top .av{background:rgba(255,255,255,.25);}
+  .v1 .row2 a:hover{color:var(--primary);} .v1 .row2 a:hover iconify-icon{color:var(--primary);}
+  .v1 .row2 a.on{color:var(--primary);font-weight:700;} .v1 .row2 a.on iconify-icon{color:var(--primary);}
+  .v1 .row2 a.on::after{content:"";position:absolute;left:13px;right:13px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--primary);}
+
+  /* ===== V2 — Gradient top + soft-pill nav ===== */
+  .v2 .top{background:linear-gradient(100deg,var(--primary),var(--primary-2));}
+  .v2 .top .logo .p,.v2 .top .logo .b{color:#fff;} .v2 .top .logo small{color:rgba(255,255,255,.6);} .v2 .top .logo .mark{background:rgba(255,255,255,.22);}
+  .v2 .top .search{background:rgba(255,255,255,.16);color:rgba(255,255,255,.85);} .v2 .top .search input{color:#fff;} .v2 .top .search input::placeholder{color:rgba(255,255,255,.7);}
+  .v2 .top .ic{color:rgba(255,255,255,.85);} .v2 .top .ic:hover{background:rgba(255,255,255,.15);} .v2 .top .uname{color:#fff;} .v2 .top .av{background:rgba(255,255,255,.25);}
+  .v2 .row2 a{border-radius:9px;height:38px;margin:auto 0;}
+  .v2 .row2 a:hover{background:var(--hover);}
+  .v2 .row2 a.on{background:var(--primary-soft);color:var(--primary);} .v2 .row2 a.on iconify-icon{color:var(--primary);}
+
+  /* ===== V3 — White top + colored nav bar (ters) ===== */
+  .v3 .top{background:var(--card);border-bottom:1px solid var(--border);}
+  .v3 .top .search{border:1px solid var(--border);background:transparent;}
+  .v3 .row2{background:linear-gradient(100deg,var(--primary),var(--primary-2));}
+  .v3 .row2 a{color:rgba(255,255,255,.92);} .v3 .row2 a iconify-icon{color:rgba(255,255,255,.7);} .v3 .row2 a .car{color:#fff;}
+  .v3 .row2 a:hover{color:#fff;} .v3 .row2 a:hover iconify-icon{color:#fff;}
+  .v3 .row2 a.on{background:#fff;color:var(--primary);border-radius:8px;height:36px;margin:auto 0;font-weight:700;} .v3 .row2 a.on iconify-icon{color:var(--primary);}
+
+  /* ===== V4 — Dark slate duo (premium) ===== */
+  .v4 .top{background:#1c2438;}
+  .v4 .top .logo .p{color:#fff;} .v4 .top .logo small{color:#7e8aa6;} .v4 .top .logo .mark{background:linear-gradient(135deg,var(--primary),var(--primary-2));}
+  .v4 .top .search{background:rgba(255,255,255,.07);color:#9aa6c2;} .v4 .top .search input{color:#fff;} .v4 .top .search input::placeholder{color:#7e8aa6;}
+  .v4 .top .ic{color:#9aa6c2;} .v4 .top .ic:hover{background:rgba(255,255,255,.08);} .v4 .top .uname{color:#fff;}
+  .v4 .row2{background:#252e47;}
+  .v4 .row2 a{color:#c5cde0;} .v4 .row2 a iconify-icon{color:#8190ad;}
+  .v4 .row2 a:hover{color:#fff;}
+  .v4 .row2 a.on{background:var(--primary);color:#fff;border-radius:8px;height:36px;margin:auto 0;} .v4 .row2 a.on iconify-icon{color:#fff;}
+
+  /* ===== V5 — Minimal bordered + underline nav (ferah) ===== */
+  .v5 .hdr{box-shadow:none;}
+  .v5 .top{background:var(--card);border-bottom:1px solid var(--border);height:62px;}
+  .v5 .top .search{border:1px solid var(--border);background:transparent;border-radius:30px;}
+  .v5 .row2{background:var(--card);height:52px;gap:8px;}
+  .v5 .row2 a{color:var(--muted);border-bottom:2.5px solid transparent;}
+  .v5 .row2 a iconify-icon{font-size:17px;}
+  .v5 .row2 a:hover{color:var(--text);} .v5 .row2 a:hover iconify-icon{color:var(--text);}
+  .v5 .row2 a.on{color:var(--primary);border-bottom-color:var(--primary);font-weight:800;} .v5 .row2 a.on iconify-icon{color:var(--primary);}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Üst Menü Alternatifleri — 2 Satırlı</h1>
+      <p>Üstte logo + arama + bildirim/kullanıcı, altta menü. 5 farklı stil. Beğendiğin numarayı söyle, gerçek panele uygularım.</p>
+    </div>
+    <div class="tgl" onclick="toggleTheme()"><iconify-icon icon="tabler:moon" id="tgl-ic"></iconify-icon><span id="tgl-tx">Koyu Tema</span></div>
+  </div>
+
+  <div class="variant v1"><div class="lbl"><span class="num">1</span><span class="name">Solid Üst Bar</span><span class="desc">— renkli üst bar + beyaz menü, aktif öğe altında çizgi (referansa en yakın, klasik)</span></div><div id="v1"></div></div>
+  <div class="variant v2"><div class="lbl"><span class="num">2</span><span class="name">Gradient + Soft Pill</span><span class="desc">— degrade üst bar + beyaz menü, aktif öğe yumuşak renkli hap</span></div><div id="v2"></div></div>
+  <div class="variant v3"><div class="lbl"><span class="num">3</span><span class="name">Ters: Beyaz Üst + Renkli Menü</span><span class="desc">— üst beyaz, menü satırı renkli; aktif öğe beyaz hap</span></div><div id="v3"></div></div>
+  <div class="variant v4"><div class="lbl"><span class="num">4</span><span class="name">Koyu Slate Duo</span><span class="desc">— iki satır da koyu, premium; aktif öğe dolu renkli (her temada koyu kalır)</span></div><div id="v4"></div></div>
+  <div class="variant v5"><div class="lbl"><span class="num">5</span><span class="name">Minimal / Ferah</span><span class="desc">— beyaz, ince çizgili, yuvarlak arama; aktif öğe alt çizgi (sade)</span></div><div id="v5"></div></div>
+</div>
+
+<script>
+  var items=[
+    {i:"tabler:home",t:"Anasayfa"},{i:"tabler:building-store",t:"Mağaza",d:1},{i:"tabler:shopping-cart",t:"Siparişler",d:1},
+    {i:"tabler:box",t:"Ürünler",d:1},{i:"tabler:car",t:"Araç Verisi",d:1},{i:"tabler:cloud-upload",t:"Toplu İşlem",d:1},
+    {i:"tabler:layout-grid",t:"İçerik",d:1},{i:"tabler:message-2",t:"İletişim",d:1},{i:"tabler:settings",t:"Sistem",d:1},
+    {i:"tabler:users",t:"Üyeler"},{i:"tabler:shield",t:"Adminler"}
+  ];
+  var active=1;
+  function nav(){return items.map(function(m,x){return '<a class="'+(x===active?'on':'')+'"><iconify-icon icon="'+m.i+'"></iconify-icon><span>'+m.t+'</span>'+(m.d?'<iconify-icon class="car" icon="tabler:chevron-down"></iconify-icon>':'')+'</a>';}).join('');}
+  function header(){
+    return '<div class="hdr">'+
+      '<div class="top">'+
+        '<div class="logo"><span class="mark">F</span><span><span class="b">basic</span><span class="p">pazaryeri</span></span></div>'+
+        '<div class="search"><iconify-icon icon="tabler:search"></iconify-icon><input placeholder="Ara..."></div>'+
+        '<div class="topr">'+
+          '<span class="ic"><iconify-icon icon="tabler:mail"></iconify-icon></span>'+
+          '<span class="ic"><iconify-icon icon="tabler:bell"></iconify-icon></span>'+
+          '<span class="user"><span class="av">O</span><span class="uname">Oziy Web Design</span><iconify-icon class="ucar" icon="tabler:chevron-down"></iconify-icon></span>'+
+        '</div>'+
+      '</div>'+
+      '<nav class="row2">'+nav()+'</nav>'+
+    '</div>';
+  }
+  ['v1','v2','v3','v4','v5'].forEach(function(id){document.getElementById(id).innerHTML=header();});
+  function toggleTheme(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('tgl-ic').setAttribute('icon',d?'tabler:moon':'tabler:sun');document.getElementById('tgl-tx').textContent=d?'Koyu Tema':'Açık Tema';}
+</script>
+</body>
+</html>

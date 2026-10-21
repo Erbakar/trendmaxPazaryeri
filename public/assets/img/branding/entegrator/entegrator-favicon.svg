@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Entegratör Yazılımı">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <linearGradient id="warm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#facc15"/><stop offset=".52" stop-color="#f97316"/><stop offset="1" stop-color="#ef4444"/></linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="36" fill="#fff"/>
+  <g transform="translate(20 25)"><path d="M20 12h120l-36 36H0z" fill="url(#blue)"/><path d="M0 53h104L72 86H14z" fill="url(#cyan)"/><path d="M14 91h58l37 28H42z" fill="url(#warm)"/></g>
+</svg>

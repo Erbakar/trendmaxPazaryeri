@@ -1,0 +1,22 @@
+SUNUCU — Admin giris sonrasi beyaz ekran duzeltmesi + ana admin sifre SQL
+
+1) Zip icerigini site kokune acin (public klasorunun bir ust dizin).
+   Dosyalar mevcutlarin ustune yazilir.
+
+2) Admin sifresi (ikisinden biri):
+   A) Tarayici: .../admin_sifre_kur.php?anahtar=TrendmaxSifre20261015
+      (OK yazinca public/admin_sifre_kur.php dosyasini SILIN)
+   B) phpMyAdmin: database/migrations/admin_ana_sifre_20261015.sql
+   Giris: admin@trendmaxtr.com / T124451**Max
+
+3) Ctrl+F5 ile test:
+   https://.../admin/login → giris → /admin dashboard gorunmeli.
+
+4) Hata surerse storage/logs/YYYY-MM-DD.log dosyasina bakin (APP_DEBUG=true ise ekranda da yazar).
+
+Degisen dosyalar:
+- app/Core/Response.php
+- public/index.php
+- app/Controllers/AdminController.php
+- views/layouts/admin.php
+- database/migrations/admin_ana_sifre_20261015.sql

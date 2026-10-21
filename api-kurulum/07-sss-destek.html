@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSS &amp; Destek · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>SSS &amp; Destek</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="index.html" class="btn btn-primary">Başa Dön</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 7 / 7</span>
+                <h1>SSS &amp; Destek</h1>
+                <p class="lead">
+                    Sıkça sorulan sorular ve entegrasyon sürecinde size yardımcı olacak
+                    iletişim kanalları. Sorununuz aşağıda listelenmemişse lütfen bizimle
+                    iletişime geçin.
+                </p>
+            </section>
+
+            <!-- FAQ -->
+            <h2>Sıkça Sorulan Sorular</h2>
+
+            <h3>API Secret değerimi kaybettim, ne yapmalıyım?</h3>
+            <p>Secret değerler güvenlik nedeniyle sadece oluşturma anında bir kez gösterilir ve hiçbir yerde saklanmaz. Panel üzerinden mevcut token'ı silip yenisini oluşturmanız gerekir. Eski token anında geçersiz hale gelir.</p>
+
+            <h3>Staging / test ortamı var mı?</h3>
+            <p>Evet. Üretim ortamından bağımsız bir test panel ve API Key çifti talep edebilirsiniz. Test ortamında yapılan işlemler gerçek pazaryerlerine gönderilmez, sadece mock yanıtlar üretilir.</p>
+
+            <h3>Rate limit yetersiz geliyor, arttırabilir miyim?</h3>
+            <p>Evet. Gerçek trafik profilinizi (günlük istek sayısı, pik saatler, batch işleri vs.) iletirseniz token bazında limit ayarı yapabiliriz.</p>
+
+            <h3>API yanıtları ne kadar süre cache'leniyor?</h3>
+            <p>Okuma endpointleri için <code>Cache-Control</code> header'ı döner. Listeleme çağrılarında kısa süreli (30 sn) edge cache kullanılır. Kritik taze veri için <code>Cache-Control: no-cache</code> göndererek cache'i devre dışı bırakabilirsiniz.</p>
+
+            <h3>Webhook desteği var mı?</h3>
+            <p>Şu anki sürümde webhook yerine cron tabanlı senkronizasyon önerilmektedir. Olay bazlı (order.created, stock.updated vb.) webhook desteği yol haritamızdadır; teklif talebinde bulunabilirsiniz.</p>
+
+            <h3>Tarih / saat dilimi nasıl yorumlanıyor?</h3>
+            <p>Tüm tarih değerleri <strong>UTC</strong> ve ISO 8601 formatında (<code>YYYY-MM-DDTHH:MM:SSZ</code>) döner. Kullanıcı arayüzünüzde <code>Europe/Istanbul</code> dilimine dönüştürmeniz gerekir.</p>
+
+            <h3>Sayfalamada <code>total_pages</code> neden bazen değişiyor?</h3>
+            <p>Veri, işleminiz sırasında değişebilir (yeni ürün eklenmesi gibi). Toplam sayfa, her yanıtta anlık olarak yeniden hesaplanır. Büyük veri tarama işlerinde <code>updated_at</code> filtresi kullanmanızı tavsiye ederiz.</p>
+
+            <h3>Birden fazla pazaryerini tek istek ile güncelleyebilir miyim?</h3>
+            <p>Hayır. Tek bir OzyConnect çağrısı ile değişiklik yaparsınız; OzyConnect arka planda ilgili tüm pazaryerlerine senkronizasyonu tetikler. Bu sayede yazışma tek bir yerden yönetilir.</p>
+
+            <h3>Üretimde HTTPS dışında bir şey kullanabilir miyim?</h3>
+            <p>Hayır. Üretim ortamında HTTP trafiği engellenir. Geliştirme yaparken self-signed sertifika ile local HTTPS kurmanızı öneririz.</p>
+
+            <h3>Token'ı unuttum ama silmek istemiyorum, yenileyebilir miyim?</h3>
+            <p>Evet, panel üzerinden <em>Secret Rotate</em> işlemi ile yeni Secret üretebilirsiniz. API Key değişmez; yalnızca imzalamada kullanılan Secret yenilenir.</p>
+
+            <!-- CHECKLIST -->
+            <h2>Canlıya Alma Kontrol Listesi</h2>
+            <p>Üretim ortamına geçiş öncesi aşağıdaki maddelerin tamamını doğrulayın:</p>
+
+            <ul class="check-list">
+                <li>Üretim API Key/Secret değerleri staging'den farklı ve güvenli şekilde saklanıyor.</li>
+                <li>IP whitelist üretim IP'lerinizle tanımlandı.</li>
+                <li>Sunucu saati NTP ile senkron.</li>
+                <li>HTTPS sertifikası geçerli ve otomatik yenileme aktif.</li>
+                <li>Retry + exponential backoff uygulandı.</li>
+                <li>Kritik yazma işlemleri <code>Idempotency-Key</code> kullanıyor.</li>
+                <li>Rate limit monitörü kuruldu ve alarm tanımlandı.</li>
+                <li>Hata logları <code>request_id</code> ile birlikte kaydediliyor.</li>
+                <li>Authorization header'ı üretim loglarında maskelenmiş.</li>
+                <li>Staging ortamında tam regresyon testi geçti.</li>
+            </ul>
+
+            <!-- CONTACT -->
+            <h2>İletişim &amp; Destek</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>E-Posta Destek</h3>
+                    <p>Entegrasyon, token ve teknik sorularınız için:</p>
+                    <a class="card-link" href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com →</a>
+                </div>
+                <div class="card">
+                    <h3>Web</h3>
+                    <p>Güncel dokümantasyon ve duyurular:</p>
+                    <a class="card-link" href="https://www.oziyweb.com.tr" target="_blank" rel="noopener">oziyweb.com.tr →</a>
+                </div>
+                <div class="card">
+                    <h3>Acil Durum</h3>
+                    <p>Üretim etkileyen olaylar için panelde yer alan <em>Acil Destek</em> formunu kullanın.</p>
+                </div>
+            </div>
+
+            <h3>Destek Talebinde Neler Gönderilmeli?</h3>
+            <p>Size daha hızlı yardımcı olabilmemiz için aşağıdaki bilgileri dahil edin:</p>
+            <ul>
+                <li>API Key'inizin ilk 6 karakteri (<code>oxy_ab...</code>). <strong>Secret'ı asla paylaşmayın.</strong></li>
+                <li>İstek tarih/saati (UTC) ve hedef endpoint.</li>
+                <li>Dönen yanıttaki <code>request_id</code>.</li>
+                <li>Aldığınız HTTP durum kodu ve <code>code</code> alanı.</li>
+                <li>İmza üretiminde kullandığınız örnek mesaj (Secret maskeli).</li>
+                <li>Problem ilk ne zaman ortaya çıktı ve tekrarlanabilir mi?</li>
+            </ul>
+
+            <div class="callout callout-info">
+                <p><strong>Örnek destek mesajı.</strong> <em>"oxy_ab2f... ile <code>2026-04-28 10:33 UTC</code> civarı <code>POST /api/v1/orders/ORD123/status</code> çağrısı yaptım, <code>request_id: req_8a1f2c09</code>, <code>429</code> alıyorum. Retry-After 12 geldi, sonrasında da <code>RATE_LIMIT_EXCEEDED</code> sürdü. Aynı token ile <code>/ping</code> başarılı."</em></p>
+            </div>
+
+            <!-- CLOSING -->
+            <div class="callout callout-success" style="margin-top: 32px;">
+                <p><strong>Entegrasyonunuz hayırlı olsun!</strong> Sorularınız veya geliştirme talepleriniz her zaman değerlidir. İyi çalışmalar.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="06-hata-yonetimi.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">6. Hata Yönetimi</div>
+                </a>
+                <a href="index.html" class="next">
+                    <div class="label">↑ Başa dön</div>
+                    <div class="title">0. Genel Bakış</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

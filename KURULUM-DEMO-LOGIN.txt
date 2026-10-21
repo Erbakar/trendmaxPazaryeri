@@ -1,0 +1,14 @@
+﻿SUNUCU - LOGIN DEMO KUTUSU (v2)
+
+1) Zip icerigini site kokune acin (public klasorunun bir ust dizin).
+
+2) .env ZORUNLU DEGIL - demo kutusu varsayilan acik.
+   Kapatmak icin: DEMO_LOGIN_HINT=false
+
+3) Opsiyonel .env:
+   DEMO_LOGIN_LABEL_USER=demo
+   DEMO_LOGIN_EMAIL=admin@trendmaxtr.com
+   DEMO_LOGIN_PASSWORD=VeritabanindakiSifre
+
+4) Ctrl+F5 ile /login test edin.
+   Gorunmesi gereken: mavi kutu + "Yonetim paneline hos geldiniz."

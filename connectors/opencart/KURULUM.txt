@@ -1,0 +1,101 @@
+════════════════════════════════════════════════════════════════════════
+  OzyConnect — OpenCart Connector  ·  Sürüm 1.0.0
+════════════════════════════════════════════════════════════════════════
+
+NEDİR?
+  OpenCart mağazanızı OzyConnect paneline bağlayan tek dosyalık bir köprüdür.
+  Mağazanıza kurduğunuz "ozyconnect.php" dosyası, panelden gelen (token ile
+  korumalı) istekleri OpenCart veritabanıyla konuşarak yanıtlar:
+   • Ürünleri, kategorileri, markaları (üreticileri) panele aktarır
+   • Siparişleri panele çeker
+   • Panelden stok, fiyat ve sipariş durumu günceller
+
+────────────────────────────────────────────────────────────────────────
+UYUMLULUK
+────────────────────────────────────────────────────────────────────────
+  OpenCart sürümleri : 2.3.x  ·  3.0.x  ·  4.0.x  ·  4.1.x
+  PHP                : 7.2 ve üzeri
+  Veritabanı         : MySQL / MariaDB (MySQLi eklentisi açık olmalı)
+  Protokol           : HTTPS önerilir (token açık metin gitmesin)
+
+  NOT: Bağlantı, OpenCart'ın MVC yönlendirmesine dokunmadan doğrudan
+  veritabanı üzerinden çalışır; tema/eklenti çakışması yaşamazsınız.
+  Ürün/sipariş/kategori/üretici tablo şeması bu sürümlerde ortaktır.
+
+────────────────────────────────────────────────────────────────────────
+KURULUM (3 ADIM)
+────────────────────────────────────────────────────────────────────────
+  1) ozyconnect.php dosyasını OpenCart mağazanızın KÖK dizinine yükleyin
+     (config.php dosyasının bulunduğu yere — genelde public_html/).
+     Erişim adresi şöyle olur:  https://magazaniz.com/ozyconnect.php
+
+  2) OzyConnect panelinde:  Pazaryerleri → OpenCart → Bağlan ekranındaki
+     "Bağlantı Token'ı" değerini KOPYALAYIN.
+     ozyconnect.php dosyasını açıp şu satırdaki örnek değeri bu token ile
+     DEĞİŞTİRİN (tırnakların içi):
+
+        define('OZYCONNECT_TOKEN', 'BURAYA-PANEL-TOKENINI-YAPISTIRIN');
+
+     →  define('OZYCONNECT_TOKEN', 'panelden-kopyaladiginiz-token');
+
+  3) Panelde:
+        • "Connector URL"  : https://magazaniz.com/ozyconnect.php
+        • "Bağlantı Token'ı": (adım 2'deki token — otomatik dolu gelir)
+     Kaydedin ve "Test Et" deyin. "Bağlantı başarılı" görmelisiniz.
+
+  Bağlantı kurulduktan sonra "Sistemle Eşleştir" ile ürün/kategori/marka/
+  sipariş aktarımını başlatabilirsiniz. Stok ve fiyat değişiklikleri (cron
+  ile, ~10 dk) otomatik mağazanıza yansır.
+
+────────────────────────────────────────────────────────────────────────
+ANLIK SİPARİŞ BİLDİRİMİ (opsiyonel — sipariş panele saniyeler içinde düşsün)
+────────────────────────────────────────────────────────────────────────
+  Varsayılan: siparişler ~5 dk'da bir cron ile çekilir. ANINDA düşmesi için
+  küçük bir OpenCart "event" eklentisi kurun (pakette events/ klasöründe):
+
+   • OpenCart 2.3.x / 3.0.x:
+       events/opencart-3x/ozyconnect_event.php
+       →  mağazada:  catalog/controller/extension/ozyconnect_event.php
+
+   • OpenCart 4.0.x / 4.1.x:
+       events/opencart-4x/extension/ozyconnect/catalog/controller/event.php
+       →  mağazada:  extension/ozyconnect/catalog/controller/event.php
+       (klasör yapısını koruyarak yükleyin)
+
+  Sonra OzyConnect panelinde OpenCart ayarlarında:
+   1) "OpenCart Sürümü"nü seçin (3.x veya 4.x)
+   2) "Anlık sipariş bildirimini etkinleştir"i işaretleyin → KAYDET
+  Event kaydı ve webhook adresi connector tarafından otomatik yazılır.
+  (Önce Connector URL girilip bağlantı kurulmuş olmalı. Kaldırmak için kutuyu
+   kaldırıp tekrar kaydedin.) Bu özellik public HTTPS gerektirir; localhost'ta
+  panel adresinize ulaşılamıyorsa anlık bildirim tetiklenmez.
+
+────────────────────────────────────────────────────────────────────────
+GÜVENLİK
+────────────────────────────────────────────────────────────────────────
+  • Erişim, panelden aldığınız gizli token ile korunur (sabit-zaman
+    karşılaştırması). Token'ı kimseyle paylaşmayın.
+  • Mutlaka HTTPS kullanın.
+  • Token'ı değiştirmek isterseniz: panelde yeni token üretip ozyconnect.php
+    içindeki değeri güncelleyin.
+  • Connector'ı kaldırmak için ozyconnect.php dosyasını silmeniz yeterlidir.
+
+────────────────────────────────────────────────────────────────────────
+SİPARİŞ DURUMU EŞLEŞTİRMESİ (varsayılan OpenCart durum ID'leri)
+────────────────────────────────────────────────────────────────────────
+  1=Beklemede  2=İşleniyor  3=Kargolandı  5=Tamamlandı  7=İptal  11=İade
+  Mağazanızda durum ID'lerini özelleştirdiyseniz panel destek ekibine
+  bildirin (eşleştirme buna göre ayarlanır).
+
+────────────────────────────────────────────────────────────────────────
+SORUN GİDERME
+────────────────────────────────────────────────────────────────────────
+  • "config.php bulunamadı"     → Dosya kök dizinde değil; config.php yanına koyun.
+  • "Yetkisiz erişim (token)"   → Paneldeki token ile dosyadaki token aynı değil.
+  • "Veritabanı bağlantı hatası"→ Sunucu MySQLi'yi kısıtlamış olabilir; hosting'e sorun.
+  • Test çalışmıyor             → URL'yi tarayıcıda deneyin:
+        https://magazaniz.com/ozyconnect.php?action=ping&token=TOKENINIZ
+    JSON {"success":true,...} dönüyorsa connector çalışıyordur.
+
+  Destek: OzyConnect paneli → Destek.
+════════════════════════════════════════════════════════════════════════

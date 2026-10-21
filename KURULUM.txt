@@ -1,0 +1,16 @@
+﻿SUNUCU GUNCELLEME PAKETI (login demo + magaza olustur migration)
+
+1) Zip'i site kokune acin (pazaryeri.trendmaxtr.com klasoru).
+   Mevcut dosyalarin ustune yazilir.
+
+2) Sunucudaki .env dosyasina ekleyin:
+   DEMO_LOGIN_HINT=true
+   DEMO_LOGIN_LABEL_USER=demo
+   DEMO_LOGIN_EMAIL=admin@trendmaxtr.com
+   DEMO_LOGIN_PASSWORD=VeritabanindakiGercekSifre
+   DEMO_LOGIN_NOTE=Demo hesap ile degisiklik yapilamaz.
+
+3) password_hash kolonu yoksa phpMyAdmin'de (MySQL):
+   ALTER TABLE store_signup_requests ADD COLUMN password_hash varchar(255) NULL AFTER source;
+
+4) /login sayfasini Ctrl+F5 ile test edin.

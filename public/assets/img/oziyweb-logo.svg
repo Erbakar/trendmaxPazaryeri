@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Modern O harfi -->
+  <circle cx="100" cy="100" r="70" stroke="url(#gradient1)" stroke-width="12" fill="none"/>
+  <circle cx="100" cy="100" r="45" fill="url(#gradient2)"/>
+  
+  <!-- İç detay -->
+  <path d="M100 70 L120 100 L100 130 L80 100 Z" fill="white" opacity="0.9"/>
+  
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Text -->
+  <text x="100" y="185" font-family="Arial, sans-serif" font-size="24" font-weight="700" text-anchor="middle" fill="#6366f1">OziyWeb</text>
+</svg>

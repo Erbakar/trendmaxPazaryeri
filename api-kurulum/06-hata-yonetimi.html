@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hata Yönetimi · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>Hata Yönetimi</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="07-sss-destek.html" class="btn btn-primary">Sonraki: SSS &amp; Destek →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 6 / 7</span>
+                <h1>Hata Yönetimi &amp; Rate Limit</h1>
+                <p class="lead">
+                    OzyConnect API, standart HTTP durum kodları ile tutarlı JSON hata
+                    yanıtları döner. Bu bölüm, üretim ortamında sağlam bir entegrasyon
+                    için uygulamanız gereken hata işleme kurallarını anlatır.
+                </p>
+            </section>
+
+            <!-- ERROR RESPONSE FORMAT -->
+            <h2>Hata Yanıt Formatı</h2>
+            <p>Tüm hata yanıtları aşağıdaki ortak yapıyı takip eder:</p>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"error"</span>: <span class="tok-key">true</span>,
+  <span class="tok-str">"code"</span>: <span class="tok-str">"VALIDATION_FAILED"</span>,
+  <span class="tok-str">"message"</span>: <span class="tok-str">"Geçersiz parametre: 'price' negatif olamaz"</span>,
+  <span class="tok-str">"details"</span>: {
+    <span class="tok-str">"field"</span>: <span class="tok-str">"price"</span>,
+    <span class="tok-str">"value"</span>: <span class="tok-num">-10</span>
+  },
+  <span class="tok-str">"request_id"</span>: <span class="tok-str">"req_8a1f2c09"</span>
+}</code></pre>
+
+            <div class="callout callout-info">
+                <p><strong>İpucu.</strong> Destek taleplerinizde <code>request_id</code> alanını iletmeniz, bizim için sorunu çok daha hızlı teşhis etmemizi sağlar.</p>
+            </div>
+
+            <!-- HTTP STATUS -->
+            <h2>HTTP Durum Kodları</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:14%">Kod</th>
+                            <th style="width:30%">Anlam</th>
+                            <th>Ne Yapmalısınız?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-success">200</span> OK</td>
+                            <td>İstek başarılı.</td>
+                            <td>Yanıtı işleyebilirsiniz.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-success">201</span> Created</td>
+                            <td>Kaynak oluşturuldu.</td>
+                            <td>Yanıttaki <code>id</code> değerini saklayın.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">400</span> Bad Request</td>
+                            <td>Geçersiz istek gövdesi veya parametreleri.</td>
+                            <td>Parametre ve JSON yapısını doğrulayın.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">401</span> Unauthorized</td>
+                            <td>Kimlik doğrulama başarısız.</td>
+                            <td>Key/Secret, imza, timestamp ve nonce değerlerinizi kontrol edin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">403</span> Forbidden</td>
+                            <td>Token doğru ama yetkisi yok.</td>
+                            <td>Permission scope (izinler) ayarlarınızı kontrol edin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">404</span> Not Found</td>
+                            <td>Kaynak bulunamadı.</td>
+                            <td>URL, ID, SKU değerini doğrulayın.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">409</span> Conflict</td>
+                            <td>Çakışma (örn. aynı SKU zaten var).</td>
+                            <td>Önce kaynağın var olup olmadığını kontrol edin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">422</span> Unprocessable</td>
+                            <td>Validasyon hatası.</td>
+                            <td><code>details.field</code> alanındaki hataları düzeltin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-warning">429</span> Too Many Requests</td>
+                            <td>Rate limit aşıldı.</td>
+                            <td><code>Retry-After</code> süresini bekleyip tekrar deneyin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-info">500</span> Internal Error</td>
+                            <td>Sunucu tarafında beklenmeyen hata.</td>
+                            <td>Kısa süre sonra tekrar deneyin; sürerse destek ile iletişime geçin.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-info">502</span> / <span class="badge badge-info">503</span> / <span class="badge badge-info">504</span></td>
+                            <td>Geçici altyapı sorunu veya bakım.</td>
+                            <td>Exponential backoff ile otomatik yeniden deneme yapın.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ERROR CODES -->
+            <h2>İş Mantığı Hata Kodları</h2>
+            <p>HTTP durumuna ek olarak, <code>code</code> alanı daha spesifik bir hata türü taşır. Sık karşılaşılan kodlar:</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:32%">Kod</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>AUTH_INVALID_KEY</code></td><td>API Key tanımsız veya devre dışı.</td></tr>
+                        <tr><td><code>AUTH_SIGNATURE_MISMATCH</code></td><td>İmza doğrulanamadı.</td></tr>
+                        <tr><td><code>AUTH_EXPIRED_TIMESTAMP</code></td><td>Timestamp ±5 dakika aralığının dışında.</td></tr>
+                        <tr><td><code>AUTH_IP_NOT_ALLOWED</code></td><td>İstek, whitelist dışı bir IP'den geldi.</td></tr>
+                        <tr><td><code>PERMISSION_DENIED</code></td><td>Token'ın ilgili scope izni yok.</td></tr>
+                        <tr><td><code>RATE_LIMIT_EXCEEDED</code></td><td>Saniye başı istek limiti aşıldı.</td></tr>
+                        <tr><td><code>VALIDATION_FAILED</code></td><td>Girdi validasyonu başarısız.</td></tr>
+                        <tr><td><code>RESOURCE_NOT_FOUND</code></td><td>Belirtilen kaynak mevcut değil.</td></tr>
+                        <tr><td><code>DUPLICATE_SKU</code></td><td>SKU zaten başka bir ürüne atanmış.</td></tr>
+                        <tr><td><code>MARKETPLACE_ERROR</code></td><td>Üçüncü taraf pazaryerinden hata döndü.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- RATE LIMITING -->
+            <h2>Rate Limit</h2>
+            <p>Sistem, her API Key için ayrı ayrı rate limit uygular. Varsayılan limit <strong>10 istek / saniye</strong>'dir ve yoğun kullanım senaryolarında yükseltilebilir.</p>
+
+            <h3>Rate Limit Header'ları</h3>
+            <p>Her yanıtta aşağıdaki başlıklar döner:</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th style="width:32%">Header</th><th>Açıklama</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>X-RateLimit-Limit</code></td><td>Saniye başına izin verilen maksimum istek.</td></tr>
+                        <tr><td><code>X-RateLimit-Remaining</code></td><td>Şu anki saniye penceresinde kalan istek hakkı.</td></tr>
+                        <tr><td><code>X-RateLimit-Reset</code></td><td>Pencere sıfırlanana kadar kalan saniye.</td></tr>
+                        <tr><td><code>Retry-After</code></td><td><code>429</code> yanıtlarında, kaç saniye sonra tekrar deneyebileceğinizi belirtir.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout callout-warning">
+                <p><strong>Önemli.</strong> <code>429</code> alındığında hemen tekrar denemek limitin devam etmesine yol açar. Mutlaka <code>Retry-After</code> süresini bekleyin.</p>
+            </div>
+
+            <!-- RETRY PATTERN -->
+            <h2>Önerilen Yeniden Deneme (Retry) Stratejisi</h2>
+            <p>Üretimde sağlam bir entegrasyon için aşağıdaki exponential backoff stratejisini uygulayın:</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Durum</th><th>Öneri</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>408</code>, <code>502</code>, <code>503</code>, <code>504</code></td><td>Maksimum 5 deneme, 1s &rarr; 2s &rarr; 4s &rarr; 8s &rarr; 16s bekleme.</td></tr>
+                        <tr><td><code>429</code></td><td><code>Retry-After</code> değerini baz alın, üzerine %20 jitter ekleyin.</td></tr>
+                        <tr><td><code>500</code></td><td>En fazla 2 kez tekrar deneyin; sürerse logla ve bildir.</td></tr>
+                        <tr><td><code>4xx</code> (yukarıdakiler hariç)</td><td><strong>Yeniden denemeyin.</strong> İstek içeriği hatalı.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Örnek Retry Fonksiyonu (PHP)</h3>
+            <pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">function</span> <span class="tok-fn">callWithRetry</span>(callable <span class="tok-key">$fn</span>, <span class="tok-key">int</span> <span class="tok-key">$maxAttempts</span> = <span class="tok-num">5</span>): array
+{
+    <span class="tok-key">$attempt</span> = <span class="tok-num">0</span>;
+    <span class="tok-key">$delay</span>   = <span class="tok-num">1</span>; <span class="tok-com">// saniye</span>
+
+    <span class="tok-key">while</span> (<span class="tok-key">true</span>) {
+        <span class="tok-key">$attempt</span>++;
+        <span class="tok-key">try</span> {
+            <span class="tok-key">return</span> <span class="tok-key">$fn</span>();
+        } <span class="tok-key">catch</span> (<span class="tok-fn">OzyApiException</span> <span class="tok-key">$e</span>) {
+            <span class="tok-key">$status</span> = <span class="tok-key">$e</span>-&gt;getStatus();
+            <span class="tok-key">$retryable</span> = in_array(<span class="tok-key">$status</span>, [<span class="tok-num">408</span>, <span class="tok-num">429</span>, <span class="tok-num">500</span>, <span class="tok-num">502</span>, <span class="tok-num">503</span>, <span class="tok-num">504</span>]);
+
+            <span class="tok-key">if</span> (!<span class="tok-key">$retryable</span> || <span class="tok-key">$attempt</span> &gt;= <span class="tok-key">$maxAttempts</span>) {
+                <span class="tok-key">throw</span> <span class="tok-key">$e</span>;
+            }
+
+            <span class="tok-key">$wait</span> = <span class="tok-key">$status</span> === <span class="tok-num">429</span>
+                ? (<span class="tok-key">$e</span>-&gt;getRetryAfter() ?? <span class="tok-key">$delay</span>)
+                : <span class="tok-key">$delay</span>;
+
+            <span class="tok-com">// %20 jitter ile backoff</span>
+            sleep(<span class="tok-fn">intval</span>(<span class="tok-key">$wait</span> * (<span class="tok-num">0.9</span> + (mt_rand() / mt_getrandmax()) * <span class="tok-num">0.2</span>)));
+            <span class="tok-key">$delay</span> *= <span class="tok-num">2</span>;
+        }
+    }
+}</code></pre>
+
+            <!-- IDEMPOTENCY -->
+            <h2>Idempotency (Tekrarlı Çağrı Güvenliği)</h2>
+            <p>Kritik yazma operasyonlarında (ör. sipariş oluşturma) ağ kopması sonrası tekrar denemelerin yan etkisi olmaması için <code>Idempotency-Key</code> başlığı kullanabilirsiniz:</p>
+
+            <pre class="has-lang"><span class="code-lang">http</span><code>POST /api/v1/products
+Authorization: Bearer oxy_abc:sig:ts:nonce
+Content-Type: application/json
+Idempotency-Key: 6f1e2a88-35b4-4e56-9a39-5c47e1cbe0b2</code></pre>
+
+            <p>Aynı key ile gönderilen istekler 24 saat boyunca aynı yanıtı döner ve yeni bir kayıt yaratmaz.</p>
+
+            <!-- TROUBLESHOOTING -->
+            <h2>Sık Karşılaşılan Hatalar ve Çözümleri</h2>
+
+            <div class="callout callout-danger">
+                <p><strong>401 AUTH_SIGNATURE_MISMATCH</strong> &mdash; En sık sebep: imzalanan mesajda endpoint'e query string eklenmiş veya <code>\n</code> karakterleri yerine <code>\\n</code> yazılmıştır. Mesajı <em>method + endpoint + timestamp + nonce</em> (tam olarak bu sıra ve sadece <code>\n</code> ile) oluşturun.</p>
+            </div>
+
+            <div class="callout callout-danger">
+                <p><strong>401 AUTH_EXPIRED_TIMESTAMP</strong> &mdash; Sunucunuzun saati kaymıştır. Linux'ta <code>timedatectl status</code>, Windows'ta <code>w32tm /query /status</code> ile NTP senkronunu doğrulayın.</p>
+            </div>
+
+            <div class="callout callout-danger">
+                <p><strong>403 PERMISSION_DENIED</strong> &mdash; Token'ınızın scope'u yetersizdir. Panelden <em>Ayarlar → API Tokens</em> ekranında izin kapsamını güncelleyin.</p>
+            </div>
+
+            <div class="callout callout-danger">
+                <p><strong>429 RATE_LIMIT_EXCEEDED</strong> &mdash; Toplu işlerde istekleri küçük parçalara bölün ve yukarıdaki retry stratejisini uygulayın. Yüksek limit talebi için destek ekibine başvurun.</p>
+            </div>
+
+            <div class="callout callout-danger">
+                <p><strong>422 VALIDATION_FAILED</strong> &mdash; <code>details</code> alanını okuyup kullanıcınıza anlamlı geri bildirim gösterin. Örneğin fiyat negatifse arayüzde fiyat alanını vurgulayın.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="05-ornek-kodlar.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">5. Kod Örnekleri</div>
+                </a>
+                <a href="07-sss-destek.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">7. SSS &amp; Destek</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

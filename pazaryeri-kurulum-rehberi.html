@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OzyConnect Pazaryeri Kurulum Rehberi</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --ink: #101828;
+      --muted: #667085;
+      --line: #d7e0ec;
+      --line-soft: #e7edf5;
+      --blue: #0f5ccf;
+      --blue-soft: #eaf2ff;
+      --green: #087443;
+      --green-soft: #eaf8f0;
+      --gold: #9f630b;
+      --shadow: 0 22px 55px rgba(16, 24, 40, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: linear-gradient(180deg, #ffffff 0, #f7f9fc 260px, var(--bg) 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.55;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .shell {
+      width: min(1360px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(215, 224, 236, .82);
+      background: rgba(255, 255, 255, .92);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 22px;
+      align-items: center;
+      padding: 24px 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 118px;
+      height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 10px 28px rgba(16, 24, 40, .06);
+      padding: 12px;
+    }
+
+    .brand-mark img,
+    .market-chip img,
+    .market-logo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 8px 16px;
+      border: 1px solid #b7e4cb;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    main { padding: 24px 0 64px; }
+
+    .notice {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 18px;
+      margin-bottom: 18px;
+      border: 1px solid #bfd7ff;
+      border-radius: 8px;
+      background: var(--blue-soft);
+    }
+
+    .notice-icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid #bfd7ff;
+      background: #fff;
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 20px;
+    }
+
+    .notice p { margin: 0; font-size: 16px; }
+
+    code {
+      display: inline-block;
+      max-width: 100%;
+      padding: 2px 7px;
+      border: 1px solid #d8e0eb;
+      border-radius: 6px;
+      background: #fff;
+      font-family: Consolas, Monaco, monospace;
+      font-size: .92em;
+      overflow-wrap: anywhere;
+      vertical-align: baseline;
+    }
+
+    .market-nav {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .market-chip {
+      display: grid;
+      place-items: center;
+      height: 70px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 10px 24px rgba(16, 24, 40, .05);
+      padding: 14px;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .market-chip img {
+      width: min(150px, 100%);
+      height: 42px;
+    }
+
+    .market-chip:hover {
+      transform: translateY(-2px);
+      border-color: #a9c5ec;
+      box-shadow: 0 16px 34px rgba(16, 24, 40, .08);
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .guide-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .guide-head {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      min-height: 92px;
+      padding: 20px 22px;
+      border-bottom: 1px solid var(--line-soft);
+      background: linear-gradient(180deg, #fff 0, #fbfcfe 100%);
+    }
+
+    .market-logo {
+      display: flex;
+      align-items: center;
+      width: min(220px, 100%);
+      height: 44px;
+    }
+
+    .tag {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #eef3f8;
+      color: #344054;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .tag.fixed { color: #075985; background: #e1f2ff; }
+    .tag.oauth { color: #704800; background: #fff0c2; }
+    .tag.key { color: #055160; background: #d9f7fb; }
+
+    .guide-body {
+      padding: 22px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .steps li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      min-width: 0;
+      color: #1d2939;
+      font-size: 16px;
+    }
+
+    .steps li::before {
+      content: counter(step);
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #cfe0f7;
+      border-radius: 50%;
+      background: #f7fbff;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .steps span {
+      min-width: 0;
+      padding-top: 3px;
+      overflow-wrap: anywhere;
+    }
+
+    strong { font-weight: 900; }
+
+    .fields {
+      margin-top: 18px;
+      padding-top: 17px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .fields-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 10px;
+      color: #101828;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .field-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .field-list li {
+      padding: 8px 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      color: #1d2939;
+      font-size: 14px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .footer-note {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 1180px) {
+      .market-nav { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+    }
+
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: 1fr; }
+      .brand-mark { width: 128px; }
+      .status-pill { justify-self: start; }
+      .guide-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 28px, 1360px); }
+      .hero { padding: 18px 0; gap: 14px; }
+      h1 { font-size: 34px; }
+      .subtitle { font-size: 15px; }
+      .notice { grid-template-columns: 1fr; }
+      .market-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .guide-head { grid-template-columns: 1fr; min-height: 0; }
+      .tag { justify-self: start; }
+      .guide-body { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell hero">
+      <div class="brand-mark">
+        <img src="public/assets/img/branding/logom.png" alt="OzyConnect">
+      </div>
+      <div>
+        <h1>Pazaryeri Kurulum Rehberi</h1>
+        <p class="subtitle">Müşterinin pazaryeri panelinden alacağı bilgiler ve OzyConnect panelinde dolduracağı alanlar tek ekranda.</p>
+      </div>
+      <div class="status-pill">Kurulum bilgileri mağazaya özeldir</div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="notice" aria-label="Önemli bilgi">
+      <div class="notice-icon">i</div>
+      <p><strong>Sabit entegratör bilgilerimiz müşteriye ait değildir.</strong> Hepsiburada tarafında <code>oziyweb_dev</code>, PttAVM tarafında <code>OzyConnect</code> seçilir. Mağazaya özel gizli bilgiler müşteri panelinden alınır ve OzyConnect ayar ekranına girilir.</p>
+    </section>
+
+    <nav class="market-nav" aria-label="Pazaryeri logoları">
+      <a class="market-chip" href="#hepsiburada"><img src="public/assets/img/marketplaces/hepsiburada.svg" alt="Hepsiburada"></a>
+      <a class="market-chip" href="#pttavm"><img src="public/assets/img/marketplaces/pttavm.png" alt="PttAVM"></a>
+      <a class="market-chip" href="#amazon"><img src="public/assets/img/marketplaces/amazon.svg" alt="Amazon TR"></a>
+      <a class="market-chip" href="#trendyol"><img src="public/assets/img/marketplaces/trendyol.svg" alt="Trendyol"></a>
+      <a class="market-chip" href="#n11"><img src="public/assets/img/marketplaces/n11.svg" alt="n11"></a>
+      <a class="market-chip" href="#pazarama"><img src="public/assets/img/marketplaces/pazarama.png" alt="Pazarama"></a>
+      <a class="market-chip" href="#ciceksepeti"><img src="public/assets/img/marketplaces/ciceksepeti.svg" alt="ÇiçekSepeti"></a>
+      <a class="market-chip" href="#idefix"><img src="public/assets/img/marketplaces/idefix.png" alt="İdefix"></a>
+    </nav>
+
+    <section class="guide-grid">
+      <article class="guide-card" id="hepsiburada">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/hepsiburada.svg" alt="Hepsiburada"></div>
+          <span class="tag fixed">Entegratör sabit</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>Hepsiburada Merchant Panel'e girin.</span></li>
+            <li><span><strong>Bilgilerim → Entegrasyon → Entegratör Bilgileri</strong> bölümüne gidin.</span></li>
+            <li><span>Entegratör olarak <code>oziyweb_dev</code> kullanıcısına yetki verin.</span></li>
+            <li><span><strong>Servis Anahtarı</strong> butonundan servis anahtarını kopyalayın.</span></li>
+            <li><span><strong>Mağaza ID / Merchant ID</strong> bilgisini aynı ekrandan kopyalayın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>Şifre / Servis Anahtarı</li>
+              <li>Merchant ID / Mağaza ID</li>
+            </ul>
+            <p class="note">Entegratör Kullanıcı Adı otomatik: <code>oziyweb_dev</code></p>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="pttavm">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/pttavm.png" alt="PttAVM"></div>
+          <span class="tag key">API Key sabit</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>PttAVM satıcı paneline girin.</span></li>
+            <li><span>Entegrasyon veya API ayarları bölümünde entegratör olarak <code>OzyConnect</code> seçin.</span></li>
+            <li><span>Mağazanız için verilen <strong>Access Token</strong> bilgisini kopyalayın.</span></li>
+            <li><span>Varsa <strong>Shop ID / Mağaza ID</strong> bilgisini not edin.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>Access Token</li>
+              <li>Shop ID / Mağaza ID, varsa</li>
+            </ul>
+            <p class="note">PttAVM API Key sistem tarafından otomatik kullanılır.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="amazon">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/amazon.svg" alt="Amazon TR"></div>
+          <span class="tag oauth">SP-API OAuth</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>Amazon Seller Central'a ana hesap veya yetkili kullanıcıyla girin.</span></li>
+            <li><span><strong>Apps &amp; Services → Develop Apps</strong> bölümünden SP-API uygulaması oluşturun veya mevcut uygulamayı açın.</span></li>
+            <li><span>LWA credentials bölümünden <strong>Client ID</strong> ve <strong>Client Secret</strong> bilgilerini alın.</span></li>
+            <li><span>Uygulamayı Amazon hesabınız için authorize ederek <strong>Refresh Token</strong> üretin.</span></li>
+            <li><span>Seller Central hesap bilgilerinden <strong>Seller ID / Merchant Token</strong> bilgisini alın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>LWA Client ID</li>
+              <li>LWA Client Secret</li>
+              <li>Refresh Token</li>
+              <li>Seller ID</li>
+            </ul>
+            <p class="note">Amazon TR marketplace ID sistemde sabittir: <code>A33AVAJ2PDY3EV</code></p>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="trendyol">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/trendyol.svg" alt="Trendyol"></div>
+          <span class="tag">Satıcı API</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>Trendyol Satıcı Paneli'ne girin.</span></li>
+            <li><span><strong>Hesabım → Entegrasyon Bilgileri</strong> bölümünü açın.</span></li>
+            <li><span><strong>Satıcı ID / Supplier ID</strong> bilgisini kopyalayın.</span></li>
+            <li><span><strong>API Key</strong> ve <strong>API Secret</strong> bilgilerini kopyalayın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>Supplier ID</li>
+              <li>API Key</li>
+              <li>API Secret</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="n11">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/n11.svg" alt="n11"></div>
+          <span class="tag">REST API</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>n11 Mağaza Yönetim Paneli'ne girin.</span></li>
+            <li><span>API / Entegrasyon ayarları bölümünü açın.</span></li>
+            <li><span>Mağazaya ait <strong>API Key</strong> ve <strong>API Secret</strong> bilgilerini alın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>API Key</li>
+              <li>API Secret</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="pazarama">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/pazarama.png" alt="Pazarama"></div>
+          <span class="tag oauth">OAuth</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>Pazarama İş Ortağım paneline girin.</span></li>
+            <li><span>Entegrasyon / API bilgileri bölümünden uygulama bilgilerini açın.</span></li>
+            <li><span><strong>Client ID</strong> ve <strong>Client Secret</strong> bilgilerini kopyalayın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>Client ID</li>
+              <li>Client Secret</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="ciceksepeti">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/ciceksepeti.svg" alt="ÇiçekSepeti"></div>
+          <span class="tag">API Anahtarı</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>ÇiçekSepeti satıcı paneline girin.</span></li>
+            <li><span>Entegrasyon veya API ayarları bölümünü açın.</span></li>
+            <li><span>Mağazaya özel <strong>API Key</strong> bilgisini kopyalayın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>API Key</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="guide-card" id="idefix">
+        <header class="guide-head">
+          <div class="market-logo"><img src="public/assets/img/marketplaces/idefix.png" alt="İdefix"></div>
+          <span class="tag">Merchant API</span>
+        </header>
+        <div class="guide-body">
+          <ol class="steps">
+            <li><span>İdefix satıcı paneline girin.</span></li>
+            <li><span>Entegrasyon veya API ayarları bölümünden mağaza bilgilerini açın.</span></li>
+            <li><span><strong>Vendor ID / Merchant ID</strong> bilgisini kopyalayın.</span></li>
+            <li><span>API erişimi için verilen <strong>API Key</strong> bilgisini alın.</span></li>
+          </ol>
+          <div class="fields">
+            <p class="fields-title"><span class="dot"></span>OzyConnect paneline girilecekler</p>
+            <ul class="field-list">
+              <li>Vendor ID / Merchant ID</li>
+              <li>API Key</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer-note">Bu rehberdeki sabit entegratör adları OzyConnect'e aittir; servis anahtarı, token, merchant ID ve benzeri gizli bilgiler her mağaza için müşteri panelinden alınmalıdır.</p>
+  </main>
+</body>
+</html>

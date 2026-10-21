@@ -1,0 +1,20 @@
+ User-agent: *
+
+Allow: /
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sitemap: localhost/sitemap.xml

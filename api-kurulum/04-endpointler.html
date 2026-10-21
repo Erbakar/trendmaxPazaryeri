@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Endpointleri · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>API Endpointleri</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="05-ornek-kodlar.html" class="btn btn-primary">Sonraki: Kod Örnekleri →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 4 / 7</span>
+                <h1>API Endpoint Referansı</h1>
+                <p class="lead">
+                    OzyConnect REST API'sinin tüm endpointleri, parametreleri ve
+                    yanıt yapıları. Tüm çağrılar <code>/api/v1</code> taban yoluna sahiptir
+                    ve Bearer HMAC kimlik doğrulaması gerektirir.
+                </p>
+            </section>
+
+            <!-- QUICK INDEX -->
+            <h2>Bölümler</h2>
+            <div class="card-grid">
+                <a href="#products" class="card">
+                    <h3>Ürünler</h3>
+                    <p>Listeleme, detay, oluşturma, güncelleme, stok &amp; fiyat.</p>
+                </a>
+                <a href="#orders" class="card">
+                    <h3>Siparişler</h3>
+                    <p>Listeleme, durum güncelleme, pazaryeri filtresi.</p>
+                </a>
+                <a href="#categories" class="card">
+                    <h3>Kategoriler</h3>
+                    <p>Düz liste &amp; ağaç yapısı.</p>
+                </a>
+                <a href="#brands" class="card">
+                    <h3>Markalar</h3>
+                    <p>Liste, detay, ürün sayısı.</p>
+                </a>
+                <a href="#stock" class="card">
+                    <h3>Stok</h3>
+                    <p>Özet ve toplu stok güncelleme.</p>
+                </a>
+                <a href="#cron" class="card">
+                    <h3>Cron</h3>
+                    <p>Sunucu taraflı planlı işler.</p>
+                </a>
+            </div>
+
+            <!-- ============ PRODUCTS ============ -->
+            <h2 id="products">Ürünler</h2>
+
+            <h3>Tüm Ürünleri Listele</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/v1/products</span>
+            </div>
+
+            <h4>Sorgu Parametreleri</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Parametre</th><th>Tür</th><th>Varsayılan</th><th>Açıklama</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>page</code></td><td>int</td><td><code>1</code></td><td>Sayfa numarası</td></tr>
+                        <tr><td><code>per_page</code></td><td>int</td><td><code>50</code></td><td>Sayfa başı kayıt (max 100)</td></tr>
+                        <tr><td><code>search</code></td><td>string</td><td>—</td><td>Ürün adı veya SKU</td></tr>
+                        <tr><td><code>marketplace</code></td><td>string</td><td>—</td><td><code>amazon</code>, <code>trendyol</code>, <code>hepsiburada</code>, <code>pazarama</code></td></tr>
+                        <tr><td><code>status</code></td><td>string</td><td>—</td><td><code>published</code>, <code>draft</code>, <code>inactive</code></td></tr>
+                        <tr><td><code>sort</code></td><td>string</td><td><code>created_at</code></td><td><code>created_at</code>, <code>updated_at</code>, <code>price</code></td></tr>
+                        <tr><td><code>order</code></td><td>string</td><td><code>desc</code></td><td><code>asc</code> veya <code>desc</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>Yanıt — 200 OK</h4>
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"data"</span>: [
+    {
+      <span class="tok-str">"id"</span>: <span class="tok-num">1</span>,
+      <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD001"</span>,
+      <span class="tok-str">"name"</span>: <span class="tok-str">"Ürün Adı"</span>,
+      <span class="tok-str">"description"</span>: <span class="tok-str">"Açıklama"</span>,
+      <span class="tok-str">"price"</span>: <span class="tok-num">99.99</span>,
+      <span class="tok-str">"cost"</span>: <span class="tok-num">50.00</span>,
+      <span class="tok-str">"stock"</span>: <span class="tok-num">100</span>,
+      <span class="tok-str">"status"</span>: <span class="tok-str">"published"</span>,
+      <span class="tok-str">"created_at"</span>: <span class="tok-str">"2025-01-15T10:30:00Z"</span>,
+      <span class="tok-str">"updated_at"</span>: <span class="tok-str">"2025-01-20T14:45:00Z"</span>
+    }
+  ],
+  <span class="tok-str">"pagination"</span>: {
+    <span class="tok-str">"total"</span>: <span class="tok-num">250</span>,
+    <span class="tok-str">"page"</span>: <span class="tok-num">1</span>,
+    <span class="tok-str">"per_page"</span>: <span class="tok-num">50</span>,
+    <span class="tok-str">"total_pages"</span>: <span class="tok-num">5</span>
+  }
+}</code></pre>
+
+            <h3>Tek Ürünü Getir</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/v1/products/{id}</span>
+            </div>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/v1/products/{sku}</span>
+            </div>
+
+            <h4>Yanıt — 200 OK</h4>
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"id"</span>: <span class="tok-num">1</span>,
+  <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD001"</span>,
+  <span class="tok-str">"name"</span>: <span class="tok-str">"Ürün Adı"</span>,
+  <span class="tok-str">"description"</span>: <span class="tok-str">"Detaylı açıklama"</span>,
+  <span class="tok-str">"price"</span>: <span class="tok-num">99.99</span>,
+  <span class="tok-str">"cost"</span>: <span class="tok-num">50.00</span>,
+  <span class="tok-str">"stock"</span>: <span class="tok-num">100</span>,
+  <span class="tok-str">"status"</span>: <span class="tok-str">"published"</span>,
+  <span class="tok-str">"categories"</span>: [<span class="tok-str">"Elektronik"</span>, <span class="tok-str">"Bilgisayar"</span>],
+  <span class="tok-str">"brand"</span>: <span class="tok-str">"Marka Adı"</span>,
+  <span class="tok-str">"images"</span>: [<span class="tok-str">"https://cdn.example.com/img/1.jpg"</span>],
+  <span class="tok-str">"attributes"</span>: {}
+}</code></pre>
+
+            <h3>Yeni Ürün Oluştur</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/v1/products</span>
+            </div>
+
+            <h4>İstek Gövdesi</h4>
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD002"</span>,
+  <span class="tok-str">"name"</span>: <span class="tok-str">"Yeni Ürün"</span>,
+  <span class="tok-str">"description"</span>: <span class="tok-str">"Ürün açıklaması"</span>,
+  <span class="tok-str">"price"</span>: <span class="tok-num">149.99</span>,
+  <span class="tok-str">"cost"</span>: <span class="tok-num">75.00</span>,
+  <span class="tok-str">"stock"</span>: <span class="tok-num">50</span>,
+  <span class="tok-str">"category_id"</span>: <span class="tok-num">5</span>,
+  <span class="tok-str">"brand_id"</span>: <span class="tok-num">3</span>,
+  <span class="tok-str">"status"</span>: <span class="tok-str">"draft"</span>
+}</code></pre>
+
+            <h4>Yanıt — 201 Created</h4>
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"id"</span>: <span class="tok-num">2</span>,
+  <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD002"</span>,
+  <span class="tok-str">"name"</span>: <span class="tok-str">"Yeni Ürün"</span>,
+  <span class="tok-str">"message"</span>: <span class="tok-str">"Ürün başarıyla oluşturuldu"</span>
+}</code></pre>
+
+            <h3>Ürün Güncelle</h3>
+            <div class="endpoint">
+                <span class="method method-put">PUT</span>
+                <span class="endpoint-path">/api/v1/products/{id}</span>
+            </div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"name"</span>: <span class="tok-str">"Güncellenmiş Ürün Adı"</span>,
+  <span class="tok-str">"price"</span>: <span class="tok-num">129.99</span>,
+  <span class="tok-str">"stock"</span>: <span class="tok-num">75</span>,
+  <span class="tok-str">"status"</span>: <span class="tok-str">"published"</span>
+}</code></pre>
+
+            <h3>Stok Güncelle</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/v1/products/{id}/stock</span>
+            </div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"quantity"</span>: <span class="tok-num">25</span>,
+  <span class="tok-str">"reason"</span>: <span class="tok-str">"manual_adjustment"</span>,
+  <span class="tok-str">"note"</span>: <span class="tok-str">"Stok sayımı sonrası düzeltme"</span>
+}</code></pre>
+
+            <h3>Fiyat Güncelle</h3>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/v1/products/{id}/price</span>
+            </div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"price"</span>: <span class="tok-num">89.99</span>,
+  <span class="tok-str">"cost"</span>: <span class="tok-num">45.00</span>,
+  <span class="tok-str">"apply_marketplaces"</span>: <span class="tok-key">true</span>,
+  <span class="tok-str">"note"</span>: <span class="tok-str">"Sezon kampanyası"</span>
+}</code></pre>
+
+            <!-- ============ ORDERS ============ -->
+            <h2 id="orders">Siparişler</h2>
+
+            <h3>Tüm Siparişleri Listele</h3>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/v1/orders</span>
+            </div>
+
+            <h4>Sorgu Parametreleri</h4>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Parametre</th><th>Tür</th><th>Açıklama</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>page</code></td><td>int</td><td>Sayfa numarası</td></tr>
+                        <tr><td><code>per_page</code></td><td>int</td><td>Sayfa başı kayıt</td></tr>
+                        <tr><td><code>status</code></td><td>string</td><td><code>new</code>, <code>processing</code>, <code>shipped</code>, <code>delivered</code>, <code>cancelled</code></td></tr>
+                        <tr><td><code>marketplace</code></td><td>string</td><td>Pazaryeri filtresi</td></tr>
+                        <tr><td><code>date_from</code></td><td>string</td><td><code>YYYY-MM-DD</code></td></tr>
+                        <tr><td><code>date_to</code></td><td>string</td><td><code>YYYY-MM-DD</code></td></tr>
+                        <tr><td><code>sort</code></td><td>string</td><td><code>order_date</code>, <code>total_amount</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>Yanıt — 200 OK</h4>
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"data"</span>: [
+    {
+      <span class="tok-str">"id"</span>: <span class="tok-str">"ORD001"</span>,
+      <span class="tok-str">"marketplace_order_id"</span>: <span class="tok-str">"MP123456"</span>,
+      <span class="tok-str">"marketplace"</span>: <span class="tok-str">"amazon"</span>,
+      <span class="tok-str">"customer"</span>: <span class="tok-str">"Müşteri Adı"</span>,
+      <span class="tok-str">"customer_email"</span>: <span class="tok-str">"customer@example.com"</span>,
+      <span class="tok-str">"total_amount"</span>: <span class="tok-num">250.50</span>,
+      <span class="tok-str">"items_count"</span>: <span class="tok-num">3</span>,
+      <span class="tok-str">"status"</span>: <span class="tok-str">"processing"</span>,
+      <span class="tok-str">"order_date"</span>: <span class="tok-str">"2025-01-20T14:30:00Z"</span>
+    }
+  ],
+  <span class="tok-str">"pagination"</span>: { <span class="tok-str">"total"</span>: <span class="tok-num">1250</span>, <span class="tok-str">"page"</span>: <span class="tok-num">1</span>, <span class="tok-str">"per_page"</span>: <span class="tok-num">50</span> }
+}</code></pre>
+
+            <h3>Sipariş Durumu Güncelle</h3>
+            <div class="endpoint">
+                <span class="method method-put">PUT</span>
+                <span class="endpoint-path">/api/v1/orders/{id}/status</span>
+            </div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"status"</span>: <span class="tok-str">"shipped"</span>,
+  <span class="tok-str">"tracking_number"</span>: <span class="tok-str">"1234567890"</span>,
+  <span class="tok-str">"courier"</span>: <span class="tok-str">"Aras Kargo"</span>,
+  <span class="tok-str">"note"</span>: <span class="tok-str">"Sipariş kargoya verildi"</span>
+}</code></pre>
+
+            <!-- ============ CATEGORIES ============ -->
+            <h2 id="categories">Kategoriler</h2>
+
+            <h3>Kategorileri Listele</h3>
+            <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/v1/categories</span></div>
+
+            <h3>Kategori Ağacı</h3>
+            <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/v1/categories/tree</span></div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"data"</span>: [
+    {
+      <span class="tok-str">"id"</span>: <span class="tok-num">1</span>,
+      <span class="tok-str">"name"</span>: <span class="tok-str">"Elektronik"</span>,
+      <span class="tok-str">"children"</span>: [
+        { <span class="tok-str">"id"</span>: <span class="tok-num">2</span>, <span class="tok-str">"name"</span>: <span class="tok-str">"Bilgisayarlar"</span>, <span class="tok-str">"children"</span>: [] }
+      ]
+    }
+  ]
+}</code></pre>
+
+            <!-- ============ BRANDS ============ -->
+            <h2 id="brands">Markalar</h2>
+
+            <h3>Markaları Listele</h3>
+            <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/v1/brands</span></div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"data"</span>: [
+    {
+      <span class="tok-str">"id"</span>: <span class="tok-num">1</span>,
+      <span class="tok-str">"name"</span>: <span class="tok-str">"Marka Adı"</span>,
+      <span class="tok-str">"product_count"</span>: <span class="tok-num">25</span>,
+      <span class="tok-str">"logo_url"</span>: <span class="tok-str">"https://cdn.example.com/brand.png"</span>,
+      <span class="tok-str">"status"</span>: <span class="tok-str">"active"</span>
+    }
+  ]
+}</code></pre>
+
+            <!-- ============ STOCK ============ -->
+            <h2 id="stock">Stok</h2>
+
+            <h3>Stok Özeti</h3>
+            <div class="endpoint"><span class="method method-get">GET</span><span class="endpoint-path">/api/v1/stock/summary</span></div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"total_products"</span>: <span class="tok-num">250</span>,
+  <span class="tok-str">"total_quantity"</span>: <span class="tok-num">5000</span>,
+  <span class="tok-str">"low_stock_items"</span>: <span class="tok-num">12</span>,
+  <span class="tok-str">"out_of_stock_items"</span>: <span class="tok-num">3</span>,
+  <span class="tok-str">"low_stock_threshold"</span>: <span class="tok-num">10</span>,
+  <span class="tok-str">"stock_value"</span>: <span class="tok-num">125000.00</span>
+}</code></pre>
+
+            <h3>Toplu Stok Güncelleme</h3>
+            <div class="endpoint"><span class="method method-post">POST</span><span class="endpoint-path">/api/v1/stock/bulk-update</span></div>
+
+            <pre class="has-lang"><span class="code-lang">json</span><code>{
+  <span class="tok-str">"updates"</span>: [
+    { <span class="tok-str">"product_id"</span>: <span class="tok-num">1</span>, <span class="tok-str">"quantity"</span>: <span class="tok-num">100</span> },
+    { <span class="tok-str">"product_id"</span>: <span class="tok-num">2</span>, <span class="tok-str">"quantity"</span>: <span class="tok-num">50</span> },
+    { <span class="tok-str">"sku"</span>: <span class="tok-str">"PROD003"</span>,   <span class="tok-str">"quantity"</span>: <span class="tok-num">25</span> }
+  ],
+  <span class="tok-str">"reason"</span>: <span class="tok-str">"physical_count"</span>
+}</code></pre>
+
+            <div class="callout callout-info">
+                <p><strong>İpucu.</strong> Tek seferde 500'e kadar kayıt işlenebilir. Daha büyük setler için istekleri bölmenizi öneririz.</p>
+            </div>
+
+            <!-- ============ CRON ============ -->
+            <h2 id="cron">Cron İşleri</h2>
+            <p>Cron endpointleri sadece sunucu taraflı planlı görevler için tasarlanmıştır. Her istekte <code>X-Cron-Token</code> başlığı gereklidir.</p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th style="width:12%">Metod</th><th>Endpoint</th><th>Açıklama</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="method method-get">GET</span></td><td><code>/cron/sync-orders</code></td><td>Pazaryerlerinden yeni siparişleri çeker.</td></tr>
+                        <tr><td><span class="method method-get">GET</span></td><td><code>/cron/sync-stock</code></td><td>Stokları pazaryerine gönderir.</td></tr>
+                        <tr><td><span class="method method-get">GET</span></td><td><code>/cron/sync-price</code></td><td>Fiyat senkronizasyonu.</td></tr>
+                        <tr><td><span class="method method-get">GET</span></td><td><code>/cron/sync-products</code></td><td>Ürün meta verilerini senkronize eder.</td></tr>
+                        <tr><td><span class="method method-get">GET</span></td><td><code>/cron/backup</code></td><td>Veritabanı yedeği oluşturur.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Önerilen Cron Takvimi</h3>
+            <pre class="has-lang"><span class="code-lang">crontab</span><code><span class="tok-com"># Siparişleri her 5 dakikada bir senkronize et</span>
+*/5 * * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-orders"</span> -H <span class="tok-str">"X-Cron-Token: $TOKEN"</span>
+
+<span class="tok-com"># Stokları her 10 dakikada bir güncelle</span>
+*/10 * * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-stock"</span> -H <span class="tok-str">"X-Cron-Token: $TOKEN"</span>
+
+<span class="tok-com"># Fiyatları her saat başı</span>
+0 * * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-price"</span> -H <span class="tok-str">"X-Cron-Token: $TOKEN"</span>
+
+<span class="tok-com"># Ürünleri günde iki kez (02:00 ve 14:00)</span>
+0 2,14 * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-products"</span> -H <span class="tok-str">"X-Cron-Token: $TOKEN"</span>
+
+<span class="tok-com"># Günlük yedek (01:00)</span>
+0 1 * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/backup"</span> -H <span class="tok-str">"X-Cron-Token: $TOKEN"</span></code></pre>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="03-hizli-baslangic.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">3. Hızlı Başlangıç</div>
+                </a>
+                <a href="05-ornek-kodlar.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">5. Kod Örnekleri</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

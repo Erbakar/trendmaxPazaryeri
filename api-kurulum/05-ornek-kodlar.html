@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kod Örnekleri · OzyConnect API</title>
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <div class="logo">Oz</div>
+            <div>
+                <div class="brand-name">OzyConnect API</div>
+                <div class="brand-tagline">Müşteri Entegrasyon Rehberi</div>
+            </div>
+        </a>
+
+        <div class="sidebar-title">Başlarken</div>
+        <ul class="sidebar-nav">
+            <li><a href="index.html"><span class="step-num">0</span> Genel Bakış</a></li>
+            <li><a href="01-onkosullar.html"><span class="step-num">1</span> Ön Koşullar</a></li>
+            <li><a href="02-kimlik-dogrulama.html"><span class="step-num">2</span> Kimlik Doğrulama</a></li>
+            <li><a href="03-hizli-baslangic.html"><span class="step-num">3</span> Hızlı Başlangıç</a></li>
+        </ul>
+
+        <div class="sidebar-title">Referans</div>
+        <ul class="sidebar-nav">
+            <li><a href="04-endpointler.html"><span class="step-num">4</span> API Endpointleri</a></li>
+            <li><a href="05-ornek-kodlar.html"><span class="step-num">5</span> Kod Örnekleri</a></li>
+            <li><a href="06-hata-yonetimi.html"><span class="step-num">6</span> Hata Yönetimi</a></li>
+        </ul>
+
+        <div class="sidebar-title">Destek</div>
+        <ul class="sidebar-nav">
+            <li><a href="07-sss-destek.html"><span class="step-num">7</span> SSS &amp; Destek</a></li>
+        </ul>
+
+        <div class="sidebar-footer">
+            <strong>OzyConnect</strong> v1.0.0<br>
+            © 2025 OziyWeb<br>
+            <a href="mailto:oziyweb@hotmail.com">oziyweb@hotmail.com</a>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div class="breadcrumb"><a href="index.html" style="color:inherit;text-decoration:none;">OzyConnect API</a> · <strong>Kod Örnekleri</strong></div>
+            <div class="topbar-actions">
+                <a href="#" class="btn" data-action="print">Yazdır / PDF</a>
+                <a href="06-hata-yonetimi.html" class="btn btn-primary">Sonraki: Hata Yönetimi →</a>
+            </div>
+        </div>
+
+        <div class="content">
+
+            <section class="hero">
+                <span class="eyebrow">Adım 5 / 7</span>
+                <h1>Kod Örnekleri</h1>
+                <p class="lead">
+                    Üretim ortamında kullanabileceğiniz, dil bazlı kısa ve anlaşılır
+                    örnekler. Tüm örnekler HMAC-SHA256 imzalama sürecini içerir.
+                </p>
+            </section>
+
+            <!-- EXAMPLE 1: LIST PRODUCTS -->
+            <h2>Örnek 1 — Ürünleri Listele</h2>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/v1/products?page=1&amp;per_page=20</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">cURL</button>
+                    <button type="button">PHP</button>
+                    <button type="button">Node.js</button>
+                    <button type="button">Python</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">bash</span><code><span class="tok-com"># Önceden üretilmiş imza ile hızlı test</span>
+curl -s <span class="tok-str">"https://panel.musteri.com/api/v1/products?page=1&amp;per_page=20"</span> \
+     -H <span class="tok-str">"Authorization: Bearer $API_KEY:$SIGNATURE:$TIMESTAMP:$NONCE"</span> \
+     -H <span class="tok-str">"Content-Type: application/json"</span> | jq .</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">&lt;?php</span>
+<span class="tok-key">$apiKey</span>    = getenv(<span class="tok-str">'OZY_API_KEY'</span>);
+<span class="tok-key">$apiSecret</span> = getenv(<span class="tok-str">'OZY_API_SECRET'</span>);
+
+<span class="tok-key">$method</span>    = <span class="tok-str">'GET'</span>;
+<span class="tok-key">$endpoint</span>  = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">$timestamp</span> = time();
+<span class="tok-key">$nonce</span>     = bin2hex(random_bytes(<span class="tok-num">8</span>));
+
+<span class="tok-key">$signature</span> = hash_hmac(
+    <span class="tok-str">'sha256'</span>,
+    <span class="tok-str">"{$method}\n{$endpoint}\n{$timestamp}\n{$nonce}"</span>,
+    <span class="tok-key">$apiSecret</span>
+);
+
+<span class="tok-key">$ch</span> = curl_init(<span class="tok-str">"https://panel.musteri.com{$endpoint}?page=1&amp;per_page=20"</span>);
+curl_setopt_array(<span class="tok-key">$ch</span>, [
+    CURLOPT_RETURNTRANSFER =&gt; <span class="tok-key">true</span>,
+    CURLOPT_HTTPHEADER     =&gt; [
+        <span class="tok-str">"Authorization: Bearer {$apiKey}:{$signature}:{$timestamp}:{$nonce}"</span>,
+        <span class="tok-str">'Content-Type: application/json'</span>,
+    ],
+]);
+
+<span class="tok-key">$data</span> = json_decode(curl_exec(<span class="tok-key">$ch</span>), <span class="tok-key">true</span>);
+<span class="tok-key">foreach</span> (<span class="tok-key">$data</span>[<span class="tok-str">'data'</span>] <span class="tok-key">as</span> <span class="tok-key">$p</span>) {
+    echo <span class="tok-str">"{$p['sku']} — {$p['name']} — {$p['price']} TL\n"</span>;
+}</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Node.js</span><code><span class="tok-key">import</span> crypto <span class="tok-key">from</span> <span class="tok-str">'crypto'</span>;
+
+<span class="tok-key">const</span> baseUrl   = process.env.OZY_BASE_URL;
+<span class="tok-key">const</span> apiKey    = process.env.OZY_API_KEY;
+<span class="tok-key">const</span> apiSecret = process.env.OZY_API_SECRET;
+
+<span class="tok-key">const</span> method    = <span class="tok-str">'GET'</span>;
+<span class="tok-key">const</span> endpoint  = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">const</span> timestamp = Math.floor(Date.now() / <span class="tok-num">1000</span>);
+<span class="tok-key">const</span> nonce     = crypto.randomBytes(<span class="tok-num">8</span>).toString(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> signature = crypto
+    .createHmac(<span class="tok-str">'sha256'</span>, apiSecret)
+    .update(<span class="tok-str">`${method}\n${endpoint}\n${timestamp}\n${nonce}`</span>)
+    .digest(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> res = <span class="tok-key">await</span> <span class="tok-fn">fetch</span>(<span class="tok-str">`${baseUrl}${endpoint}?page=1&amp;per_page=20`</span>, {
+    headers: {
+        <span class="tok-str">'Authorization'</span>: <span class="tok-str">`Bearer ${apiKey}:${signature}:${timestamp}:${nonce}`</span>,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+});
+
+<span class="tok-key">const</span> data = <span class="tok-key">await</span> res.json();
+data.data.forEach(p =&gt; console.log(<span class="tok-str">`${p.sku} — ${p.name} — ${p.price} TL`</span>));</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Python</span><code><span class="tok-key">import</span> os, hmac, hashlib, time, secrets, requests
+
+base_url   = os.getenv(<span class="tok-str">'OZY_BASE_URL'</span>)
+api_key    = os.getenv(<span class="tok-str">'OZY_API_KEY'</span>)
+api_secret = os.getenv(<span class="tok-str">'OZY_API_SECRET'</span>)
+
+method    = <span class="tok-str">'GET'</span>
+endpoint  = <span class="tok-str">'/api/v1/products'</span>
+timestamp = <span class="tok-fn">str</span>(<span class="tok-fn">int</span>(time.time()))
+nonce     = secrets.token_hex(<span class="tok-num">8</span>)
+
+message   = <span class="tok-str">f'{method}\n{endpoint}\n{timestamp}\n{nonce}'</span>
+signature = hmac.new(api_secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+res = requests.get(
+    <span class="tok-str">f'{base_url}{endpoint}'</span>,
+    params={<span class="tok-str">'page'</span>: <span class="tok-num">1</span>, <span class="tok-str">'per_page'</span>: <span class="tok-num">20</span>},
+    headers={
+        <span class="tok-str">'Authorization'</span>: <span class="tok-str">f'Bearer {api_key}:{signature}:{timestamp}:{nonce}'</span>,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+    timeout=<span class="tok-num">30</span>,
+)
+res.raise_for_status()
+
+<span class="tok-key">for</span> p <span class="tok-key">in</span> res.json()[<span class="tok-str">'data'</span>]:
+    <span class="tok-fn">print</span>(<span class="tok-str">f"{p['sku']} — {p['name']} — {p['price']} TL"</span>)</code></pre>
+                </div>
+            </div>
+
+            <!-- EXAMPLE 2: CREATE PRODUCT -->
+            <h2>Örnek 2 — Yeni Ürün Oluştur</h2>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/v1/products</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">cURL</button>
+                    <button type="button">PHP</button>
+                    <button type="button">Node.js</button>
+                    <button type="button">Python</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">bash</span><code>curl -s -X POST <span class="tok-str">"https://panel.musteri.com/api/v1/products"</span> \
+     -H <span class="tok-str">"Authorization: Bearer $API_KEY:$SIGNATURE:$TIMESTAMP:$NONCE"</span> \
+     -H <span class="tok-str">"Content-Type: application/json"</span> \
+     -d <span class="tok-str">'{
+       "sku": "NEW001",
+       "name": "Yeni Ürün",
+       "price": 99.99,
+       "stock": 50,
+       "status": "draft"
+     }'</span></code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">$body</span> = json_encode([
+    <span class="tok-str">'sku'</span>    =&gt; <span class="tok-str">'NEW001'</span>,
+    <span class="tok-str">'name'</span>   =&gt; <span class="tok-str">'Yeni Ürün'</span>,
+    <span class="tok-str">'price'</span>  =&gt; <span class="tok-num">99.99</span>,
+    <span class="tok-str">'stock'</span>  =&gt; <span class="tok-num">50</span>,
+    <span class="tok-str">'status'</span> =&gt; <span class="tok-str">'draft'</span>,
+], JSON_UNESCAPED_UNICODE);
+
+<span class="tok-key">$method</span>    = <span class="tok-str">'POST'</span>;
+<span class="tok-key">$endpoint</span>  = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">$timestamp</span> = time();
+<span class="tok-key">$nonce</span>     = bin2hex(random_bytes(<span class="tok-num">8</span>));
+<span class="tok-key">$signature</span> = hash_hmac(<span class="tok-str">'sha256'</span>,
+    <span class="tok-str">"{$method}\n{$endpoint}\n{$timestamp}\n{$nonce}"</span>, <span class="tok-key">$apiSecret</span>);
+
+<span class="tok-key">$ch</span> = curl_init(<span class="tok-str">"https://panel.musteri.com{$endpoint}"</span>);
+curl_setopt_array(<span class="tok-key">$ch</span>, [
+    CURLOPT_CUSTOMREQUEST  =&gt; <span class="tok-str">'POST'</span>,
+    CURLOPT_POSTFIELDS     =&gt; <span class="tok-key">$body</span>,
+    CURLOPT_RETURNTRANSFER =&gt; <span class="tok-key">true</span>,
+    CURLOPT_HTTPHEADER     =&gt; [
+        <span class="tok-str">"Authorization: Bearer {$apiKey}:{$signature}:{$timestamp}:{$nonce}"</span>,
+        <span class="tok-str">'Content-Type: application/json'</span>,
+    ],
+]);
+
+<span class="tok-key">$res</span> = json_decode(curl_exec(<span class="tok-key">$ch</span>), <span class="tok-key">true</span>);
+echo <span class="tok-str">"Oluşturulan ID: {$res['id']}\n"</span>;</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Node.js</span><code><span class="tok-key">const</span> body = JSON.stringify({
+    sku:    <span class="tok-str">'NEW001'</span>,
+    name:   <span class="tok-str">'Yeni Ürün'</span>,
+    price:  <span class="tok-num">99.99</span>,
+    stock:  <span class="tok-num">50</span>,
+    status: <span class="tok-str">'draft'</span>,
+});
+
+<span class="tok-key">const</span> method    = <span class="tok-str">'POST'</span>;
+<span class="tok-key">const</span> endpoint  = <span class="tok-str">'/api/v1/products'</span>;
+<span class="tok-key">const</span> timestamp = Math.floor(Date.now() / <span class="tok-num">1000</span>);
+<span class="tok-key">const</span> nonce     = crypto.randomBytes(<span class="tok-num">8</span>).toString(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> signature = crypto
+    .createHmac(<span class="tok-str">'sha256'</span>, apiSecret)
+    .update(<span class="tok-str">`${method}\n${endpoint}\n${timestamp}\n${nonce}`</span>)
+    .digest(<span class="tok-str">'hex'</span>);
+
+<span class="tok-key">const</span> res = <span class="tok-key">await</span> <span class="tok-fn">fetch</span>(<span class="tok-str">`${baseUrl}${endpoint}`</span>, {
+    method: <span class="tok-str">'POST'</span>,
+    headers: {
+        <span class="tok-str">'Authorization'</span>: <span class="tok-str">`Bearer ${apiKey}:${signature}:${timestamp}:${nonce}`</span>,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+    body,
+});
+
+<span class="tok-key">const</span> data = <span class="tok-key">await</span> res.json();
+console.log(<span class="tok-str">`Oluşturulan ID: ${data.id}`</span>);</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Python</span><code>body = {
+    <span class="tok-str">'sku'</span>:    <span class="tok-str">'NEW001'</span>,
+    <span class="tok-str">'name'</span>:   <span class="tok-str">'Yeni Ürün'</span>,
+    <span class="tok-str">'price'</span>:  <span class="tok-num">99.99</span>,
+    <span class="tok-str">'stock'</span>:  <span class="tok-num">50</span>,
+    <span class="tok-str">'status'</span>: <span class="tok-str">'draft'</span>,
+}
+
+method    = <span class="tok-str">'POST'</span>
+endpoint  = <span class="tok-str">'/api/v1/products'</span>
+timestamp = <span class="tok-fn">str</span>(<span class="tok-fn">int</span>(time.time()))
+nonce     = secrets.token_hex(<span class="tok-num">8</span>)
+
+message   = <span class="tok-str">f'{method}\n{endpoint}\n{timestamp}\n{nonce}'</span>
+signature = hmac.new(api_secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+res = requests.post(
+    <span class="tok-str">f'{base_url}{endpoint}'</span>,
+    json=body,
+    headers={
+        <span class="tok-str">'Authorization'</span>: <span class="tok-str">f'Bearer {api_key}:{signature}:{timestamp}:{nonce}'</span>,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+    timeout=<span class="tok-num">30</span>,
+)
+res.raise_for_status()
+<span class="tok-fn">print</span>(<span class="tok-str">f"Oluşturulan ID: {res.json()['id']}"</span>)</code></pre>
+                </div>
+            </div>
+
+            <!-- EXAMPLE 3: BULK STOCK -->
+            <h2>Örnek 3 — Toplu Stok Güncellemesi</h2>
+            <div class="endpoint">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/v1/stock/bulk-update</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">cURL</button>
+                    <button type="button">PHP</button>
+                    <button type="button">Node.js</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">bash</span><code>curl -s -X POST <span class="tok-str">"https://panel.musteri.com/api/v1/stock/bulk-update"</span> \
+     -H <span class="tok-str">"Authorization: Bearer $API_KEY:$SIGNATURE:$TIMESTAMP:$NONCE"</span> \
+     -H <span class="tok-str">"Content-Type: application/json"</span> \
+     -d <span class="tok-str">'{
+       "updates": [
+         {"product_id": 1, "quantity": 100},
+         {"sku": "PROD003", "quantity": 25}
+       ],
+       "reason": "physical_count"
+     }'</span></code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">$body</span> = json_encode([
+    <span class="tok-str">'updates'</span> =&gt; [
+        [<span class="tok-str">'product_id'</span> =&gt; <span class="tok-num">1</span>, <span class="tok-str">'quantity'</span> =&gt; <span class="tok-num">100</span>],
+        [<span class="tok-str">'sku'</span>        =&gt; <span class="tok-str">'PROD003'</span>, <span class="tok-str">'quantity'</span> =&gt; <span class="tok-num">25</span>],
+    ],
+    <span class="tok-str">'reason'</span> =&gt; <span class="tok-str">'physical_count'</span>,
+]);
+
+<span class="tok-com">// İmza üretimini önceki örnekteki gibi yapın,</span>
+<span class="tok-com">// method = 'POST', endpoint = '/api/v1/stock/bulk-update'</span>
+
+<span class="tok-key">$ch</span> = curl_init(<span class="tok-str">'https://panel.musteri.com/api/v1/stock/bulk-update'</span>);
+curl_setopt_array(<span class="tok-key">$ch</span>, [
+    CURLOPT_POST           =&gt; <span class="tok-key">true</span>,
+    CURLOPT_POSTFIELDS     =&gt; <span class="tok-key">$body</span>,
+    CURLOPT_RETURNTRANSFER =&gt; <span class="tok-key">true</span>,
+    CURLOPT_HTTPHEADER     =&gt; [<span class="tok-str">"Authorization: Bearer {$auth}"</span>, <span class="tok-str">'Content-Type: application/json'</span>],
+]);
+<span class="tok-key">$r</span> = json_decode(curl_exec(<span class="tok-key">$ch</span>), <span class="tok-key">true</span>);
+echo <span class="tok-str">"Güncellenen: {$r['updated']}, Hatalı: {$r['failed']}\n"</span>;</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Node.js</span><code><span class="tok-key">const</span> body = JSON.stringify({
+    updates: [
+        { product_id: <span class="tok-num">1</span>, quantity: <span class="tok-num">100</span> },
+        { sku: <span class="tok-str">'PROD003'</span>, quantity: <span class="tok-num">25</span> },
+    ],
+    reason: <span class="tok-str">'physical_count'</span>,
+});
+
+<span class="tok-com">// signature üretimini önceki örnekteki gibi yapın</span>
+
+<span class="tok-key">const</span> res  = <span class="tok-key">await</span> <span class="tok-fn">fetch</span>(<span class="tok-str">`${baseUrl}/api/v1/stock/bulk-update`</span>, {
+    method: <span class="tok-str">'POST'</span>,
+    headers: {
+        <span class="tok-str">'Authorization'</span>: <span class="tok-str">`Bearer ${auth}`</span>,
+        <span class="tok-str">'Content-Type'</span>: <span class="tok-str">'application/json'</span>,
+    },
+    body,
+});
+<span class="tok-key">const</span> data = <span class="tok-key">await</span> res.json();
+console.log(<span class="tok-str">`Güncellenen: ${data.updated}, Hatalı: ${data.failed}`</span>);</code></pre>
+                </div>
+            </div>
+
+            <!-- EXAMPLE 4: SYNC ORDERS CRON -->
+            <h2>Örnek 4 — Cron ile Sipariş Senkronizasyonu</h2>
+            <div class="endpoint">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/cron/sync-orders</span>
+            </div>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">cURL</button>
+                    <button type="button">JavaScript</button>
+                    <button type="button">PowerShell</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">bash</span><code><span class="tok-com"># Linux crontab</span>
+*/5 * * * * curl -s <span class="tok-str">"https://panel.musteri.com/cron/sync-orders"</span> \
+    -H <span class="tok-str">"X-Cron-Token: $CRON_TOKEN"</span> &gt; /var/log/ozy-sync.log 2&gt;&amp;1</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">JavaScript</span><code><span class="tok-key">async function</span> <span class="tok-fn">syncOrders</span>() {
+    <span class="tok-key">const</span> res = <span class="tok-key">await</span> <span class="tok-fn">fetch</span>(<span class="tok-str">'https://panel.musteri.com/cron/sync-orders'</span>, {
+        headers: { <span class="tok-str">'X-Cron-Token'</span>: process.env.CRON_TOKEN },
+    });
+    <span class="tok-key">const</span> data = <span class="tok-key">await</span> res.json();
+    console.log(<span class="tok-str">`${data.synced} sipariş senkronize edildi (yeni: ${data.new_orders}, güncellenen: ${data.updated_orders})`</span>);
+}
+
+<span class="tok-fn">syncOrders</span>().catch(console.error);</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">PowerShell</span><code><span class="tok-com"># Windows Task Scheduler ile kullanabilirsiniz</span>
+<span class="tok-key">$headers</span> = @{ <span class="tok-str">'X-Cron-Token'</span> = <span class="tok-key">$env:</span>CRON_TOKEN }
+<span class="tok-key">$res</span>     = Invoke-RestMethod -Uri <span class="tok-str">"https://panel.musteri.com/cron/sync-orders"</span> -Headers <span class="tok-key">$headers</span>
+Write-Host <span class="tok-str">"$($res.synced) sipariş senkronize edildi"</span></code></pre>
+                </div>
+            </div>
+
+            <!-- EXAMPLE 5: PAGINATION LOOP -->
+            <h2>Örnek 5 — Sayfalama ile Tüm Kayıtları Çek</h2>
+            <p>Büyük veri setleri için sayfalama döngüsü. Rate limit'e takılmamak için iki çağrı arasına küçük bekleme ekliyoruz.</p>
+
+            <div class="tabs">
+                <div class="tabs-nav">
+                    <button class="active" type="button">PHP</button>
+                    <button type="button">Node.js</button>
+                    <button type="button">Python</button>
+                </div>
+
+                <div class="tabs-panel active">
+<pre class="has-lang"><span class="code-lang">PHP</span><code><span class="tok-key">$page</span> = <span class="tok-num">1</span>;
+<span class="tok-key">$allProducts</span> = [];
+
+<span class="tok-key">do</span> {
+    <span class="tok-key">$data</span> = <span class="tok-key">$client</span>-&gt;request(<span class="tok-str">'GET'</span>, <span class="tok-str">'/api/v1/products'</span>, [
+        <span class="tok-str">'page'</span>     =&gt; <span class="tok-key">$page</span>,
+        <span class="tok-str">'per_page'</span> =&gt; <span class="tok-num">100</span>,
+    ]);
+
+    <span class="tok-key">$allProducts</span> = array_merge(<span class="tok-key">$allProducts</span>, <span class="tok-key">$data</span>[<span class="tok-str">'data'</span>]);
+    <span class="tok-key">$totalPages</span> = <span class="tok-key">$data</span>[<span class="tok-str">'pagination'</span>][<span class="tok-str">'total_pages'</span>];
+    <span class="tok-key">$page</span>++;
+    usleep(<span class="tok-num">150000</span>); <span class="tok-com">// 150ms bekle</span>
+} <span class="tok-key">while</span> (<span class="tok-key">$page</span> &lt;= <span class="tok-key">$totalPages</span>);
+
+echo <span class="tok-str">"Toplam "</span> . count(<span class="tok-key">$allProducts</span>) . <span class="tok-str">" ürün alındı.\n"</span>;</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Node.js</span><code><span class="tok-key">const</span> all = [];
+<span class="tok-key">let</span> page = <span class="tok-num">1</span>, totalPages = <span class="tok-num">1</span>;
+
+<span class="tok-key">do</span> {
+    <span class="tok-key">const</span> data = <span class="tok-key">await</span> client.request(<span class="tok-str">'GET'</span>, <span class="tok-str">'/api/v1/products'</span>,
+        { page, per_page: <span class="tok-num">100</span> });
+    all.push(...data.data);
+    totalPages = data.pagination.total_pages;
+    page++;
+    <span class="tok-key">await new</span> <span class="tok-fn">Promise</span>(r =&gt; <span class="tok-fn">setTimeout</span>(r, <span class="tok-num">150</span>));
+} <span class="tok-key">while</span> (page &lt;= totalPages);
+
+console.log(<span class="tok-str">`Toplam ${all.length} ürün alındı.`</span>);</code></pre>
+                </div>
+
+                <div class="tabs-panel">
+<pre class="has-lang"><span class="code-lang">Python</span><code>all_products = []
+page, total_pages = <span class="tok-num">1</span>, <span class="tok-num">1</span>
+
+<span class="tok-key">while</span> page &lt;= total_pages:
+    data = client.request(<span class="tok-str">'GET'</span>, <span class="tok-str">'/api/v1/products'</span>,
+                          params={<span class="tok-str">'page'</span>: page, <span class="tok-str">'per_page'</span>: <span class="tok-num">100</span>})
+    all_products.extend(data[<span class="tok-str">'data'</span>])
+    total_pages = data[<span class="tok-str">'pagination'</span>][<span class="tok-str">'total_pages'</span>]
+    page += <span class="tok-num">1</span>
+    time.sleep(<span class="tok-num">0.15</span>)
+
+<span class="tok-fn">print</span>(<span class="tok-str">f"Toplam {len(all_products)} ürün alındı."</span>)</code></pre>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <p><strong>İpucu.</strong> Büyük veri setlerinde <code>updated_at</code> parametresi ile sadece değişen kayıtları çekmek daha verimlidir. Uygulamanıza göre <em>delta sync</em> pattern'i kullanmayı düşünün.</p>
+            </div>
+
+            <!-- PAGE NAV -->
+            <div class="page-nav">
+                <a href="04-endpointler.html">
+                    <div class="label">← Önceki</div>
+                    <div class="title">4. API Endpointleri</div>
+                </a>
+                <a href="06-hata-yonetimi.html" class="next">
+                    <div class="label">Sonraki →</div>
+                    <div class="title">6. Hata Yönetimi</div>
+                </a>
+            </div>
+
+        </div>
+    </main>
+</div>
+<script src="assets/script.js"></script>
+</body>
+</html>

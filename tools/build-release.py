@@ -29,7 +29,7 @@ def include(name):
         return p.name in {'.gitkeep', '.htaccess'}
     if any(part.startswith('.') for part in p.parts):
         return name in {'.htaccess', '.env.example'} or p.name == '.htaccess'
-    if name == 'tools/store-archive.php':
+    if name in {'tools/store-archive.php', 'tools/reconcile-trendyol-listings.php'}:
         return True
     return name in ROOT_FILES or p.parts[0] in SOURCE_DIRS
 
@@ -69,7 +69,11 @@ def main():
                     continue
                 name = file.relative_to(stage).as_posix()
                 content = file.read_bytes()
-                archive.writestr(name, content)
+                entry = zipfile.ZipInfo(name)
+                entry.create_system = 3
+                entry.external_attr = (0o100644 << 16)
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(entry, content)
                 manifest[name] = hashlib.sha256(content).hexdigest()
     output.with_suffix('.manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print(json.dumps({'file': str(output), 'files': len(manifest),

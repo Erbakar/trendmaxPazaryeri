@@ -21,7 +21,7 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 // ─── Sabitler ──────────────────────────────────────────
-define('BASE_PATH', dirname(__DIR__));
+if (!defined('BASE_PATH')) define('BASE_PATH', dirname(__DIR__));
 define('PUBLIC_PATH', __DIR__);
 define('APP_START', microtime(true));
 

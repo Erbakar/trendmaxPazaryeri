@@ -124,3 +124,7 @@ Bağlantı yalnız e-postayla iletilir; teslim başarısızsa token iptal edilir
 ve bilinen hesaplar aynı genel yanıtı alır. Controller ve görünüm tokenı oturuma/HTML'e taşımaz;
 eski update yükü de aynı düzeltmeyi içerir. Yerel SMTP yok/hatalı senaryosu testi eklendi.
 Canlı sunucuya bu düzeltme ayrıca dağıtılmalıdır.
+
+### Trendyol ilan eşleştirmelerini onarma
+
+`php tools/reconcile-trendyol-listings.php --store=ID` onaylı Trendyol katalog sayfalarını okuyup mevcut yerel eşleştirmelerle kesin SKU/barkod eşleşmelerini raporlar. `--apply` yalnız bu eşleştirmelerin yayın durumunu ve uzak ilan kimliklerini günceller. Çelişkili veya çoklu eşleşmeler atlanır; ürün oluşturulmaz, XML maliyeti, stok kaynağı, kategori ve görseller değiştirilmez. Tüm sayfalar başarıyla okunmadan veritabanına yazılmaz. Uygulama öncesi mağaza yedeği alınmalıdır. Sonraki stok/fiyat görevi XML fiyat kuralını kullanır; API kabulü sonucun Trendyol'a yansıdığını tek başına kanıtlamaz.

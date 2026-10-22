@@ -432,10 +432,10 @@ $totalProcessed = array_sum(array_map(fn($l) => (int)($l['records_processed'] ??
         <div class="sc-auto-h-icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></div>
         <div class="sc-auto-h-text">
             <h2 class="sc-auto-h-title" id="scAutoTitle">Otomatik Senkronizasyon</h2>
-            <div class="sc-auto-h-sub">Bu ayarlar yalnız mağazanız için geçerlidir; açık/kapalı durumunu ve çalışma sıklığını seçin</div>
+            <div class="sc-auto-h-sub">Stok ve fiyat sistemden pazaryerine gönderilir. XML verisinin güncellenme sıklığı, XML profilinden ayrıca ayarlanır.</div>
         </div>
         <span class="sc-auto-note">
-            <i data-lucide="check-circle-2" aria-hidden="true"></i> Senkronizasyon arka planda otomatik çalışır, ek kurulum gerekmez
+            <i data-lucide="info" aria-hidden="true"></i> Otomatik çalışma için sunucu zamanlayıcısı ve işleyici etkin olmalıdır
         </span>
     </div>
     <div class="sc-auto-body">

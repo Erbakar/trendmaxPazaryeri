@@ -22,6 +22,9 @@ $unsellableLabels = [
 ];
 ?>
 <style>
+.cmap-bar select:not([multiple]),.hba-field select:not([multiple]),.hba-table select:not([multiple]){appearance:none;-webkit-appearance:none;box-sizing:border-box;padding-right:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px 16px}
+.cmap-bar select{min-width:min(100%,320px);width:100%}.cmap-bar form{max-width:100%}#cmapDrawer .cmap-btn{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+
 .cmap-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .cmap-bar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
 .cmap-bar .btn [data-lucide]{width:14px;height:14px}
@@ -45,7 +48,7 @@ $unsellableLabels = [
 .cmap-empty [data-lucide]{width:32px;height:32px;opacity:.5}
 
 .hba-backdrop{position:fixed;inset:0;z-index:9990;background:rgba(15,23,42,.45)}
-.hba-drawer{position:fixed;top:0;right:0;bottom:0;z-index:9991;display:flex;flex-direction:column;width:min(960px,100%);background:var(--bg-page,var(--bg-card));border-left:1px solid var(--border);transition:transform .2s ease}
+.hba-drawer{position:fixed;top:0;right:0;bottom:0;z-index:9991;display:flex;flex-direction:column;width:min(1200px,100%);background:var(--bg-page,var(--bg-card));border-left:1px solid var(--border);transition:transform .2s ease}
 .hba-drawer[hidden],.hba-backdrop[hidden]{display:none}
 .hba-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 24px;background:var(--bg-card);border-bottom:1px solid var(--border)}
 .hba-eyebrow{margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
@@ -67,7 +70,7 @@ $unsellableLabels = [
 .hba-section-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
 .hba-section-head h3{margin:0;font-size:14px;font-weight:600;color:var(--text-primary)}
 .hba-section-head span{font-size:12px;color:var(--text-muted)}
-.hba-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:16px}
+.hba-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px;padding:16px}
 .hba-field label{display:flex;align-items:center;gap:6px;margin:0 0 4px;font-size:12px;font-weight:600;color:var(--text-primary)}
 .hba-field input,.hba-field select,.hba-table select,.hba-table input{width:100%;height:36px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-input,var(--bg-card));color:var(--text-primary);font-size:13px;font-family:inherit}
 .hba-field small{display:block;margin-top:4px;font-size:11px;color:var(--text-muted)}
@@ -77,9 +80,10 @@ $unsellableLabels = [
 .hba-table th{padding:8px 12px;text-align:left;white-space:nowrap;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);background:var(--bg-input,var(--bg-card));border-bottom:1px solid var(--border)}
 .hba-table td{padding:8px 12px;vertical-align:top;border-bottom:1px solid var(--border-light,var(--border));color:var(--text-primary)}
 .hba-table tr:last-child td{border-bottom:none}
+.hba-field select:not([multiple]),.hba-table select:not([multiple]){padding-right:44px}
 .hba-table td.hba-product{min-width:180px}
 .hba-table td.hba-product small{display:block;color:var(--text-muted)}
-.hba-table td[data-hba-cell]{min-width:150px}
+.hba-table td[data-hba-cell]{min-width:320px}
 .hba-badge{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;font-size:10.5px;font-weight:600;line-height:18px;vertical-align:middle}
 .hba-badge.is-product{background:var(--info-bg);color:var(--info)}
 .hba-badge.is-default,.hba-badge.is-match{background:var(--bg-badge);color:var(--text-muted)}
@@ -654,7 +658,7 @@ $unsellableLabels = [
      hiçbir yolu yoktu; kullanıcı /categories ağacında tek tek aramak zorundaydı. */ ?>
 <div class="hba-backdrop" id="cmapBackdrop" hidden data-cmap-close></div>
 <aside class="hba-drawer" id="cmapPick" role="dialog" aria-modal="true" aria-labelledby="cmapPickTitle" hidden
-       style="width:min(720px,100%)">
+       style="width:min(1080px,100%)">
     <header class="hba-head">
         <div>
             <p class="hba-eyebrow"><?= $esc($marketplaceName) ?> · Kategori Eşleştirme</p>

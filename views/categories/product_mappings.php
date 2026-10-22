@@ -5,15 +5,19 @@ $mid=(int)$mp['id']; $cid=(int)$category['id'];
 $canEdit=($data['_can'])('categories.edit');
 $link=static fn($p)=>'?'.http_build_query(['marketplace_id'=>$mid,'q'=>$q,'page'=>$p]);
 ?>
+<style>
+.pc-mapping-controls label{display:flex;flex-direction:column;gap:6px;min-width:0}.pc-mapping-controls .pc-target{flex:1 1 680px;max-width:100%}.pc-mapping-controls #pcTarget{width:100%;min-width:0;max-width:none}
+#pcTarget{appearance:none;-webkit-appearance:none;box-sizing:border-box;padding-right:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px 16px}
+</style>
 <div class="page-header"><h1><?= $esc($category['name']) ?> · Ürün kategori eşleştirmeleri</h1><a href="/categories/mapping?marketplace_id=<?= $mid ?>" class="btn btn-secondary">Kategorilere dön</a></div>
 <p>Aynı XML kategorisindeki ürünleri farklı Trendyol kategorilerine atayabilirsiniz. Ürün seçimi kategori varsayılanından önceliklidir ve XML güncellemelerinde korunur. Kaydetmek ürünleri Trendyol’a göndermez. Mevcut Trendyol ilanlarında fiyat/stok güncellemesi, ilan kategorisini değiştirmez.</p>
 <p>Kategori varsayılanı: <strong><?= $esc($default['marketplace_category_name'] ?? 'Eşleştirilmemiş') ?></strong></p>
 <form method="get" style="display:flex;gap:12px;margin:16px 0"><input type="hidden" name="marketplace_id" value="<?= $mid ?>"><input name="q" value="<?= $esc($q) ?>" class="form-input" placeholder="Ürün adı veya stok kodu ara"><button class="btn btn-secondary">Ara</button></form>
 <p><?= $total ?> sonuç · Sayfa <?= $page ?> / <?= max(1,(int)ceil($total/100)) ?> · Seçim yalnız bu sayfadaki ürünleri kapsar.</p>
 <?php if($canEdit): ?>
-<div class="card" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+<div class="card pc-mapping-controls" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;align-items:flex-end">
 <label>Trendyol kategorisi ara <input type="search" id="pcSearch" class="form-input" placeholder="Örn. termos, ayna"></label>
-<label>Hedef kategori <select id="pcTarget" class="form-input" style="max-width:600px"><option value="">Arama yapın ve kategori seçin</option></select></label>
+<label class="pc-target">Hedef kategori <select id="pcTarget" class="form-input"><option value="">Arama yapın ve kategori seçin</option></select></label>
 <button type="button" id="pcSave" class="btn btn-primary">Seçilenlere kaydet</button><button type="button" id="pcReset" class="btn btn-secondary">Seçilenleri varsayılana döndür</button>
 </div>
 <?php endif; ?>

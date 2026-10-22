@@ -19,13 +19,13 @@ $categories = $data['categories'] ?? [];
 $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
 ?>
 <style>
-.xpf-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-card);margin-bottom:16px;max-width:860px}
+.xpf-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-card);margin-bottom:16px;max-width:1200px}
 .xpf-head{padding:12px 16px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);background:var(--bg-sidebar)}
 .xpf-head [data-lucide]{width:14px;height:14px}
 .xpf-body{padding:16px}
 .xpf-row{display:grid;gap:12px;margin-bottom:12px}
 .xpf-r2{grid-template-columns:1fr 1fr}
-.xpf-f{display:flex;flex-direction:column;gap:4px}
+.xpf-f{min-width:0;display:flex;flex-direction:column;gap:4px}
 .xpf-f label{font-size:11px;font-weight:700;color:var(--text-secondary)}
 .xpf-f input[type=text],.xpf-f input[type=url],.xpf-f input[type=number],.xpf-f select,.xpf-f textarea{padding:8px 11px;border:1px solid var(--border);border-radius:8px;background:var(--bg-sidebar);color:var(--text-primary);font-size:13px;font-family:inherit}
 .xpf-f input:focus,.xpf-f select:focus,.xpf-f textarea:focus{outline:none;border-color:var(--primary)}
@@ -158,10 +158,10 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
                     Önce yukarıdan <b>XML'i Analiz Et</b> deyin; feed'deki etiketler burada listelenir
                     ve sistem alanlarıyla eşleştirebilirsiniz.
                 </div>
-                <table class="xpf-map" id="xpfMapTable" hidden>
+                <div class="xpf-map-wrap"><table class="xpf-map" id="xpfMapTable" hidden>
                     <thead><tr><th>Sistem Alanı</th><th>XML Etiketi</th><th>Örnek Değer</th></tr></thead>
                     <tbody id="xpfMapBody"></tbody>
-                </table>
+                </table></div>
                 <div class="xpf-map-onizleme" id="xpfMapOnizleme" hidden></div>
                 <details id="xpfMapJsonKutu" style="margin-top:10px">
                     <summary class="hint" style="cursor:pointer">Gelişmiş: alan eşlemesini JSON olarak düzenle</summary>
@@ -456,11 +456,15 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
 <style>
 /* Alan eşleştirme tablosu — eski "Ayarlar > İçe/Dışa Aktarma" ekranının karşılığı */
 .xpf-map-bos{padding:14px 16px;border:1px dashed var(--border);border-radius:8px;font-size:12.5px;line-height:1.6;color:var(--text-muted);background:var(--bg-input)}
-.xpf-map{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.xpf-map-wrap{max-width:100%;overflow-x:auto}
+.xpf-map{width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .xpf-map thead th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);background:var(--bg-input);border-bottom:1px solid var(--border)}
 .xpf-map tbody td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
 .xpf-map tbody tr:last-child td{border-bottom:0}
-.xpf-map tbody td:first-child{width:46%;color:var(--text-primary)}
+.xpf-map tbody td:first-child{width:26%;color:var(--text-primary)}
 .xpf-map select{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;background:var(--bg-card);color:var(--text-primary);font-family:inherit}
+.xpf-map th:first-child{width:26%}.xpf-map th:nth-child(2){width:48%}.xpf-map th:last-child{width:26%}.xpf-map td{overflow-wrap:anywhere}
+.xpf-f select:not([multiple]){appearance:none;-webkit-appearance:none;box-sizing:border-box;padding-right:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px 16px}
+.xpf-map select{min-width:320px}
 .xpf-map select:focus{outline:none;border-color:var(--primary)}
 </style>

@@ -105,3 +105,11 @@ Depo herkese açıktır ve eski commit'te çalışma yedekleri ile sabit entegra
 Güncel sürüm bunları takipten çıkarır/ortam değişkenine taşır; eski Git nesneleri temizlenmiş sayılmaz.
 Anahtarları yenileme ve geçmişteki hassas içerikleri kaldırma ayrı yayın ön koşuludur.
 Geçmiş yeniden yazılmadı ve zorla push yapılmadı. Yerel raporlar/yedekler Git'e gönderilmez.
+
+### Şifre sıfırlama güvenliği — ek kontrol
+
+Oturumsuz şifre sıfırlama yanıtından SMTP hata/eksiklik durumundaki açık token dönüşü kaldırıldı.
+Bağlantı yalnız e-postayla iletilir; teslim başarısızsa token iptal edilir. Bilinmeyen, pasif
+ve bilinen hesaplar aynı genel yanıtı alır. Controller ve görünüm tokenı oturuma/HTML'e taşımaz;
+eski update yükü de aynı düzeltmeyi içerir. Yerel SMTP yok/hatalı senaryosu testi eklendi.
+Canlı sunucuya bu düzeltme ayrıca dağıtılmalıdır.

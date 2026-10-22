@@ -3,7 +3,7 @@
  * OzyConnect Panel — PasswordResetService
  *
  * Şifre sıfırlama iş mantığını yönetir.
- * SMTP yapılandırılmışsa e-posta gönderir, aksi halde ekranda token gösterir.
+ * Sıfırlama bağlantısını yalnız e-postayla iletir; oturumsuz yanıtta token göstermez.
  *
  * @package    OzyConnect
  * @author     OziyWeb <oziyweb@hotmail.com>
@@ -44,65 +44,33 @@ final class PasswordResetService
     /**
      * Şifre sıfırlama talebi oluştur
      *
-     * @return array{success: bool, message: string, token?: string, email_sent?: bool}
+     * @return array{success: bool, message: string}
      */
     public function requestReset(string $email): array
     {
-        // 1) Kullanıcı var mı? (oturumsuz istek — tenant filtresiz GLOBAL arama)
-        $user = $this->userModel->findByEmailGlobal($email);
-        if ($user === false) {
-            // Güvenlik: Kullanıcı olmasa bile aynı mesajı ver (enumeration saldırısı koruması)
-            return [
-                'success' => true,
-                'message' => 'Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.',
-            ];
-        }
-
-        // 2) Aktif mi?
-        if (!(bool) $user['is_active']) {
-            return [
-                'success' => false,
-                'message' => 'Bu hesap devre dışı bırakılmıştır.',
-            ];
-        }
-
-        // 3) Rate limiting
-        $recentCount = $this->resetModel->recentAttemptCount($email, self::RATE_LIMIT_WINDOW_MINUTES);
-        if ($recentCount >= self::MAX_ATTEMPTS_PER_15MIN) {
-            $this->logger->warning("Şifre sıfırlama rate limit: {$email}", 'Auth');
-            return [
-                'success' => false,
-                'message' => 'Çok fazla sıfırlama talebi. Lütfen 15 dakika sonra tekrar deneyin.',
-            ];
-        }
-
-        // 4) Token oluştur
-        $tokenData = $this->resetModel->createToken($email);
-        $this->logger->info("Şifre sıfırlama token oluşturuldu: {$email}", 'Auth');
-
-        // 5) SMTP yapılandırılmış mı?
-        $smtpConfigured = $this->isSmtpConfigured();
-
-        if ($smtpConfigured) {
-            $sent = $this->sendResetEmail($email, $tokenData['token'], $user['name'] ?? '');
-            if ($sent) {
-                return [
-                    'success'    => true,
-                    'message'    => 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
-                    'email_sent' => true,
-                ];
-            }
-            // E-posta gönderilemezse token'ı göster (fallback)
-            $this->logger->warning("SMTP gönderim başarısız, token ekranda gösteriliyor: {$email}", 'Auth');
-        }
-
-        // SMTP yoksa veya başarısız olursa: token'ı ekranda göster
-        return [
-            'success'    => true,
-            'message'    => 'Şifre sıfırlama kodu oluşturuldu.',
-            'token'      => $tokenData['token'],
-            'email_sent' => false,
+        $response = [
+            'success' => true,
+            'message' => 'Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.',
         ];
+        $user = $this->userModel->findByEmailGlobal($email);
+        if ($user === false || !(bool) $user['is_active']) {
+            return $response;
+        }
+        if ($this->resetModel->recentAttemptCount($email, self::RATE_LIMIT_WINDOW_MINUTES) >= self::MAX_ATTEMPTS_PER_15MIN) {
+            $this->logger->warning("Şifre sıfırlama rate limit: {$email}", 'Auth');
+            return $response;
+        }
+        // Never create or expose a recovery credential when delivery is unavailable.
+        if (!$this->isSmtpConfigured()) {
+            $this->logger->warning('Şifre sıfırlama e-postası gönderilemedi: SMTP yapılandırılmamış.', 'Auth');
+            return $response;
+        }
+        $tokenData = $this->resetModel->createToken($email);
+        if (!$this->sendResetEmail($email, $tokenData['token'], $user['name'] ?? '')) {
+            $this->resetModel->deleteTokensByEmail($email);
+            $this->logger->warning('Şifre sıfırlama e-postası gönderilemedi; token iptal edildi.', 'Auth');
+        }
+        return $response;
     }
 
     /**

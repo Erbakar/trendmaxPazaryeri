@@ -141,12 +141,6 @@ final class AuthController extends BaseController
             $this->redirectWithError('/password/forgot', $result['message']);
         }
 
-        // Token ekranda gösterilecek mi (SMTP yok)?
-        if (isset($result['token'])) {
-            $this->session->flash('reset_token', $result['token']);
-            $this->session->flash('reset_email', $email);
-        }
-
         $this->session->flash('success', $result['message']);
         $this->redirect('/password/forgot');
     }

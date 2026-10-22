@@ -40,7 +40,7 @@ final class AuthController extends BaseController
             $this->redirect('/dashboard');
         }
 
-        $this->view('auth.login', [], 'auth');
+        $this->view('auth.login', ['pageTitle' => 'Giriş'], 'site_auth');
     }
 
     /**
@@ -71,6 +71,11 @@ final class AuthController extends BaseController
         // Başarılı giriş
         $this->rateLimiter->recordAttempt($request->ip(), $email, true);
         $this->session->login($user);
+        // D1: Aktif mağazayı bu istek için de kur — updateLastLogin gibi tenant-scoped
+        // çağrılar TenantContext'siz patlamasın (sonraki istekler index.php'den doldurur).
+        if (isset($user['store_id'])) {
+            $this->container->get(\App\Core\TenantContext::class)->setStoreId((int) $user['store_id']);
+        }
         $this->userModel->updateLastLogin((int) $user['id']);
 
         // "Beni hatırla" seçildiyse cookie ömrünü 30 gün yap
@@ -114,7 +119,7 @@ final class AuthController extends BaseController
             $this->redirect('/dashboard');
         }
 
-        $this->view('auth.forgot', [], 'auth');
+        $this->view('auth.forgot', ['pageTitle' => 'Şifremi Unuttum'], 'site_auth');
     }
 
     /**
@@ -134,12 +139,6 @@ final class AuthController extends BaseController
 
         if (!$result['success']) {
             $this->redirectWithError('/password/forgot', $result['message']);
-        }
-
-        // Token ekranda gösterilecek mi (SMTP yok)?
-        if (isset($result['token'])) {
-            $this->session->flash('reset_token', $result['token']);
-            $this->session->flash('reset_email', $email);
         }
 
         $this->session->flash('success', $result['message']);
@@ -170,7 +169,7 @@ final class AuthController extends BaseController
             $this->redirectWithError('/password/forgot', 'Sıfırlama kodu geçersiz veya süresi dolmuş. Lütfen yeni kod talep edin.');
         }
 
-        $this->view('auth.reset', ['token' => $token], 'auth');
+        $this->view('auth.reset', ['token' => $token, 'pageTitle' => 'Yeni Şifre'], 'site_auth');
     }
 
     /**

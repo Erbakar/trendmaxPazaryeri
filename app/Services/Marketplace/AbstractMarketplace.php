@@ -453,6 +453,7 @@ abstract class AbstractMarketplace implements MarketplaceInterface
                     ['data_keys' => $data !== null ? array_keys($data) : []]
                 );
 
+                $this->beforeHttpRequest($method, $url);
                 $response = $this->executeCurl($method, $url, $data, $headers);
 
                 $this->logger->debug(
@@ -476,7 +477,7 @@ abstract class AbstractMarketplace implements MarketplaceInterface
                     ));
 
                 if ($isRateLimited) {
-                    $waitSec = $this->parseRateLimitWaitSeconds($bodyJson);
+                    $waitSec = $response['retryAfter'] ?? $this->parseRateLimitWaitSeconds($bodyJson);
 
                     if ($waitSec !== null && $waitSec > self::RATE_LIMIT_MAX_WAIT_SEC) {
                         // 10 dakikalık ceza gibi uzun süreler — beklemek anlamsız, net mesajla bırak
@@ -646,6 +647,7 @@ abstract class AbstractMarketplace implements MarketplaceInterface
     private function executeCurl(string $method, string $url, ?array $data, array $headers): array
     {
         $ch = curl_init();
+        $retryAfter = null;
 
         $defaultHeaders = [
             'Content-Type: application/json',
@@ -655,6 +657,13 @@ abstract class AbstractMarketplace implements MarketplaceInterface
         $allHeaders = array_merge($defaultHeaders, $headers);
 
         curl_setopt_array($ch, [
+            CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$retryAfter): int {
+                if (preg_match('/^Retry-After:\s*(.+)$/i', trim($line), $match)) {
+                    $raw=trim($match[1]);
+                    $retryAfter=ctype_digit($raw)?(int)$raw:max(0,(int)strtotime($raw)-time());
+                }
+                return strlen($line);
+            },
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $this->timeout,
@@ -696,6 +705,7 @@ abstract class AbstractMarketplace implements MarketplaceInterface
         }
 
         return [
+            'retryAfter' => $retryAfter,
             'httpCode' => (int) $httpCode,
             'body'     => is_array($body) ? $body : ['raw_response' => $body],
         ];
@@ -708,6 +718,8 @@ abstract class AbstractMarketplace implements MarketplaceInterface
      * saniyede 1'den SEYREK limitler içindir (ör. ÇiçekSepeti: farklı isteklere
      * 5 sn'de 1). İkisinden büyük olan aralık uygulanır.
      */
+    protected function beforeHttpRequest(string $method, string $url): void {}
+
     private function rateLimit(): void
     {
         $minInterval = $this->rateLimitPerSecond > 0 ? 1.0 / $this->rateLimitPerSecond : 0.0;

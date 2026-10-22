@@ -1,21 +1,36 @@
-# OzyConnect Panel — Sistem Özellikleri (A'dan Z'ye)
+# Trendmax Panel — Sistem Özellikleri (A'dan Z'ye)
 
 > **Versiyon:** 1.0.0 | **Teknoloji:** PHP 8.x, MySQL, jQuery, DataTables, Chart.js, Lucide Icons
-> **Geliştirici:** OziyWeb | **Analiz Tarihi:** 01.05.2026
+> **Geliştirici:** OziyWeb | **Güncelleme Tarihi:** 22.10.2026
 
 ---
 
-## 1. Desteklenen Pazaryerleri (7 Adet)
+## 1. Entegrasyon kapsamı (22.10.2026)
 
-| # | Pazaryeri | Slug | Renk | Ürün | Sipariş | İade | Finans | Soru-Cevap | Stok Sync | Fiyat Sync |
-|---|-----------|------|------|------|---------|------|--------|------------|-----------|------------|
-| 1 | Trendyol | `trendyol` | #f27a1a | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 2 | Hepsiburada | `hepsiburada` | #ff6000 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 3 | n11 | `n11` | #7b2d96 | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
-| 4 | Amazon TR | `amazon` | #ff9900 | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| 5 | Pazarama | `pazarama` | #00a8e1 | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
-| 6 | ÇiçekSepeti | `ciceksepeti` | #e91e63 | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| 7 | İdefix | `idefix` | #1a1a2e | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+Kodda 12 entegrasyon tanımı vardır. Tanımın veya servisin bulunması, her işlevin canlı ortamda doğrulandığı anlamına gelmez. Etkinleştirme ayrıca mağaza yetkisi ve API bilgisi gerektirir.
+
+| Entegrasyon | Kod kapsamı / sınır |
+|---|---|
+| Trendyol | Ürün, sipariş, stok/fiyat, iade; V2 zorunlu özellik ve değer eşleştirmesi |
+| Hepsiburada | Ürün, sipariş, stok/fiyat, iade, finans ve soru-cevap servisleri |
+| n11 | Ürün, sipariş, stok/fiyat ve iade servisleri |
+| Amazon TR | Ürün, sipariş ve stok/fiyat servisleri; kapsam ayrıca doğrulanmalı |
+| Pazarama | Ürün, sipariş, stok/fiyat ve iade servisleri |
+| ÇiçekSepeti | Ürün, sipariş, stok/fiyat ve iade servisleri |
+| İdefix | Ürün, sipariş, stok/fiyat ve iade servisleri |
+| PttAVM | Ürün, sipariş, stok/fiyat ve iade; entegratör anahtarı ortamdan okunur |
+| Shopify | Ürün, sipariş, stok/fiyat; GraphQL iade okuması ve senkronizasyonu. İade onay/red işlemi satıcı panelindedir |
+| WooCommerce | Ürün, sipariş, stok/fiyat ve iade servisleri |
+| OpenCart | Bağlayıcı gerektirir; iade okuması desteklenmiyor |
+| OziyGO | Ayrı entegrasyonun özel adıdır; Trendmax markasının eski adı değildir |
+
+Ürün adı **Trendmax** olarak kullanılır. Eski OzyConnect/PazarConnect adları; geriye uyumluluk gerektiren paket kimlikleri, arşiv adları, eski kurulum yolları ve tarihsel kayıtlarda kalabilir. Bu kimlikleri topluca değiştirmek mevcut bağlantıları bozabilir.
+
+**Doğrulama durumu:** yerel XML aktarımı ve otomatik regresyon kontrolleri tamamlandı. Tüm entegrasyonlarda canlı kabul testi yapılmadı. Aşağıdaki ayrıntılı eski özellik açıklamaları kod envanteridir; canlı kabul veya sözleşmesel destek garantisi değildir.
+
+**Masaüstü:** Electron bağlantı sayfası, sunucu kaydı ve sunucu değiştirme uygulanmıştır; web paneli kullanılır, çevrimdışı veri eşitleme sunulmaz.
+
+**Mağaza arşivi:** SQL dışa aktarımı arşiv amaçlıdır. JSON geri yükleme, `tools/store-archive.php` ile aynı kimlikli ve boş mağazaya yapılabilir; varsayılan doğrulama modudur. Başka mağazaya kimlik dönüştürerek taşıma ve dolu mağazaya birleştirme desteklenmez.
 
 ---
 

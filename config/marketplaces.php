@@ -17,7 +17,7 @@ return [
     'shopify' => [
         'display_name' => 'Shopify',
         'base_url'     => '', // mağaza başına: https://{shop}.myshopify.com/admin/api/{version}
-        'api_version'  => '2024-10',
+        'api_version'  => '2026-10',
         'is_active'    => false,
         'color'        => '#95bf47',
         'icon'         => '🛍️',
@@ -236,7 +236,8 @@ return [
             'batch_request'       => '/product/sellers/{supplierId}/products/batch-requests/{batchRequestId}',
             'price_and_inventory' => '/inventory/sellers/{supplierId}/products/price-and-inventory',
             'categories'          => '/product/product-categories',
-            'category_attributes' => '/product/product-categories/{categoryId}/attributes',
+            'category_attributes' => '/product/categories/{categoryId}/attributes',
+            'category_attribute_values' => '/product/categories/{categoryId}/attributes/{attributeId}/values',
             'brands'              => '/product/brands',
             'brands_by_name'      => '/product/brands/by-name',
             'claims'              => '/order/sellers/{supplierId}/claims',
@@ -704,7 +705,7 @@ return [
         'color'        => '#ffc107',
         'icon'         => '📮',
         'integrator_name' => 'OzyConnect',
-        'api_key'      => 'aUcNukZ9eHYfCspNdO7b',
+        'api_key'      => $_ENV['PTTAVM_API_KEY'] ?? getenv('PTTAVM_API_KEY') ?: '',
 
         'api' => [
             'rate_limit_per_second' => 2,

@@ -1715,7 +1715,7 @@ CREATE TABLE `product_attributes` (
 
 LOCK TABLES `product_attributes` WRITE;
 /*!40000 ALTER TABLE `product_attributes` DISABLE KEYS */;
-INSERT INTO `product_attributes` VALUES (47,'Renk','ty-47','text',NULL,1,0,1,0,'2026-05-19 13:26:31'),(338,'Beden','ty-338','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(343,'Cinsiyet','ty-343','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(346,'Ya? Grubu','ty-346','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(348,'Web Color','ty-348','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(1192,'Men?ei','ty-1192','select',NULL,1,0,1,0,'2026-05-19 13:26:31');
+INSERT INTO `product_attributes` VALUES (47,'Renk','ty-47','text',NULL,1,0,1,0,'2026-05-19 13:26:31'),(338,'Beden','ty-338','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(343,'Cinsiyet','ty-343','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(346,'Yaş Grubu','ty-346','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(348,'Web Color','ty-348','select',NULL,1,0,1,0,'2026-05-19 13:26:31'),(1192,'Menşei','ty-1192','select',NULL,1,0,1,0,'2026-05-19 13:26:31');
 /*!40000 ALTER TABLE `product_attributes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1777,7 +1777,7 @@ CREATE TABLE `products` (
   `sku` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `barcode` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `name` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `short_description` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `category_id` int(10) unsigned DEFAULT NULL,
   `brand_id` int(10) unsigned DEFAULT NULL,
@@ -2612,7 +2612,7 @@ CREATE TABLE `stores` (
 
 LOCK TABLES `stores` WRITE;
 /*!40000 ALTER TABLE `stores` DISABLE KEYS */;
-INSERT INTO `stores` VALUES (1,'Ana Mağaza',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'ana-magaza','active',NULL,NULL,'2026-06-14 12:42:45','2026-06-21 13:34:35');
+INSERT INTO `stores` (`id`,`name`,`legal_name`,`tax_id`,`tax_office`,`billing_address`,`billing_district`,`billing_city`,`province_id`,`district_id`,`billing_postcode`,`slug`,`status`,`verified_at`,`plan`,`created_at`,`updated_at`) VALUES (1,'Ana Mağaza',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'ana-magaza','active',NULL,NULL,'2026-06-14 12:42:45','2026-06-21 13:34:35');
 /*!40000 ALTER TABLE `stores` ENABLE KEYS */;
 UNLOCK TABLES;
 

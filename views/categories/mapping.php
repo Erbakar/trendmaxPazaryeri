@@ -178,7 +178,7 @@ $unsellableLabels = [
                         $categoryName = (string) ($c['name'] ?? '');
                     ?>
                     <tr>
-                        <td class="fw-bold"><?= $esc($categoryName) ?></td>
+                        <td class="fw-bold"><?= $esc($categoryName) ?><?php if ((int)($c['override_count']??0)>0): ?><small class="cmap-sub"><?= (int)$c['override_count'] ?> ürüne özel kategori seçimi</small><?php endif; ?></td>
                         <td class="cmap-path"><?= $esc($c['full_path'] ?? '') ?></td>
                         <td class="text-center"><?= (int) ($c['product_count'] ?? 0) ?></td>
                         <td>
@@ -206,6 +206,9 @@ $unsellableLabels = [
                         </td>
                         <td>
                             <div class="cmap-actions">
+                                <?php if ($marketplaceSlug === 'trendyol'): ?>
+                                <a class="cmap-btn" href="/categories/<?= (int)$c['id'] ?>/product-mappings?marketplace_id=<?= $marketplaceId ?>">Ürünleri ayrı eşleştir</a>
+                                <?php endif; ?>
                                 <?php if ($canEdit): ?>
                                 <?php /* Eşleşmemiş satırlarda HİÇ düğme çizilmiyordu: ekran
                                         "N eşleştirilmemiş kategori" diyor ama kullanıcı o satırda
@@ -221,6 +224,11 @@ $unsellableLabels = [
                                 </button>
                                 <?php endif; ?>
                             <?php if ($mappingId > 0): ?>
+                                <?php if ($marketplaceSlug === 'trendyol'): ?>
+                                <button type="button" class="cmap-btn" data-tya-open="<?= $mappingId ?>" aria-haspopup="dialog" aria-controls="tyaDialog">
+                                    <i data-lucide="list-checks" aria-hidden="true"></i> Özellikler
+                                </button>
+                                <?php endif; ?>
                                 <?php if ($isHb): ?>
                                 <button type="button" class="cmap-btn" data-hba-open="<?= $mappingId ?>"
                                         aria-haspopup="dialog" aria-controls="hbaDrawer"
@@ -776,3 +784,5 @@ $unsellableLabels = [
     });
 })();
 </script>
+
+<?php if ($marketplaceSlug === 'trendyol') require __DIR__ . '/trendyol_attributes.php'; ?>

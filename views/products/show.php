@@ -5,6 +5,7 @@ $movements = $data['movements'] ?? [];
 $attributes = $data['attributes'] ?? [];
 $variants = $data['variants'] ?? [];
 $marketplaceStatus = $data['marketplaceStatus'] ?? [];
+$xmlProfit = $data['xmlProfit'] ?? null;
 
 // Parse images
 $images = [];
@@ -89,17 +90,19 @@ $mainImage = $p['main_image'] ?? ($images[0]['url'] ?? ($images[0] ?? ''));
         <div class="card-header"><h3><i data-lucide="coins" style="width:18px;height:18px;display:inline"></i> Fiyat & Stok</h3></div>
         <div class="card-body">
             <table style="width:100%">
-                <tr><td class="text-muted" style="padding:6px 0;width:130px">Satış Fiyatı:</td><td class="fw-bold" style="font-size:18px"><?= number_format((float) ($p['base_price'] ?? 0), 2, ',', '.') ?> ₺</td></tr>
-                <tr><td class="text-muted" style="padding:6px 0">Liste Fiyat:</td><td><?= number_format((float) ($p['list_price'] ?? 0), 2, ',', '.') ?> ₺</td></tr>
+                <tr><td class="text-muted" style="padding:6px 0;width:130px">Havuz Fiyatı:</td><td class="fw-bold" style="font-size:18px"><?= number_format((float) ($p['base_price'] ?? 0), 2, ',', '.') ?> ₺</td></tr>
+                <tr><td class="text-muted" style="padding:6px 0">Havuz Liste Fiyatı:</td><td><?= number_format((float) ($p['list_price'] ?? 0), 2, ',', '.') ?> ₺</td></tr>
                 <tr><td class="text-muted" style="padding:6px 0">Maliyet:</td><td><?= number_format((float) ($p['cost_price'] ?? 0), 2, ',', '.') ?> ₺</td></tr>
                 <?php
                 $basePrice = (float)($p['base_price'] ?? 0);
                 $costPrice = (float)($p['cost_price'] ?? 0);
-                if ($costPrice > 0 && $basePrice > 0):
+                if (is_array($xmlProfit) && (float)$xmlProfit['kar_degeri'] > 0): ?>
+                <tr><td class="text-muted" style="padding:6px 0">XML Kâr Kuralı:</td><td class="fw-bold">Maliyete <?= htmlspecialchars((string)$xmlProfit['kar_degeri']) ?><?= $xmlProfit['kar_tipi'] === 'yuzde' ? '%' : ' ₺' ?> ekle</td></tr>
+                <?php elseif ($costPrice > 0 && $basePrice > 0):
                     $profit = $basePrice - $costPrice;
                     $margin = ($profit / $basePrice) * 100;
                 ?>
-                <tr><td class="text-muted" style="padding:6px 0">Kâr Marjı:</td><td><span class="badge <?= $margin > 20 ? 'badge-success' : ($margin > 0 ? 'badge-warning' : 'badge-danger') ?>"><?= number_format($margin, 1) ?>%</span></td></tr>
+                <tr><td class="text-muted" style="padding:6px 0">Havuz Fiyatına Göre Marj:</td><td><span class="badge <?= $margin > 20 ? 'badge-success' : ($margin > 0 ? 'badge-warning' : 'badge-danger') ?>"><?= number_format($margin, 1) ?>%</span></td></tr>
                 <?php endif; ?>
                 <tr><td class="text-muted" style="padding:6px 0">Stok:</td><td><?php
                     $stock = (int) ($p['stock_qty'] ?? 0);
@@ -192,7 +195,7 @@ $mainImage = $p['main_image'] ?? ($images[0]['url'] ?? ($images[0] ?? ''));
     </div>
     <div class="table-wrapper">
         <table class="data-table">
-            <thead><tr><th>Pazaryeri</th><th>SKU</th><th>Barkod</th><th class="text-right">Son Fiyat</th><th class="text-right">Son Stok</th><th>Son Sync</th><th>Durum</th><th></th></tr></thead>
+            <thead><tr><th>Pazaryeri</th><th>SKU</th><th>Barkod</th><th class="text-right">Son Gönderilen Fiyat</th><th class="text-right">Son Stok</th><th>Son Sync</th><th>Durum</th><th></th></tr></thead>
             <tbody>
                 <?php foreach ($mpProducts as $mp): ?>
                 <tr>
@@ -223,7 +226,9 @@ $mainImage = $p['main_image'] ?? ($images[0]['url'] ?? ($images[0] ?? ''));
                             echo '<br><span class="sync-badge error" title="' . htmlspecialchars($mp['sync_error']) . '"><span class="sync-dot"></span>' . htmlspecialchars(mb_substr($mp['sync_error'], 0, 30)) . '</span>';
                         }
                     ?></td>
-                    <td><?= (int) ($mp['is_active'] ?? 0) ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-secondary">Pasif</span>' ?></td>
+                    <td><?php if (($mp['slug'] ?? '') === 'trendyol' && !empty($mp['is_listed'])): ?>
+                        <span class="badge badge-success" title="İşlem kabul edildi; satışa açılma Trendyol içerik onayına bağlıdır.">Aktarıldı</span>
+                    <?php else: ?><?= (int) ($mp['is_active'] ?? 0) ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-secondary">Pasif</span>' ?><?php endif; ?></td>
                     <td>
                         <button class="btn-sync" onclick="syncSingleProduct(<?= $p['id'] ?>, <?= $mp['marketplace_id'] ?>)" title="Bu ürünü senkronize et">
                             <i data-lucide="refresh-cw" style="width:11px;height:11px"></i> Sync

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Catalog>
+  <Item><sku>XMLFLOW-A</sku><Name>Siyah Plastik Tarak</Name><barcode>XMLFLOW-A</barcode><Price>100</Price><Cost>100</Cost><Stock>3</Stock><Brand>XML test brand</Brand><category>XML test combs</category><Color>Siyah</Color><Mensei>Türkiye</Mensei><Material>Plastik</Material><Image1>https://example.com/xml-flow-1.jpg</Image1><Image3>https://example.com/xml-flow-3.jpg</Image3></Item>
+  <Item><sku>XMLFLOW-B</sku><Name>Mavi Plastik Tarak</Name><barcode>XMLFLOW-B</barcode><Price>200</Price><Cost>200</Cost><Stock>5</Stock><Brand>XML test brand</Brand><category>XML test combs</category><Color>Mavi</Color><Mensei>Türkiye</Mensei><Material>Plastik</Material><Image1>https://example.com/xml-flow-1.jpg</Image1><Image3>https://example.com/xml-flow-3.jpg</Image3></Item>
+  <Item><sku>XMLFLOW-C</sku><Name>Eksik Bilgili Tarak</Name><barcode>XMLFLOW-C</barcode><Price>100</Price><Cost>100</Cost><Stock>3</Stock><Brand>XML test brand</Brand><category>XML test combs</category><Color>Siyah</Color><Mensei>Türkiye</Mensei><Material></Material><Image1>https://example.com/xml-flow-1.jpg</Image1><Image3>https://example.com/xml-flow-3.jpg</Image3></Item>
+</Catalog>

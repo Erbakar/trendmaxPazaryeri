@@ -78,7 +78,7 @@ final class MarginCalculator
             // Geçici kural verildiyse DB'ye yazmadan simüle et
             if ($kuralTipi !== '' && $kuralTipi !== 'none') {
                 $satis = $this->applyRule($baz, $kuralTipi, $kuralDeger);
-                $liste = (float) ($urun['list_price'] ?? 0) > 0 ? (float) $urun['list_price'] : $satis;
+                $liste = max((float) ($urun['list_price'] ?? 0), $satis);
                 $kural = $kuralTipi . ' (' . $kuralDeger . ')';
             } else {
                 $hesap = $fiyatlar[$pid] ?? null;

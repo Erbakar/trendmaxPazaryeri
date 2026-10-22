@@ -117,7 +117,7 @@ final class MarketplaceProduct extends BaseModel
         }
 
         return $this->rawQuery(
-            "SELECT mp.id, mp.product_id, mp.marketplace_id, mp.sync_error,
+            "SELECT mp.id, mp.product_id, mp.marketplace_id, mp.sync_error, mp.is_listed,
                     p.barcode, p.sku, p.name AS product_name
              FROM marketplace_products mp
              JOIN products p ON mp.product_id = p.id AND p.store_id = :store_id2

@@ -49,6 +49,11 @@ final class TrendyolService extends AbstractMarketplace
         $this->rateLimitPerSecond  = $this->config['api']['rate_limit_per_second'] ?? 10;
     }
 
+    protected function beforeHttpRequest(string $method, string $url): void
+    {
+        (new TrendyolRequestLimiter())->wait($this->supplierId, $method, $url);
+    }
+
     /**
      * API bilgilerini veritabanından yükle
      */
@@ -256,6 +261,10 @@ final class TrendyolService extends AbstractMarketplace
                         ?? "/suppliers/{$this->supplierId}/products/price-and-inventory"
                 );
 
+                foreach ($chunk as &$item) {
+                    if (array_key_exists('quantity', $item)) $item['quantity'] = TrendyolProductRules::quantity((int)$item['quantity']);
+                }
+                unset($item);
                 $body = ['items' => $chunk];
                 $this->httpPost($url, $body, $this->authHeaders());
 
@@ -442,14 +451,17 @@ final class TrendyolService extends AbstractMarketplace
             '{categoryId}',
             $marketplaceCategoryId,
             $this->config['endpoints']['category_attributes']
-                ?? '/product-categories/{categoryId}/attributes'
+                ?? '/product/categories/{categoryId}/attributes'
         );
 
         $url = $this->buildUrl($endpoint, isGlobal: true);
         $response = $this->httpGet($url, $this->authHeaders());
 
+        if (!isset($response['categoryAttributes']) || !is_array($response['categoryAttributes'])) {
+            throw new RuntimeException('Trendyol kategori özellikleri yanıtı geçersiz; liste alınamadı.');
+        }
         $attributes = [];
-        foreach ($response['categoryAttributes'] ?? [] as $attr) {
+        foreach ($response['categoryAttributes'] as $attr) {
             $values = [];
             foreach ($attr['attributeValues'] ?? [] as $val) {
                 $values[] = [
@@ -463,11 +475,40 @@ final class TrendyolService extends AbstractMarketplace
                 'name'        => $attr['attribute']['name'] ?? '',
                 'required'    => $attr['required'] ?? false,
                 'allowCustom' => $attr['allowCustom'] ?? false,
+                'allowMultipleAttributeValues' => $attr['allowMultipleAttributeValues'] ?? false,
+                'varianter' => $attr['varianter'] ?? false,
+                'slicer' => $attr['slicer'] ?? false,
                 'values'      => $values,
             ];
         }
 
         return $attributes;
+    }
+
+    /** V2 exposes enum options in a separate paginated endpoint. */
+    public function fetchCategoryAttributeValues(string $categoryId, string $attributeId): array
+    {
+        $this->loadCredentials();
+        $path = strtr($this->config['endpoints']['category_attribute_values']
+            ?? '/product/categories/{categoryId}/attributes/{attributeId}/values',
+            ['{categoryId}'=>rawurlencode($categoryId), '{attributeId}'=>rawurlencode($attributeId)]);
+        $values = [];
+        $seen = [];
+        for ($page=0; $page<=1000; $page++) {
+            $response = $this->httpGet($this->buildUrl($path, true) . '?' . http_build_query(['page'=>$page,'size'=>1000]), $this->authHeaders());
+            $content = $response['content'] ?? null;
+            if (!is_array($content)) throw new RuntimeException('Trendyol özellik seçenekleri yanıtı geçersiz.');
+            foreach ($content as $row) {
+                $id = (string)($row['attributeValueId'] ?? $row['id'] ?? '');
+                if ($id !== '') $values[$id] = ['id'=>$id,'name'=>(string)($row['attributeValue'] ?? $row['name'] ?? '')];
+            }
+            $totalPages = (int)($response['totalPages'] ?? 1);
+            if ($page+1 >= $totalPages) return array_values($values);
+            $signature = hash('sha256', json_encode($content));
+            if ($content === [] || isset($seen[$signature])) throw new RuntimeException('Trendyol özellik seçenekleri eksik alındı; lütfen tekrar deneyin.');
+            $seen[$signature] = true;
+        }
+        throw new RuntimeException('Trendyol özellik seçeneklerinin tamamı alınamadı.');
     }
 
     // ═══════════════════════════════════════════════════════
@@ -1062,6 +1103,30 @@ final class TrendyolService extends AbstractMarketplace
      * @param array<int, array<string, mixed>> $items createProducts ile aynı şema
      * @return array{batchRequestId: ?string, success: bool, errors: array}
      */
+    /** Existing listings retain their approved content; price/stock use the dedicated endpoint. */
+    public function updateListingProducts(array $items): array
+    {
+        $this->loadCredentials();
+        $payload = [];
+        foreach ($items as $item) {
+            $row = ['barcode'=>(string)$item['barcode'],
+                'salePrice'=>(float)$item['salePrice'], 'listPrice'=>(float)$item['listPrice']];
+            // Omit stock for price-only updates; absence must never become zero.
+            if (array_key_exists('quantity', $item)) {
+                $row['quantity'] = TrendyolProductRules::quantity((int)$item['quantity']);
+            }
+            $payload[] = $row;
+        }
+        try {
+            $url = $this->buildUrl($this->config['endpoints']['price_and_inventory']);
+            $response = $this->httpPost($url, ['items'=>$payload], $this->authHeaders());
+            if (empty($response['batchRequestId'])) throw new RuntimeException('Trendyol fiyat/stok işlem kimliği dönmedi.');
+            return ['success'=>true,'batchRequestId'=>(string)$response['batchRequestId'],'errors'=>[]];
+        } catch (\Throwable $e) {
+            return ['success'=>false,'batchRequestId'=>null,'errors'=>[['error'=>$e->getMessage()]]];
+        }
+    }
+
     public function updateProducts(array $items): array
     {
         $this->loadCredentials();

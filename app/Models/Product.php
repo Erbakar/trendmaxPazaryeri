@@ -1035,6 +1035,7 @@ final class Product extends BaseModel
         $params['store_cat']    = $this->tenantId();
         $params['store_brand']  = $this->tenantId();
 
+        $overrideExists = 'EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id='.(int)$marketplaceId.')';
         $row = $this->rawQueryOne(
             "SELECT
                 COUNT(*) AS total,
@@ -1042,12 +1043,12 @@ final class Product extends BaseModel
                 SUM(CASE WHEN (p.main_image IS NULL OR p.main_image = '')
                           AND (p.images_json IS NULL OR p.images_json = '' OR p.images_json = '[]') THEN 1 ELSE 0 END) AS no_image,
                 SUM(CASE WHEN p.base_price <= 0 THEN 1 ELSE 0 END) AS no_price,
-                SUM(CASE WHEN p.category_id IS NULL OR NOT EXISTS (
+                SUM(CASE WHEN NOT ({$overrideExists}) AND (p.category_id IS NULL OR NOT EXISTS (
                         SELECT 1 FROM category_marketplace_mapping cm
                          WHERE cm.category_id = p.category_id
                            AND cm.marketplace_id = :mp_ready_id
                            AND cm.store_id = :store_cat
-                    ) THEN 1 ELSE 0 END) AS no_category_mapping,
+                    )) THEN 1 ELSE 0 END) AS no_category_mapping,
                 SUM(CASE WHEN p.brand_id IS NULL OR NOT EXISTS (
                         SELECT 1 FROM brand_marketplace_mapping bm
                          WHERE bm.brand_id = p.brand_id
@@ -1068,27 +1069,38 @@ final class Product extends BaseModel
             'no_brand_mapping'    => (int) ($row['no_brand_mapping'] ?? 0),
         ];
 
-        // "Hazır" = hiçbir engeli olmayan ürün sayısı (engeller çakışabildiği için
-        // ayrı bir sorguyla hesaplanır).
+        // "Hazır" = temel katalog alanları tamamlanan ürün sayısı; kategori özellikleri gönderimde doğrulanır.
+        // Engeller çakışabildiği için ayrı bir sorguyla hesaplanır.
         // DİKKAT: PDO::ATTR_EMULATE_PREPARES=false olduğundan sorguda GEÇMEYEN
         // parametreyi göndermek HY093 hatası verir → ayrı parametre dizisi kurulur.
         $hazirParams = $params;
-        unset($hazirParams['mp_ready_id2'], $hazirParams['store_brand']);
+        $platform = $this->rawQueryOne('SELECT slug FROM marketplaces WHERE id=:readiness_platform', ['readiness_platform'=>$marketplaceId]);
+        $brandRequired = in_array($platform['slug'] ?? '', ['trendyol','pazarama','oziygo','idefix'], true);
+        $brandClause = '';
+        if ($brandRequired) {
+            $brandClause = "AND p.brand_id IS NOT NULL
+                AND EXISTS (SELECT 1 FROM brand_marketplace_mapping bm
+                             WHERE bm.brand_id=p.brand_id AND bm.marketplace_id=:mp_ready_id2
+                               AND bm.store_id=:store_brand)";
+        } else {
+            unset($hazirParams['mp_ready_id2'], $hazirParams['store_brand']);
+        }
 
-        // "Hazır" sayısı yalnız fiyat + kategoriye bakıyordu; BARKOD yoksa ürün
-        // gönderimde reddediliyor ama önizlemede hazır görünüyordu. 10.000 ürünlük
-        // bir katalogda "6.398 hazır" deyip fiilen 21 ürünün geçmesinin sebebi buydu.
-        // Barkod gönderimde zorunlu olduğu için artık hazırlık şartına dahil.
+        // Basic readiness includes barcode, image and any platform-required brand mapping.
+        // Required category attributes are checked separately before each product is sent.
         $hazir = $this->rawQueryOne(
             "SELECT COUNT(*) AS cnt FROM products p
               WHERE {$whereStr}
                 AND p.base_price > 0
                 AND p.barcode IS NOT NULL AND p.barcode <> ''
-                AND p.category_id IS NOT NULL
+                AND ((p.main_image IS NOT NULL AND p.main_image <> '') OR
+                     (p.images_json IS NOT NULL AND p.images_json <> '' AND p.images_json <> '[]'))
+                {$brandClause}
+                AND ({$overrideExists} OR (p.category_id IS NOT NULL
                 AND EXISTS (SELECT 1 FROM category_marketplace_mapping cm
                              WHERE cm.category_id = p.category_id
                                AND cm.marketplace_id = :mp_ready_id
-                               AND cm.store_id = :store_cat)",
+                               AND cm.store_id = :store_cat)))",
             $hazirParams
         );
         $sonuc['ready'] = (int) ($hazir['cnt'] ?? 0);

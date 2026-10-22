@@ -565,7 +565,7 @@ return [
         'color'        => '#ffc107',
         'icon'         => '📮',
         'integrator_name' => 'OzyConnect',
-        'api_key'      => 'aUcNukZ9eHYfCspNdO7b',
+        'api_key'      => $_ENV['PTTAVM_API_KEY'] ?? getenv('PTTAVM_API_KEY') ?: '',
 
         'api' => [
             'rate_limit_per_second' => 2,

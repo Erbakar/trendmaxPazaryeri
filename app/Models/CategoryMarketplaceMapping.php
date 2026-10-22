@@ -31,6 +31,18 @@ final class CategoryMarketplaceMapping extends BaseModel
         ]);
     }
 
+    /** Resolve explicit product choice before the source-category default. */
+    public function forProduct(array $product, int $marketplaceId): array|false
+    {
+        $own = (new ProductCategoryOverride($this->db,$this->tenant))->forProduct((int)$product['id'],$marketplaceId);
+        if ($own) {
+            $own['_override_id'] = (int)$own['id'];
+            $own['category_id'] = (int)$product['category_id'];
+            return $own;
+        }
+        return $this->findMapping((int)$product['category_id'],$marketplaceId);
+    }
+
     /**
      * Pazaryeri kategori ID'si ile iç kategori bul
      *
@@ -131,11 +143,13 @@ final class CategoryMarketplaceMapping extends BaseModel
         $existing = $this->findMapping($categoryId, $marketplaceId);
 
         if ($existing !== false) {
-            $this->update((int) $existing['id'], [
+            $changes = [
                 'marketplace_category_id'   => $mpCategoryId,
                 'marketplace_category_name' => $mpCategoryName,
                 'marketplace_category_path' => $mpCategoryPath,
-            ]);
+            ];
+            if ((string)$existing['marketplace_category_id'] !== $mpCategoryId) $changes['attribute_mapping_json'] = null;
+            $this->update((int)$existing['id'], $changes);
             return (int) $existing['id'];
         }
 
@@ -159,6 +173,7 @@ final class CategoryMarketplaceMapping extends BaseModel
              WHERE p.category_id IS NOT NULL
                AND p.is_active = 1
                AND p.store_id = :store_id
+               AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=".(int)$marketplaceId.")
                AND p.category_id NOT IN (
                    SELECT cmm.category_id
                    FROM category_marketplace_mapping cmm
@@ -187,6 +202,7 @@ final class CategoryMarketplaceMapping extends BaseModel
                     mc.is_leaf as marketplace_category_is_leaf,
                     {$sellable} as marketplace_category_sellable,
                     cmm.attribute_mapping_json,
+                    (SELECT COUNT(*) FROM products op JOIN product_marketplace_category_overrides po ON po.store_id=op.store_id AND po.product_id=op.id AND po.marketplace_id=".(int)$marketplaceId." WHERE op.category_id=c.id AND op.store_id=c.store_id) AS override_count,
                     (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.is_active = 1 AND p.store_id = :store_id3) as product_count
              FROM categories c
              LEFT JOIN category_marketplace_mapping cmm
@@ -195,7 +211,7 @@ final class CategoryMarketplaceMapping extends BaseModel
                  ON mc.marketplace_id = cmm.marketplace_id
                 AND mc.mp_category_id = cmm.marketplace_category_id
                 AND " . MarketplaceCatalogScope::condition($this->db, 'marketplace_categories', 'mc', 'cmm.store_id') . "
-             WHERE c.is_active = 1
+             WHERE (c.is_active = 1 OR EXISTS (SELECT 1 FROM products cp WHERE cp.category_id=c.id AND cp.store_id=c.store_id AND cp.is_active=1))
                AND c.store_id = :store_id
              ORDER BY c.name ASC",
             ['mid' => $marketplaceId, 'store_id' => $this->tenantId(), 'store_id2' => $this->tenantId(), 'store_id3' => $this->tenantId()]
@@ -421,7 +437,20 @@ final class CategoryMarketplaceMapping extends BaseModel
      *
      * @param callable(array<int|string, mixed>): array<int|string, mixed> $mutator
      */
-    private function mutateAttributeMapping(int $mappingId, callable $mutator): bool
+    public function saveTrendyolAttributes(int $mappingId, array $values, array $sources, ?int $productId = null): bool
+    {
+        return $this->mutateAttributeMapping($mappingId, static function(array $config) use ($values, $sources, $productId): array {
+            if ($productId !== null) {
+                $config['products']['id:'.$productId] = $values;
+            } else {
+                $config['defaults'] = $values;
+                $config['sources'] = $sources;
+            }
+            return $config;
+        }, true);
+    }
+
+    private function mutateAttributeMapping(int $mappingId, callable $mutator, bool $convertLegacy = false): bool
     {
         $mapping = $this->find($mappingId);
         if ($mapping === false) {
@@ -432,7 +461,7 @@ final class CategoryMarketplaceMapping extends BaseModel
 
         // Eski LİSTE biçimi ([{id,name,required}]) — nesne anahtarı eklemek karışık yapı üretir.
         if ($config !== [] && array_is_list($config)) {
-            if (!$this->isHepsiburadaMarketplace((int) ($mapping['marketplace_id'] ?? 0))) {
+            if (!$convertLegacy && !$this->isHepsiburadaMarketplace((int) ($mapping['marketplace_id'] ?? 0))) {
                 // HB-dışı satırın listesi o pazaryerinin doğrulamasında kullanılır; dönüştürülmez.
                 throw new \RuntimeException('Bu eşleştirmenin özellik kaydı farklı biçimde; özellik değeri yazılamaz.');
             }

@@ -230,7 +230,7 @@ foreach ($dirs as $rel) {
         continue;
     }
     foreach (scandir($dir) ?: [] as $f) {
-        if ($f === '.' || $f === '..') {
+        if ($f === '.' || $f === '..' || $f === '_guard.php') {
             continue;
         }
         if (!preg_match('/\.(sql|php)$/i', $f)) {
@@ -239,7 +239,8 @@ foreach ($dirs as $rel) {
         $files[$rel . '/' . $f] = $dir . '/' . $f;
     }
 }
-ksort($files);
+// phase2 must run before phase10; lexical order breaks schema dependencies.
+uksort($files, 'strnatcasecmp');
 
 $pending = [];
 foreach ($files as $key => $path) {

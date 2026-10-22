@@ -27,6 +27,7 @@ use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\HepsiburadaService;
 use App\Services\Marketplace\IdefixService;
+use App\Services\Marketplace\ShopifyService;
 
 final class ReturnSyncService
 {
@@ -44,6 +45,7 @@ final class ReturnSyncService
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly HepsiburadaService $hepsiburadaService,
         private readonly IdefixService $idefixService,
+        private readonly ShopifyService $shopifyService,
         private readonly Logger $logger,
         private readonly Database $db,
         private readonly \App\Core\TenantContext $tenant,
@@ -82,7 +84,7 @@ final class ReturnSyncService
 
         foreach ($marketplaces as $mp) {
             $slug = $mp['slug'] ?? '';
-            if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'ciceksepeti', 'hepsiburada', 'pttavm', 'idefix', 'oziygo'], true)) {
+            if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'ciceksepeti', 'hepsiburada', 'pttavm', 'idefix', 'oziygo', 'shopify'], true)) {
                 continue;
             }
 
@@ -139,6 +141,7 @@ final class ReturnSyncService
             'hepsiburada' => $hasApiSecret,
             'pazarama' => $hasApiKey && $hasApiSecret,
             'pttavm' => $hasApiSecret,
+            'shopify' => $hasApiSecret,
             'ciceksepeti' => $hasApiKey,
             'idefix' => $hasApiKey,
             'oziygo' => $hasApiKey,
@@ -180,6 +183,10 @@ final class ReturnSyncService
                 'pttavm'      => $this->pttavmService->fetchReturns([
                     'startDate' => date('Y-m-d', strtotime('-' . ($fullSync ? $this->getReturnHistoryDays($slug) : max($days, 30)) . ' days')),
                     'endDate'   => date('Y-m-d'),
+                ]),
+                'shopify' => $this->shopifyService->fetchReturns([
+                    'startDate' => date('Y-m-d', strtotime('-' . ($fullSync ? $this->getReturnHistoryDays($slug) : max($days, 30)) . ' days')),
+                    'endDate' => date('Y-m-d'),
                 ]),
                 'oziygo'      => [],
                 default    => [],

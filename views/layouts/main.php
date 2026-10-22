@@ -153,6 +153,10 @@ $storeInitials = mb_strtoupper(mb_substr($storeWords[0] ?? 'O', 0, 1) . (isset($
     <link rel="stylesheet" href="<?= htmlspecialchars(asset('vendor/datatables/jquery.dataTables.min.css')) ?>">
     <!-- Poppins font kilidi: buton/kontrol/link fontunu sabitle (Tailwind @layer + ağ/fallback kırılganlığına karşı; tüm stylesheet'lerden SONRA gelir → kazanır) -->
     <style>html,body,button,input,select,textarea,optgroup,a,.btn,.o-btn{font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}</style>
+    <style>
+    @media (min-width:1024px) and (max-width:1535px){.merchant-nav-search,.merchant-nav-date{display:none}}
+    @media (min-width:1024px) and (max-width:1279px){.merchant-main-nav{display:none}#mobMenuToggle{display:grid}}
+    </style>
     <!-- Marka rengi: ozy.css yedeğini ezer; --primary bu kanaldan türer -->
     <style>html[data-panel="merchant"]{--brand:<?= $bcRgbSp ?>}</style>
 
@@ -185,7 +189,7 @@ $storeInitials = mb_strtoupper(mb_substr($storeWords[0] ?? 'O', 0, 1) . (isset($
         <span class="hidden lg:block w-px h-6 bg-slate-200 dark:bg-white/10 mx-1.5 shrink-0"></span>
 
         <!-- Ana menü: 6 öğe (mockup — tek satır, aktif underline). Alt öğeler her sayfanın alt-navında. -->
-        <nav class="hidden lg:flex items-stretch self-stretch min-w-0">
+        <nav class="merchant-main-nav hidden lg:flex items-stretch self-stretch min-w-0 shrink-0">
             <?php foreach ($navGroupsVis as $g): ?>
             <a href="<?= htmlspecialchars($g['u']) ?>" class="relative inline-flex items-center h-full px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors <?= $g['active'] ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?>">
                 <?= htmlspecialchars($g['l']) ?>
@@ -197,13 +201,13 @@ $storeInitials = mb_strtoupper(mb_substr($storeWords[0] ?? 'O', 0, 1) . (isset($
         <div class="flex-1 min-w-[8px]"></div>
 
         <!-- ⌘K arama -->
-        <button onclick="ozyOpenCmdk()" class="t hidden md:flex lg:hidden xl:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg bg-slate-900/[.04] dark:bg-white/[.06] hover:bg-slate-900/[.07] dark:hover:bg-white/[.1] text-slate-400 w-36 xl:w-52 shrink-0">
+        <button onclick="ozyOpenCmdk()" class="merchant-nav-search t hidden md:flex lg:hidden xl:flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg bg-slate-900/[.04] dark:bg-white/[.06] hover:bg-slate-900/[.07] dark:hover:bg-white/[.1] text-slate-400 w-36 xl:w-52 shrink-0">
             <i data-lucide="search" class="w-[17px] h-[17px] shrink-0"></i>
             <span class="text-[13px] truncate">Ara…</span>
             <kbd class="ml-auto shrink-0 text-[11px] font-mono px-1.5 py-0.5 rounded bg-surface text-slate-500 shadow-xs">⌘K</kbd>
         </button>
 
-        <span class="hidden xl:block text-[12px] text-slate-400 font-medium tnum"><?= date('d.m.Y H:i') ?></span>
+        <span class="merchant-nav-date hidden xl:block text-[12px] text-slate-400 font-medium tnum"><?= date('d.m.Y H:i') ?></span>
 
         <!-- Güncelleme + Destek (artık Ayarlar altında; üst menüde hızlı erişim + badge korunur) -->
         <a href="/settings/guncellemeler" class="t relative grid place-items-center w-9 h-9 rounded-lg hover:bg-slate-900/[.05] dark:hover:bg-white/[.06] text-slate-500" title="Güncellemeler">

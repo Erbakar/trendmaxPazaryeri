@@ -27,6 +27,7 @@ final class PriceRuleEngine
         private readonly MarketplaceProduct $mpProductModel,
         private readonly Product $productModel,
         private readonly Logger $logger,
+        private readonly \App\Services\Import\XmlProfileSettings $profileSettings,
     ) {}
 
     /**
@@ -66,6 +67,17 @@ final class PriceRuleEngine
             if ($ruleType !== null && $ruleType !== PriceRuleType::NONE) {
                 $calculatedPrice = $ruleType->apply($basePrice, (float) $mpProduct['price_rule_value']);
                 $ruleApplied = "marketplace_product:{$ruleType->value}:{$mpProduct['price_rule_value']}";
+            }
+        }
+
+        // A saved XML profit rule must also apply to API/worker paths, not only UI prefill.
+        $profileId = (int)($product['xml_profile_id'] ?? 0);
+        if ($ruleApplied === 'none' && $profileId > 0) {
+            $profit = $this->profileSettings->forProfile($profileId);
+            if ((float)$profit['kar_degeri'] > 0) {
+                $type = $profit['kar_tipi'] === 'tutar' ? PriceRuleType::FIXED_INCREASE : PriceRuleType::PERCENT_INCREASE;
+                $calculatedPrice = $type->apply($costPrice > 0 ? $costPrice : $basePrice, (float)$profit['kar_degeri']);
+                $ruleApplied = 'xml_profile:' . $profileId . ':' . $type->value . ':' . $profit['kar_degeri'];
             }
         }
 

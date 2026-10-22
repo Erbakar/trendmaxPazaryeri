@@ -2,7 +2,7 @@ RewriteEngine On
 
 # Front-controller: extensionless URL'lerin (örn /ozellikler) docroot'taki bir
 # dosyaya (ozellikler.png/.md) content-negotiation ile eşleşip route'u gölgelemesini engelle.
-Options -MultiViews
+Options -MultiViews -Indexes
 
 # Set directory index to public/index.php
 DirectoryIndex public/index.php index.php
@@ -13,13 +13,26 @@ RewriteCond %{DOCUMENT_ROOT}/OzyConnect/installer_done.lock -f
 RewriteRule ^installer\.php$ - [F,L]
 
 # Keep sensitive application folders private.
-RewriteRule ^(app|config|database|storage|views|cron|electron|vendor|tools|node_modules)(/|$) - [F,L]
+RewriteRule ^(app|config|database|storage|views|cron|electron|vendor|tools|tests|modules|migrations|update|connectors|SQL|Modüller|node_modules)(/|$) - [F,L]
 
 # Block common temporary/debug scripts.
-# RewriteRule ^(check_|fix_|test_|tmp_|diag|phptest)[^/]*\.(php|txt)$ - [F,L]
+RewriteRule ^(check_|fix_|test_|tmp_|diag|phptest)[^/]*\.(php|txt)$ - [F,L]
 
 # Optional short asset path: /assets/... -> /public/assets/...
 RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+
+# Only the intentionally published connector package is a public download.
+RewriteRule ^public/downloads/ozyconnect-opencart-connector-1\.0\.0\.zip$ - [L]
+# Block source/update archives before the real-file and public-directory shortcuts.
+RewriteRule \.(zip|tar|tgz|gz|bz2|xz|7z|rar)$ - [F,L,NC]
+RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L]
+
+# Uploaded files must never execute as server-side scripts.
+RewriteRule ^public/uploads/.*\.(php[0-9]*|phtml|phar|cgi|pl|py|sh)(\.|/|$) - [F,L,NC]
+
+# Installation notes and operational documentation are not public downloads.
+RewriteRule ^robots\.txt$ - [L]
+RewriteRule \.(md|txt)$ - [F,L,NC]
 
 # Allow direct access to /public/ folder (CSS, JS, images, etc.)
 RewriteRule ^public/ - [L]
@@ -40,7 +53,7 @@ RewriteRule ^(.*)$ public/index.php [QSA,L]
     </IfModule>
 </FilesMatch>
 
-<FilesMatch "^(\.env|\.gitignore|composer\.(json|lock)|README\.md|CHANGELOG\.md|installer_done\.lock|version\.txt)$">
+<FilesMatch "^(\.env|\.gitignore|composer\.(json|lock)|README(?:\.[^/]+)?\.md|CHANGELOG\.md|phpunit\.xml|installer_done\.lock|version\.txt)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -49,7 +62,7 @@ RewriteRule ^(.*)$ public/index.php [QSA,L]
     </IfModule>
 </FilesMatch>
 
-<FilesMatch "\.(bak|orig|swp|sql|log)$">
+<FilesMatch "\.(bak|orig|swp|sql|log|ini|ya?ml|env)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

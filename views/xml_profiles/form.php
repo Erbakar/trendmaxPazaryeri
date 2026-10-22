@@ -128,14 +128,15 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
                     <input type="text" name="source_url" id="xpfSourceUrl" value="<?= $v('source_url') ?>" placeholder="https://xml.dbentegrasyon.com/xml_goster/..." style="flex:1;min-width:280px">
                     <button type="button" class="xpf-analiz" id="xpfAnalizBtn"><i data-lucide="wand-2" style="width:13px;height:13px"></i> Analiz Et</button>
                 </div>
-                <div class="xpf-analiz-sonuc" id="xpfAnalizSonuc"></div>
             </div>
 
             <div class="xpf-f" id="xpfFileRow" style="<?= $sourceType === 'file' ? '' : 'display:none' ?>">
                 <label>XML Dosyası <?= $isEdit ? '<span class="hint">boş bırakılırsa mevcut dosya korunur</span>' : '' ?></label>
                 <input type="file" name="xml_file" accept=".xml,text/xml,application/xml">
+                <button type="button" class="xpf-analiz" id="xpfFileAnalizBtn">Dosyayı Analiz Et</button>
             </div>
 
+            <div class="xpf-analiz-sonuc" id="xpfAnalizSonuc" role="status"></div>
             <div class="xpf-row xpf-r2" style="margin-top:12px">
                 <div class="xpf-f">
                     <label>XML Formatı</label>
@@ -158,7 +159,7 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
                     ve sistem alanlarıyla eşleştirebilirsiniz.
                 </div>
                 <table class="xpf-map" id="xpfMapTable" hidden>
-                    <thead><tr><th>Sistem Alanı</th><th>XML Etiketi</th></tr></thead>
+                    <thead><tr><th>Sistem Alanı</th><th>XML Etiketi</th><th>Örnek Değer</th></tr></thead>
                     <tbody id="xpfMapBody"></tbody>
                 </table>
                 <div class="xpf-map-onizleme" id="xpfMapOnizleme" hidden></div>
@@ -303,46 +304,42 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
         document.getElementById('xpfMappingRow').style.display = fmt.value === 'generic' ? '' : 'none';
     });
 
-    var btn = document.getElementById('xpfAnalizBtn');
-    if (btn) btn.addEventListener('click', function(){
-        var url = document.getElementById('xpfSourceUrl').value.trim();
+    function xpfEscape(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+    function xpfAnalyze(event) {
+        var btn = event.currentTarget;
+        var form = btn.closest('form');
         var out = document.getElementById('xpfAnalizSonuc');
-        if (!url) { if (window.Toast) Toast.show('Önce XML URL girin', 'warning', 2000); return; }
+        var body = new FormData();
+        var sourceType = form.querySelector('[name=source_type]:checked').value;
+        body.append('source_type', sourceType);
+        body.append('profile_id', <?= (int)($profile['id'] ?? 0) ?>);
+        body.append('_csrf_token', (document.querySelector('meta[name=csrf-token]') || {}).content || '');
+        if (sourceType === 'file') {
+            var file = form.querySelector('[name=xml_file]').files[0];
+            if (file) body.append('xml_file', file);
+        } else body.append('source_url', document.getElementById('xpfSourceUrl').value.trim());
         btn.disabled = true;
         var old = btn.innerHTML;
-        btn.innerHTML = 'Analiz ediliyor…';
-        var csrf = (document.querySelector('meta[name=csrf-token]') || {}).content || '';
-        fetch('/xml-profilleri/analiz', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'},
-            body: 'source_url=' + encodeURIComponent(url) + '&_csrf_token=' + encodeURIComponent(csrf)
-        }).then(function(r){ return r.json(); }).then(function(r){
-            btn.disabled = false; btn.innerHTML = old;
-            var d = (r && r.data) || r || {};
-            if (r && (r.success === true || r.ok === true)) {
-                out.style.display = 'block';
-                out.innerHTML = '✓ ' + (d.count || '?') + ' ürün bulundu (&lt;' + (d.item_tag || '?') + '&gt;) — ' +
-                    (d.is_ticimax ? '<b>Ticimax formatı algılandı</b>, alan eşlemesi gerekmez.' : 'genel format; gerekirse elle eşleme girin.') +
-                    (d.tags ? '<br>Etiketler: <code>' + d.tags.slice(0, 18).join(', ') + '</code>' : '');
-                if (window.Toast) Toast.show('Analiz tamam: ' + (d.count || '?') + ' ürün', 'success', 2500);
-                xpfMapKur(d.tags || [], d.item_tag || '');
-                if (!d.is_ticimax && fmt && fmt.value === 'auto' && (d.tags || []).length) {
-                    // Otomatik algılama Ticimax değilse eşleme üretmiyordu; kullanıcı
-                    // "Genel"e geçtiğinde de boş ekranla karşılaşıyordu. Artık alan
-                    // eşleştirme tablosu doldurulup "Genel" moduna geçilir.
-                    fmt.value = 'generic';
-                    document.getElementById('xpfMappingRow').style.display = '';
-                }
-            } else {
-                out.style.display = 'block';
-                out.style.background = '#fef2f2'; out.style.borderColor = '#fecaca'; out.style.color = '#991b1b';
-                out.textContent = (r && (r.message || r.error)) || 'Analiz başarısız';
-            }
-        }).catch(function(){
-            btn.disabled = false; btn.innerHTML = old;
-            if (window.Toast) Toast.show('Sunucu hatası', 'error', 2500);
-        });
-    });
+        btn.textContent = 'Analiz ediliyor…';
+        fetch('/xml-profilleri/analiz', {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:body})
+        .then(function(response){ return response.json(); }).then(function(result){
+            var d = result.data || {};
+            if (!result.success) throw new Error(result.message || 'Analiz başarısız');
+            out.style.display = 'block'; out.style.background = ''; out.style.color = ''; out.style.borderColor = '';
+            out.textContent = '✓ ' + d.count + ' ürün bulundu (<' + d.item_tag + '>). Alanları aşağıdaki listelerden kontrol edip değiştirebilirsiniz.';
+            xpfMapKur(d.tags || [], d.item_tag || '', d.samples || {}, d.suggested_mapping || {});
+            if (!d.is_ticimax || fmt.value === 'generic') fmt.value = 'generic';
+            document.getElementById('xpfMappingRow').style.display = fmt.value === 'generic' ? '' : 'none';
+        }).catch(function(error){
+            out.style.display = 'block'; out.style.background = '#fef2f2'; out.style.color = '#991b1b';
+            out.textContent = error.message;
+        }).finally(function(){ btn.disabled = false; btn.innerHTML = old; });
+    }
+    ['xpfAnalizBtn','xpfFileAnalizBtn'].forEach(function(id){document.getElementById(id).addEventListener('click',xpfAnalyze);});
 
     // ─── Alan eşleştirme tablosu ──────────────────────────────────────────
     // Sistem alanı → XML etiketi. Seçimler JSON kutusuna yazılır; kaydedilen
@@ -359,12 +356,22 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
         ['tax',          'KDV %', false],
         ['weight',       'Ağırlık (kg)', false],
         ['desi',         'Desi', false],
-        ['image_prefix', 'Görsel (etiket ön eki)', false],
+        ['image',        'Ana Görsel', false],
+        ['image_prefix', 'Görsel Serisi Ön Eki (Image, Resim)', false],
         ['brand',        'Marka (ad)', false],
         ['category',     'Kategori — 1. seviye', false],
         ['category2',    'Kategori — 2. seviye', false],
         ['category3',    'Kategori — 3. seviye', false],
-        ['currency',     'Para Birimi', false]
+        ['category4',    'Kategori — 4. seviye', false],
+        ['category5',    'Kategori — 5. seviye', false],
+        ['currency',     'Para Birimi', false],
+        ['attribute_color', 'Özellik · Renk', false],
+        ['attribute_web_color', 'Özellik · Web Color (ana renk)', false],
+        ['attribute_origin', 'Özellik · Menşei', false],
+        ['attribute_size', 'Özellik · Beden', false],
+        ['attribute_material', 'Özellik · Materyal', false],
+        ['attribute_gender', 'Özellik · Cinsiyet', false],
+        ['attribute_age_group', 'Özellik · Yaş Grubu', false]
     ];
 
     function xpfMevcutEsleme() {
@@ -377,7 +384,7 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
         var kutu = document.getElementById('xpfMapJson');
         if (!kutu) return;
         var onceki = xpfMevcutEsleme();
-        var yeni = {};
+        var yeni = Object.assign({}, onceki);
         if (onceki.item_tag) yeni.item_tag = onceki.item_tag;
         if (onceki.category_sep) yeni.category_sep = onceki.category_sep;
         var it = document.getElementById('xpfMapItemTag');
@@ -385,76 +392,63 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
         XPF_ALANLAR.forEach(function (a) {
             var s = document.getElementById('xpfMap_' + a[0]);
             if (s && s.value) yeni[a[0]] = s.value;
+            else delete yeni[a[0]];
         });
         kutu.value = JSON.stringify(yeni, null, 2);
     }
 
-    function xpfTahmin(anahtar, etiketler) {
-        var ipucu = {
-            sku: ['stokkodu','stok_kodu','sku','product_code','productcode','urunkodu','kod'],
-            name: ['urunadi','urun_adi','name','title','productname','ad'],
-            barcode: ['barkod','barcode','ean','gtin'],
-            description: ['aciklama','description','detay','desc'],
-            price: ['satisfiyati','price','fiyat','satis_fiyat','saleprice'],
-            list_price: ['listfiyati','listprice','liste_fiyati','psf'],
-            cost: ['alisfiyati','cost','maliyet','alis'],
-            stock: ['stok','stock','adet','quantity','stokadedi'],
-            tax: ['kdv','tax','vat','kdvorani'],
-            weight: ['agirlik','weight','kg'],
-            desi: ['desi','deci'],
-            image_prefix: ['resim','image','gorsel','picture','img'],
-            brand: ['marka','brand','vendor'],
-            category: ['maincategory','anakategori','kategori','category','kategoritree'],
-            category2: ['category','altkategori','kategori2','subcategory'],
-            category3: ['subcategory','kategori3','altkategori2'],
-            currency: ['currency','currencytype','parabirimi','doviz','kur']
-        }[anahtar] || [];
-        var sade = function (s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, ''); };
-        for (var i = 0; i < ipucu.length; i++) {
-            for (var j = 0; j < etiketler.length; j++) {
-                if (sade(etiketler[j]) === ipucu[i]) return etiketler[j];
-            }
+    function xpfMapKur(etiketler, itemTag, samples, suggestions) {
+        var body = document.getElementById('xpfMapBody');
+        var saved = xpfMevcutEsleme();
+        samples = samples || saved._samples || {};
+        etiketler = Array.from(new Set(etiketler.concat(saved._tags || [])));
+        suggestions = suggestions || {};
+        if (!etiketler.length && !saved.item_tag) return;
+        saved._tags = etiketler;
+        saved._samples = samples;
+        document.getElementById('xpfMapJson').value = JSON.stringify(saved);
+        function options(values, selected) {
+            return '<option value="">— Eşleşme yok —</option>' + Array.from(new Set(values.concat(selected ? [selected] : []))).map(function(t){
+                return '<option value="'+xpfEscape(t)+'"'+(t===selected?' selected':'')+'>'+xpfEscape(t)+'</option>';
+            }).join('');
         }
-        for (var i2 = 0; i2 < ipucu.length; i2++) {
-            for (var j2 = 0; j2 < etiketler.length; j2++) {
-                if (sade(etiketler[j2]).indexOf(ipucu[i2]) !== -1) return etiketler[j2];
-            }
-        }
-        return '';
-    }
-
-    function xpfMapKur(etiketler, itemTag) {
-        var govde = document.getElementById('xpfMapBody');
-        var tablo = document.getElementById('xpfMapTable');
-        var bos   = document.getElementById('xpfMapBos');
-        if (!govde || !tablo) return;
-        if (!etiketler.length) return;
-
-        var kayitli = xpfMevcutEsleme();
-        var secenek = function (secili) {
-            var h = '<option value="">— Eşleşme yok —</option>';
-            etiketler.forEach(function (t) {
-                h += '<option value="' + t + '"' + (t === secili ? ' selected' : '') + '>' + t + '</option>';
-            });
-            return h;
-        };
-
-        var html = '<tr><td><b>Ürün Düğümü</b> <span class="hint">(zorunlu)</span></td>'
-                 + '<td><select id="xpfMapItemTag">' + secenek(kayitli.item_tag || itemTag) + '</select></td></tr>';
-        XPF_ALANLAR.forEach(function (a) {
-            var secili = kayitli[a[0]] || xpfTahmin(a[0], etiketler);
-            html += '<tr><td>' + a[1] + (a[2] ? ' <span class="hint">(zorunlu)</span>' : '') + '</td>'
-                  + '<td><select id="xpfMap_' + a[0] + '">' + secenek(secili) + '</select></td></tr>';
+        var selectedItem = saved.item_tag || itemTag;
+        var html = '<tr><td><b>Ürün Düğümü</b> (zorunlu)</td><td><select id="xpfMapItemTag">'
+            + options([itemTag || selectedItem], selectedItem) + '</select></td><td>Her ürün için tekrarlanan düğüm</td></tr>';
+        XPF_ALANLAR.forEach(function(a){
+            var selected = Object.prototype.hasOwnProperty.call(saved,a[0]) ? saved[a[0]] : (suggestions[a[0]] || '');
+            var choices = etiketler.slice();
+            if(a[0]==='image_prefix') choices = choices.map(function(t){return t.replace(/_?\d+$/,'');});
+            html += '<tr><td>'+a[1]+(a[2]?' (zorunlu)':'')+'</td><td><select aria-label="'+xpfEscape(a[1])+' XML etiketi" id="xpfMap_'+a[0]+'">'
+                +options(choices,selected)+'</select></td><td data-xpf-sample="'+a[0]+'">'+xpfEscape(samples[selected] || '')+'</td></tr>';
         });
-        govde.innerHTML = html;
-        tablo.hidden = false;
-        if (bos) bos.style.display = 'none';
-
-        govde.querySelectorAll('select').forEach(function (s) {
-            s.addEventListener('change', xpfJsonYaz);
-        });
+        body.innerHTML = html;
+        document.getElementById('xpfMapTable').hidden = false;
+        document.getElementById('xpfMapBos').style.display = 'none';
+        body.querySelectorAll('select').forEach(function(field){field.addEventListener('change',function(){
+            var key = field.id.replace('xpfMap_','');
+            var cell = body.querySelector('[data-xpf-sample="'+key+'"]');
+            if(cell) cell.textContent = samples[field.value] || '';
+            xpfJsonYaz();
+        });});
         xpfJsonYaz();
     }
+    var initial = xpfMevcutEsleme();
+    if (initial.item_tag) xpfMapKur(initial._tags || Object.values(initial).filter(function(v){return typeof v==='string';}),initial.item_tag,initial._samples || {},{});
+    document.getElementById('xpfMapJson').addEventListener('change',function(){var map=xpfMevcutEsleme();xpfMapKur(map._tags || [],map.item_tag || '',map._samples || {},{});});
+    document.getElementById('xpfMapJson').closest('form').addEventListener('submit',function(event){
+        var direction = this.querySelector('[name=direction]:checked');
+        if(direction && direction.value==='export') return;
+        if(fmt.value!=='generic') return;
+        xpfJsonYaz();
+        var map=xpfMevcutEsleme();
+        if(!map.item_tag || !map.sku || !map.name) {
+            event.preventDefault();
+            document.getElementById('xpfMappingRow').style.display='';
+            document.getElementById('xpfMapBos').scrollIntoView({block:'center'});
+            if(window.Toast) Toast.show('Ürün düğümü, SKU ve ürün adı eşlemelerini seçin.','warning');
+        }
+    });
 
     if (window.lucide) lucide.createIcons();
 })();

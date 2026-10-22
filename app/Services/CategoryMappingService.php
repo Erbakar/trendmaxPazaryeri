@@ -73,7 +73,7 @@ final class CategoryMappingService
             return $this->flattenCategories($categories, $query);
         } catch (\Throwable $e) {
             $this->logger->error("Kategori arama hatası: " . $e->getMessage(), 'CategoryMapping');
-            return [];
+            throw new \RuntimeException('Pazaryeri kategorileri alınamadı: ' . $e->getMessage(), 0, $e);
         }
     }
 

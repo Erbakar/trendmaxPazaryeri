@@ -27,3 +27,37 @@ desktop.ini
 
 # Installer tamamlandı dosyası
 installer_done.php
+
+# Local development runtime and database
+/storage/local/
+
+# Uploaded supplier XML contains local business data
+/storage/xmlprofiles/
+
+# Private data exports and desktop build output
+/storage/exports/
+/electron/node_modules/
+/electron/dist/
+
+# Runtime/customer data must never be committed. Keep directory guards and placeholders.
+/storage/**
+!/storage/**/
+!/storage/**/.gitkeep
+!/storage/**/.htaccess
+/storage/local/
+/storage/xmlprofiles/
+/storage/exports/
+/public/uploads/**
+!/public/uploads/**/
+!/public/uploads/**/.gitkeep
+*.zip
+*.tar
+*.tgz
+!/public/downloads/ozyconnect-opencart-connector-1.0.0.zip
+/.ftpquota
+/README.local.md
+
+# Local interpreter caches and installation state
+__pycache__/
+*.pyc
+/installer_done.lock

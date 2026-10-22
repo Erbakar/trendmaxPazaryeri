@@ -35,6 +35,7 @@ use App\Helpers\StringHelper;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductAttributeValue;
 use App\Models\XmlProfile;
 use App\Models\XmlProfileLog;
 use App\Services\ExchangeRateService;
@@ -63,6 +64,8 @@ final class XmlProfileImportService
     /** @var array<string, int> Marka adı → id (koşum içi önbellek) */
     private array $brandCache = [];
 
+    private array $attributeCache = [];
+
     /**
      * Bu koşumda geçerli profil ayarları (barkod ön eki, kritik stok, varsayılanlar).
      * Her tedarikçinin kuralı farklı olduğu için profil bazında okunur.
@@ -82,6 +85,7 @@ final class XmlProfileImportService
         private readonly TenantContext $tenant,
         private readonly Logger $logger,
         private readonly XmlProfileSettings $profileSettings,
+        private readonly ProductAttributeValue $productAttributeValues,
     ) {}
 
     /**
@@ -109,6 +113,7 @@ final class XmlProfileImportService
         $logId = $this->logModel->start($profileId, 'sync', $triggeredBy);
         $this->categoryCache = [];
         $this->brandCache = [];
+        $this->attributeCache = [];
         $this->profilAyari = $this->profileSettings->forProfile($profileId);
 
         $localFile = null;
@@ -179,40 +184,52 @@ final class XmlProfileImportService
     public function analyze(string $sourceUrl): array
     {
         $tmp = $this->downloadToTemp($sourceUrl);
+        try { return $this->analyzeFile($tmp); }
+        finally { @unlink($tmp); }
+    }
 
-        try {
-            [$itemTag, $tags] = $this->detectStructure($tmp);
-            if ($itemTag === '') {
-                return ['ok' => false, 'message' => 'XML içinde tekrar eden ürün düğümü bulunamadı.', 'item_tag' => '', 'count' => 0, 'tags' => [], 'is_ticimax' => false];
-            }
+    public function analyzeProfile(int $profileId): array
+    {
+        $profile = $this->profileModel->findOrFail($profileId);
+        [$file, $temporary] = $this->resolveSource($profile);
+        try { return $this->analyzeFile($file); }
+        finally { if ($temporary) @unlink($file); }
+    }
 
-            // Adet say (akışla, subtree'lere inmeden)
-            $count = 0;
-            $reader = $this->openReader($tmp);
-            $ok = $reader->read();
-            while ($ok) {
-                if ($reader->nodeType === \XMLReader::ELEMENT && $reader->name === $itemTag) {
-                    $count++;
-                    $ok = $reader->next($itemTag);
-                    continue;
-                }
-                $ok = $reader->read();
-            }
-            $reader->close();
-
-            $isTicimax = self::isTicimaxTags($tags);
-
-            return [
-                'ok'         => true,
-                'message'    => sprintf('%d ürün bulundu (<%s>) — %s format', $count, $itemTag, $isTicimax ? 'Ticimax' : 'genel'),
-                'item_tag'   => $itemTag,
-                'count'      => $count,
-                'tags'       => $tags,
-                'is_ticimax' => $isTicimax,
-            ];
-        } finally {
-            @unlink($tmp);
+    public function analyzeFile(string $file): array
+    {
+        [$itemTag, $tags] = $this->detectStructure($file);
+        if ($itemTag === '') {
+            throw new \RuntimeException('XML içinde ürün düğümü bulunamadı.');
         }
+        $count = 0;
+        $samples = [];
+        $reader = $this->openReader($file);
+        $ok = $reader->read();
+        while ($ok) {
+            if ($reader->nodeType === \XMLReader::ELEMENT && $reader->name === $itemTag) {
+                $count++;
+                if ($count <= 5) {
+                    $node = $reader->expand();
+                    if ($node !== false) foreach ($node->childNodes as $child) {
+                        if ($child->nodeType === XML_ELEMENT_NODE) {
+                            $tags[] = $child->nodeName;
+                            $text = trim($child->textContent);
+                            if ($text !== '' && empty($samples[$child->nodeName])) {
+                                $samples[$child->nodeName] = mb_substr(strip_tags($text), 0, 160);
+                            }
+                        }
+                    }
+                }
+                $ok = $reader->next();
+            } else { $ok = $reader->read(); }
+        }
+        $reader->close();
+        $tags = array_values(array_unique($tags));
+        return ['ok'=>true, 'message'=>"{$count} ürün bulundu", 'item_tag'=>$itemTag,
+            'count'=>$count, 'tags'=>$tags, 'samples'=>(object)$samples,
+            'suggested_mapping'=>XmlProfileMapping::suggest($tags, $itemTag),
+            'is_ticimax'=>self::isTicimaxTags($tags)];
     }
 
     // ─── Kaynak çözümleme ─────────────────────────────────
@@ -338,9 +355,7 @@ final class XmlProfileImportService
 
         if ($format === 'generic') {
             $map = json_decode((string) ($profile['field_mapping_json'] ?? ''), true) ?: [];
-            if (empty($map['item_tag']) || empty($map['sku']) || empty($map['name'])) {
-                throw new \RuntimeException('Genel formatta item_tag, sku ve name eşlemesi zorunludur.');
-            }
+            XmlProfileMapping::validate($map);
             $map['_ticimax'] = false;
             return $map;
         }
@@ -360,39 +375,7 @@ final class XmlProfileImportService
             return ['item_tag' => $itemTag, '_ticimax' => true];
         }
 
-        // Otomatik genel eşleme denemesi (yaygın Türkçe/İngilizce etiketler)
-        $guess = static function (array $candidates) use ($tags): string {
-            foreach ($candidates as $c) {
-                foreach ($tags as $t) {
-                    if (strcasecmp($t, $c) === 0) {
-                        return $t;
-                    }
-                }
-            }
-            return '';
-        };
-
-        $imageFirst = $guess(['Resim_1', 'resim1', 'image1', 'img1', 'resim_1']);
-
-        $map = [
-            'item_tag'     => $itemTag,
-            '_ticimax'     => false,
-            'sku'          => $guess(['StokKodu', 'stok_kodu', 'sku', 'urunKodu', 'kod', 'code']),
-            'name'         => $guess(['UrunAdi', 'urun_adi', 'name', 'baslik', 'title', 'ad']),
-            'description'  => $guess(['Aciklama', 'aciklama', 'description', 'detay', 'icerik']),
-            'barcode'      => $guess(['Barkod', 'barkod', 'barcode', 'gtin', 'ean']),
-            'price'        => $guess(['SatisFiyati_TL', 'satis_fiyati', 'fiyat', 'price', 'satisFiyati']),
-            'list_price'   => $guess(['ListeFiyati_TL', 'liste_fiyati', 'list_price', 'piyasaFiyati']),
-            'cost'         => $guess(['AlisFiyati_TL', 'alis_fiyati', 'cost', 'maliyet', 'alisFiyati']),
-            'stock'        => $guess(['StokAdedi', 'stok', 'stock', 'miktar', 'qty', 'adet']),
-            'tax'          => $guess(['KdvOrani', 'kdv', 'tax', 'vat']),
-            'desi'         => $guess(['Desi', 'desi']),
-            'brand'        => $guess(['Marka', 'marka', 'brand']),
-            'category'     => $guess(['KategoriTree', 'kategori', 'category', 'kategori_yolu']),
-            'category_sep' => '|',
-            'image'        => $guess(['Resim', 'resim', 'image', 'img', 'gorsel']),
-            'image_prefix' => $imageFirst !== '' ? (string) preg_replace('/_?1$/', '', $imageFirst) : '',
-        ];
+        $map = XmlProfileMapping::suggest($tags, $itemTag) + ['_ticimax'=>false, 'sku'=>'', 'name'=>''];
 
         if ($map['sku'] === '' || $map['name'] === '') {
             throw new \RuntimeException('Alan eşlemesi otomatik çözülemedi — profil ayarlarından genel format eşlemesi girin. Bulunan etiketler: ' . implode(', ', array_slice($tags, 0, 25)));
@@ -887,15 +870,20 @@ final class XmlProfileImportService
         if ($sep === '') {
             $sep = '|';
         }
-        $catRaw = $get('category');
-        $categoryPath = $catRaw !== ''
-            ? array_values(array_filter(array_map('trim', explode($sep, $catRaw))))
-            : [];
+        $categoryPath = [];
+        foreach (['category','category2','category3','category4','category5'] as $field) {
+            foreach (explode($sep, $get($field)) as $part) {
+                $part = trim($part);
+                if ($part !== '' && end($categoryPath) !== $part) $categoryPath[] = $part;
+            }
+        }
 
         // Resimler: image_prefix (Resim / resim gibi) → Resim_1..12 / resim1..12,
         // yoksa tek 'image' etiketi
         $images = [];
         $prefix = (string) ($mapping['image_prefix'] ?? '');
+        // Older UI saved Image1 as a prefix; normalize it to Image.
+        $prefix = (string) preg_replace('/_?1$/', '', $prefix);
         if ($prefix !== '') {
             for ($i = 1; $i <= 12; $i++) {
                 $found = false;
@@ -909,9 +897,8 @@ final class XmlProfileImportService
                         break;
                     }
                 }
-                if (!$found) {
-                    break;
-                }
+                // Suppliers may omit Image2 while still supplying Image3.
+                if (!$found) continue;
             }
         }
         if ($images === [] && !empty($mapping['image'])) {
@@ -921,8 +908,31 @@ final class XmlProfileImportService
             }
         }
 
+        $attributes = [];
+        foreach (XmlProfileMapping::ATTRIBUTE_FIELDS as $field => $name) {
+            if (trim((string)($mapping[$field] ?? '')) !== '') {
+                $value = $get($field);
+                if ($field === 'attribute_origin' && in_array(mb_strtolower($value), ['türkiye','turkiye','turkey'], true)) $value = 'TR';
+                if (mb_strlen($value) > 1000) throw new \RuntimeException($name . ' en fazla 1000 karakter olabilir.');
+                $attributes[$name] = $value;
+            }
+        }
+
         $price = $this->toFloat($get('price'));
         $listPrice = $this->toFloat($get('list_price'));
+        $cost = $this->toFloat($get('cost'));
+        $currency = strtoupper($get('currency'));
+        if ($currency === '' || $currency === 'TRL' || $currency === 'TL') $currency = 'TRY';
+        $currencyPrice = 0.0; $currencyCost = 0.0;
+        if ($currency !== 'TRY') {
+            if (!in_array($currency, ['USD','EUR','GBP'], true)) throw new \RuntimeException('Desteklenmeyen para birimi: '.$currency);
+            $rate = $this->exchangeRates->getRate($currency);
+            if ($rate <= 0) throw new \RuntimeException($currency.' kuru bulunamadı; fiyat aktarılmadı.');
+            $currencyPrice = $price; $currencyCost = $cost;
+            $price = round($price * $rate, 2); $cost = round($cost * $rate, 2);
+            $listPrice = round($listPrice * $rate, 2);
+        }
+
 
         return [
             'sku'            => $sku,
@@ -934,13 +944,15 @@ final class XmlProfileImportService
             'stock_qty'      => max(0, (int) $this->toFloat($get('stock'))),
             'tax_rate'       => $this->toFloat($get('tax')),
             'desi'           => $this->toFloat($get('desi')),
+            'weight'         => !empty($mapping['weight']) ? max(0.0, $this->toFloat($get('weight'))) : null,
             'base_price'     => $price,
             'list_price'     => $listPrice > 0 ? $listPrice : $price,
-            'cost_price'     => $this->toFloat($get('cost')),
-            'currency_code'  => 'TRY',
-            'currency_price' => 0.0,
-            'currency_cost'  => 0.0,
+            'cost_price'     => $cost,
+            'currency_code'  => $currency,
+            'currency_price' => $currencyPrice,
+            'currency_cost'  => $currencyCost,
             'images'         => $images,
+            'import_attributes' => $attributes,
         ];
     }
 
@@ -1024,6 +1036,7 @@ final class XmlProfileImportService
                 'stock_qty'      => $row['stock_qty'],
                 'tax_rate'       => $row['tax_rate'] > 0 ? $row['tax_rate'] : 20,
                 'desi'           => $row['desi'] > 0 ? $row['desi'] : null,
+                'weight'         => $row['weight'] ?? null,
                 'main_image'     => $images[0] ?? null,
                 'images_json'    => $images !== [] ? json_encode($images, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
                 'source'         => 'xml',
@@ -1042,7 +1055,8 @@ final class XmlProfileImportService
                 $yeni['min_stock_alert'] = $kritikStok;
             }
 
-            $this->productModel->create($yeni);
+            $productId = $this->productModel->create($yeni);
+            $this->syncImportedAttributes($productId, $row['import_attributes'] ?? []);
             return 'created';
         }
 
@@ -1063,6 +1077,7 @@ final class XmlProfileImportService
         if (array_key_exists('variant_attributes', $row)) {
             $data['variant_attributes'] = $row['variant_attributes'];
         }
+        if (isset($row['weight'])) $data['weight'] = $row['weight'];
         if ($row['description'] !== '') {
             $data['description'] = $row['description'];
         }
@@ -1112,12 +1127,39 @@ final class XmlProfileImportService
         // Dirty-check: hiçbir alan gerçekten değişmediyse UPDATE atma (koşulsuz yazım,
         // 50k üründe her koşumda 50k gereksiz UPDATE'e yol açar). name + xml_profile_id
         // her zaman set edildiğinden onları da mevcut değerle karşılaştır.
+        $attributesChanged = $this->syncImportedAttributes((int)$existing['id'], $row['import_attributes'] ?? []);
         if (!$this->hasChanges($existing, $data)) {
+            if ($attributesChanged) return 'updated';
             return 'skipped';
         }
 
         $this->productModel->update((int) $existing['id'], $data);
         return 'updated';
+    }
+
+    /** Only explicitly mapped XML fields are authoritative; marketplace overrides stay separate. */
+    private function syncImportedAttributes(int $productId, array $values): bool
+    {
+        $changed = false;
+        foreach ($values as $name => $value) {
+            if (!in_array($name, XmlProfileMapping::ATTRIBUTE_FIELDS, true)) continue;
+            if (!isset($this->attributeCache[$name])) {
+                $found = $this->db->fetchOne('SELECT id FROM product_attributes WHERE name=? ORDER BY id LIMIT 1', [$name]);
+                if ($found === false) {
+                    $this->db->query('INSERT INTO product_attributes (name,slug,input_type) VALUES (?,?,?)', [$name,'xml-'.StringHelper::slugify($name),'text']);
+                    $this->attributeCache[$name] = (int)$this->db->lastInsertId();
+                } else $this->attributeCache[$name] = (int)$found['id'];
+            }
+            $attributeId = $this->attributeCache[$name];
+            $current = $this->productAttributeValues->findBy(['product_id'=>$productId, 'attribute_id'=>$attributeId]);
+            if ($value === '') {
+                if ($current !== false) { $this->productAttributeValues->delete((int)$current['id']); $changed = true; }
+            } elseif ($current === false || ($current['custom_value'] ?? '') !== $value || $current['attribute_value_id'] !== null) {
+                $this->productAttributeValues->setProductAttribute($productId, $attributeId, null, $value);
+                $changed = true;
+            }
+        }
+        return $changed;
     }
 
     /**

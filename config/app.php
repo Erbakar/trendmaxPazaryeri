@@ -14,7 +14,7 @@ declare(strict_types=1);
 
 return [
     // ─── Uygulama ──────────────────────────────────────────
-    'app_name'    => env('APP_NAME', 'Entegratör Yazılımı'),
+    'app_name'    => env('APP_NAME', 'Trendmax'),
     'version'     => '1.0.0',
     'developer'   => 'OziyWeb',
     'website'     => 'https://www.oziyweb.com.tr',

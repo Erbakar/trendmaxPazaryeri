@@ -232,6 +232,8 @@ $router->post('/categories/bulk-add-to-system', [CategoryController::class, 'bul
 // ─── Kategori Eşleştirme ──────────────────────────────
 // DİKKAT: /categories/mapping* rotaları POST /categories/{id} jokerinden ÖNCE kalmalı;
 // aksi halde POST /categories/mapping, CategoryController::update('mapping')'e düşer.
+$router->get('/categories/{id}/product-mappings', [\App\Controllers\ProductCategoryMappingController::class, 'index'], $authMiddleware);
+$router->post('/categories/{id}/product-mappings', [\App\Controllers\ProductCategoryMappingController::class, 'save'], $authCsrf);
 $router->get('/categories/mapping',                         [CategoryMappingController::class, 'index'],          $authMiddleware);
 $router->post('/categories/mapping',                        [CategoryMappingController::class, 'store'],          $authCsrf);
 $router->get('/categories/mapping/search',                  [CategoryMappingController::class, 'searchTrendyol'], $authMiddleware);
@@ -239,6 +241,9 @@ $router->get('/categories/mapping/attributes/{categoryId}', [CategoryMappingCont
 // Hepsiburada kategori özellikleri çekmecesi (zorunlu özellikler + geçerli değerler + varsayılanlar)
 $router->get('/categories/mapping/{id}/hb-attributes',      [CategoryMappingController::class, 'hbAttributes'],   $authMiddleware);
 $router->post('/categories/mapping/{id}/hb-attribute',      [CategoryMappingController::class, 'hbAttributeSave'], $authCsrf);
+$router->get('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'show'], $authMiddleware);
+$router->post('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'save'], $authCsrf);
+$router->get('/categories/mapping/{id}/trendyol-preview', [\App\Controllers\TrendyolAttributeController::class, 'preview'], $authMiddleware);
 $router->post('/categories/mapping/{id}/delete',            [CategoryMappingController::class, 'delete'],         $authCsrf);
 
 $router->post('/categories/{id}',            [CategoryController::class, 'update'],              $authCsrf);

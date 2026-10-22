@@ -330,14 +330,23 @@ final class XmlProfileController extends BaseController
     {
         $this->requireModule('products');
         $url = trim((string) $request->post('source_url', ''));
-        if ($url === '') {
-            $this->error('XML URL girilmedi');
-        }
-
         @set_time_limit(120);
 
         try {
-            $result = $this->importService->analyze($url);
+            $file = $request->file('xml_file');
+            if ($file !== null && ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                if (($file['error'] ?? -1) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) {
+                    throw new \RuntimeException('XML dosyası yüklenemedi; sunucunun yükleme boyutu sınırını kontrol edin.');
+                }
+                if (($file['size'] ?? 0) > 50 * 1024 * 1024) throw new \RuntimeException('XML dosyası en fazla 50 MB olabilir.');
+                $result = $this->importService->analyzeFile($file['tmp_name']);
+            } elseif ($request->post('source_type') === 'file' && $request->integer('profile_id') > 0) {
+                $result = $this->importService->analyzeProfile($request->integer('profile_id'));
+            } elseif ($url !== '') {
+                $result = $this->importService->analyze($url);
+            } else {
+                throw new \RuntimeException('XML URL girin veya analiz edilecek XML dosyasını seçin.');
+            }
             if (!$result['ok']) {
                 $this->error($result['message']);
             }
@@ -429,8 +438,10 @@ final class XmlProfileController extends BaseController
         }
 
         $mappingJson = trim((string) $request->post('field_mapping_json', ''));
-        if ($format === 'generic' && $mappingJson !== '' && json_decode($mappingJson, true) === null) {
-            throw new \RuntimeException('Alan eşlemesi geçerli JSON değil.');
+        if ($direction === 'import' && $format === 'generic') {
+            $mapping = json_decode($mappingJson, true);
+            if (!is_array($mapping) || array_is_list($mapping)) throw new \RuntimeException('Önce XML’i analiz edip alan eşleştirmesini tamamlayın.');
+            \App\Services\Import\XmlProfileMapping::validate($mapping);
         }
 
         return [

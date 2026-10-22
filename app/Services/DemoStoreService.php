@@ -23,15 +23,16 @@ final class DemoStoreService
         private readonly Database $db,
     ) {
         $raw = function_exists('env') ? (string) env('DEMO_STORE_IDS', '') : '';
-        $this->envIds = [];
+        $envIds = [];
         if ($raw !== '') {
             foreach (explode(',', $raw) as $part) {
                 $id = (int) trim($part);
                 if ($id > 0) {
-                    $this->envIds[] = $id;
+                    $envIds[] = $id;
                 }
             }
         }
+        $this->envIds = $envIds;
     }
 
     public function isDemoStore(int $storeId): bool

@@ -85,7 +85,7 @@ final class PttavmService extends AbstractMarketplace
         }
 
         if (empty($this->config['api_key'])) {
-            throw new RuntimeException('PttAVM sabit API Key config/marketplaces.php içinde tanımlı değil.');
+            throw new RuntimeException('PttAVM entegratör API anahtarı tanımlı değil. Sunucu ortamında PTTAVM_API_KEY ayarlanmalıdır.');
         }
 
         if (empty($marketplace['api_secret_encrypted'])) {

@@ -2444,7 +2444,9 @@ function pfoRenderMpCards(data) {
 
         // Status badges
         let statusBadges = '';
-        if (listed) statusBadges += '<span class="pfo-mp-badge ok">🟢 Yayında</span>';
+        if (listed) statusBadges += mp.slug === 'trendyol'
+            ? '<span class="pfo-mp-badge ok" title="İşlem kabul edildi; satışa açılma Trendyol içerik onayına bağlıdır.">🟢 Aktarıldı</span>'
+            : '<span class="pfo-mp-badge ok">🟢 Yayında</span>';
         else if (enabled) statusBadges += '<span class="pfo-mp-badge info">⏳ Hazır</span>';
         if (mp.sync_error) statusBadges += '<span class="pfo-mp-badge err">⚠ Sync Hatası</span>';
 
@@ -2752,6 +2754,7 @@ function pfoUpdateSeoPreview() {
 
 // ═══ SAVE ═══
 async function prodFormSave() {
+    if (document.getElementById('pfoSaveBtn').disabled) return;
     const isEdit = !!pfoEditId;
     const name = document.getElementById('pfoName').value.trim();
     const sku = document.getElementById('pfoSku').value.trim();
@@ -2815,7 +2818,8 @@ async function prodFormSave() {
     // Disable save buttons
     const saveBtn = document.getElementById('pfoSaveBtn');
     const origHTML = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<i data-lucide="loader" style="width:14px;height:14px;animation:spin 1s linear infinite"></i> Kaydediliyor...';
+    // Keep the label node: create-to-edit updates it after the request succeeds.
+    saveBtn.querySelector('span').textContent = 'Kaydediliyor...';
     saveBtn.disabled = true;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
@@ -2866,6 +2870,7 @@ async function prodFormSave() {
         Toast.show('Bağlantı hatası: ' + e.message, 'error');
     } finally {
         saveBtn.innerHTML = origHTML;
+        saveBtn.querySelector('span').textContent = pfoEditId ? 'Güncelle' : 'Oluştur';
         saveBtn.disabled = false;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }

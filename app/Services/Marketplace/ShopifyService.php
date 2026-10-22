@@ -27,7 +27,7 @@ final class ShopifyService extends AbstractMarketplace
 
     private string $accessToken = '';
     private string $shopDomain = '';
-    private string $apiVersion = '2024-10';
+    private string $apiVersion = '2026-10';
     /** @var array<string, mixed> */
     private array $extraConfig = [];
     /** @var array<string, mixed> */
@@ -48,7 +48,7 @@ final class ShopifyService extends AbstractMarketplace
         $marketplacesConfig = require BASE_PATH . '/config/marketplaces.php';
         $this->config = $marketplacesConfig[self::SLUG] ?? [];
 
-        $this->apiVersion         = (string) ($this->config['api_version'] ?? '2024-10');
+        $this->apiVersion         = (string) ($this->config['api_version'] ?? '2026-10');
         $this->timeout            = $this->config['api']['timeout_seconds'] ?? 30;
         $this->maxRetries         = $this->config['api']['max_retries'] ?? 3;
         $this->retryBaseDelayMs   = $this->config['api']['retry_base_delay_ms'] ?? 1000;
@@ -468,11 +468,14 @@ final class ShopifyService extends AbstractMarketplace
     /** @return array<int, array<string, mixed>> */
     public function fetchReturns(array $filters = []): array
     {
-        return []; // TODO: GraphQL returns API (REST sınırlı). İlk fazda boş.
+        $this->loadCredentials();
+        $reader = new ShopifyReturnReader(fn(array $payload): array =>
+            $this->httpPost($this->baseUrl . '/graphql.json', $payload, $this->authHeaders()));
+        return $reader->fetch($filters);
     }
 
-    public function approveReturn(string $returnId): bool { return false; }
-    public function rejectReturn(string $returnId, string $reason): bool { return false; }
+    public function approveReturn(string $returnId): bool { throw new RuntimeException('Shopify iade onayı satıcı panelinden yapılmalıdır.'); }
+    public function rejectReturn(string $returnId, string $reason): bool { throw new RuntimeException('Shopify iade reddi satıcı panelinden yapılmalıdır.'); }
 
     // ═══════════════════════════════════════════════════════
     // YARDIMCILAR

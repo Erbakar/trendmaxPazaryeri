@@ -224,6 +224,9 @@ final class AuthorizationService
             'update' => ['categories.edit'],
             'delete' => ['categories.edit'],
         ],
+        \App\Controllers\ProductCategoryMappingController::class => [
+            'index' => ['categories.view','products.view'], 'save' => ['categories.edit'],
+        ],
         CategoryMappingController::class => [
             'index' => ['categories.view'],
             'store' => ['categories.edit'],
@@ -232,6 +235,9 @@ final class AuthorizationService
             'attributes' => ['categories.view'],
             'hbAttributes' => ['categories.view'],
             'hbAttributeSave' => ['categories.edit'],
+        ],
+        \App\Controllers\TrendyolAttributeController::class => [
+            'show' => ['categories.view'], 'save' => ['categories.edit'], 'preview' => ['categories.view','products.view'],
         ],
         // Akıllı Eşleştirme sihirbazı kategori VE marka için çalışır (?kind=category|brand)
         AutoMappingController::class => [
@@ -367,6 +373,8 @@ final class AuthorizationService
         'App\\Controllers\\XmlProfileController'      => 'products',
         'App\\Controllers\\EnrichmentController'      => 'products',
         'App\\Controllers\\CategoryMappingController' => 'categories',
+        'App\\Controllers\\ProductCategoryMappingController' => 'categories',
+        'App\\Controllers\\TrendyolAttributeController' => 'categories',
         'App\\Controllers\\BrandMappingController'    => 'brands',
         'App\\Controllers\\AutoMappingController'     => ['categories', 'brands'],
     ];

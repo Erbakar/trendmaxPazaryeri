@@ -139,7 +139,7 @@ final class ProductPublishService
             } elseif ($d === 'FAILED') {
                 $sebep = trim((string) ($durum['message'] ?? ''));
                 $this->mpProductModel->update((int) $satir['id'], [
-                    'is_listed'  => 0,
+                    'is_listed'  => (int)($satir['is_listed'] ?? 0),
                     'sync_error' => 'Pazaryeri reddetti: ' . ($sebep !== '' ? $sebep : 'sebep bildirilmedi'),
                 ]);
                 $sonuc['rejected']++;
@@ -199,10 +199,21 @@ final class ProductPublishService
         }
 
         // Batch'lere böl
-        $batches = array_chunk($productIds, self::BATCH_SIZE);
-
-        foreach ($batches as $batchIds) {
-            $batchResult = $this->publishBatch($batchIds, $marketplaceId, $marketplace, $marketplaceService);
+        $groups = ['createProducts' => $productIds];
+        if ($marketplace['slug'] === 'trendyol') {
+            $groups = ['createProducts'=>[], 'updateListingProducts'=>[]];
+            foreach ($productIds as $pid) {
+                $listing = $this->mpProductModel->findByProductAndMarketplace((int)$pid, $marketplaceId);
+                $operation = \App\Services\Marketplace\TrendyolListingPlan::operation($listing);
+                $groups[$operation][] = $pid;
+            }
+        }
+        $batches = [];
+        foreach ($groups as $operation => $ids) {
+            foreach (array_chunk($ids, self::BATCH_SIZE) as $chunk) $batches[] = ['ids'=>$chunk,'operation'=>$operation];
+        }
+        foreach ($batches as $batch) {
+            $batchResult = $this->publishBatch($batch['ids'], $marketplaceId, $marketplace, $marketplaceService, $batch['operation']);
             $totalSuccess += $batchResult['success'];
             $totalFailed += $batchResult['failed'];
             $totalSkipped += $batchResult['skipped'];
@@ -240,6 +251,29 @@ final class ProductPublishService
             'errors'  => $allErrors,
             'batch_ids' => array_values(array_unique(array_filter($allBatchIds))),
         ];
+    }
+
+    public function resolveTrendyolAttributes(array $product, array $mapping): array
+    {
+        $catalog = $this->container->get(\App\Services\Marketplace\TrendyolAttributeCatalog::class)
+            ->get((string)$mapping['marketplace_category_id']);
+        return \App\Services\Marketplace\TrendyolAttributeResolver::resolve($product, $mapping,
+            $catalog['attributes'], $this->pAttrValueModel->getByProduct((int)$product['id']));
+    }
+
+    /** Build the exact outbound item without sending it to a marketplace. */
+    public function previewForPublish(int $productId, int $marketplaceId): array
+    {
+        $validation = $this->validateForPublish($productId, $marketplaceId);
+        if (!$validation['valid']) return $validation + ['item'=>null];
+        $product = $this->productModel->findOrFail($productId);
+        $marketplace = $this->marketplaceModel->findOrFail($marketplaceId);
+        $category = $this->catMappingModel->forProduct($product, $marketplaceId);
+        $brand = $this->publishBrandMapping($product, $marketplaceId, (string)$marketplace['slug']);
+        $brand = $this->resolveBrandMappingId($brand, $marketplaceId, (string)$marketplace['slug']);
+        return $validation + ['item'=>$this->buildMarketplaceItem($product,
+            $this->priceEngine->calculatePrice($product, $marketplaceId), $category, $brand,
+            (string)$marketplace['slug'], $marketplace)];
     }
 
     /**
@@ -288,6 +322,11 @@ final class ProductPublishService
             }
         }
 
+        if ($marketplaceSlug === 'trendyol') {
+            $errors = array_merge($errors, \App\Services\Marketplace\TrendyolProductRules::errors(
+                $product, \App\Services\Marketplace\TrendyolProductRules::images($this->buildImageList($product))));
+        }
+
         // b) Geçerli fiyat
         if ((float) ($product['base_price'] ?? 0) <= 0) {
             $errors[] = 'Geçersiz fiyat (base_price > 0 olmalı)';
@@ -313,7 +352,7 @@ final class ProductPublishService
         if ($categoryId === null) {
             $errors[] = 'Kategori atanmamış';
         } else {
-            $catMapping = $this->catMappingModel->findMapping((int) $categoryId, $marketplaceId);
+            $catMapping = $this->catMappingModel->forProduct($product, $marketplaceId);
             if ($catMapping === false) {
                 $errors[] = 'Kategori pazaryeri eşleştirmesi yapılmamış';
             } else {
@@ -340,7 +379,14 @@ final class ProductPublishService
                 // HB: özellikler HB'nin kendi listesinden (ürün değeri → kategori varsayılanı → otomatik).
                 // HB dışı: attribute_mapping_json LİSTE biçimi [{id,name,required}]; nesne gelirse yok sayılır.
                 $attrMapping = $isHepsiburada ? null : json_decode((string) ($catMapping['attribute_mapping_json'] ?? '[]'), true);
-                if ($isHepsiburada) {
+                if ($marketplaceSlug === 'trendyol') {
+                    try {
+                        $resolution = $this->resolveTrendyolAttributes($product, $catMapping);
+                        $errors = array_merge($errors, $resolution['errors']);
+                    } catch (\Throwable $e) {
+                        $errors[] = 'Trendyol kategori özellikleri doğrulanamadı: ' . $e->getMessage();
+                    }
+                } elseif ($isHepsiburada) {
                     $hbResolution = $this->resolveHepsiburadaAttributes($product, $catMapping);
                     $errors = array_merge($errors, $hbResolution['errors']);
                 } elseif (is_array($attrMapping) && array_is_list($attrMapping)) {
@@ -364,23 +410,38 @@ final class ProductPublishService
         // pazaryerleri için zorunlu. N11/ÇiçekSepeti gibi pazaryerlerinde gerçek marka
         // API'si yok; oralarda marka eşleştirmesi publish'i bloklamasın.
         if ($this->requiresBrandMapping($marketplaceSlug)) {
-            $brandId = $product['brand_id'] ?? null;
-            if ($brandId === null) {
-                $errors[] = 'Marka atanmamış';
-            } else {
-                $brandMapping = $this->brandMappingModel->findMapping((int) $brandId, $marketplaceId);
-                if ($brandMapping === false) {
-                    $errors[] = 'Marka pazaryeri eşleştirmesi yapılmamış';
-                } elseif ((int) ($brandMapping['marketplace_brand_id'] ?? 0) <= 0) {
-                    // Eşleştirmede pazaryeri marka KİMLİĞİ yerine marka ADI kalmışsa
-                    // payload'a brandId:0 gidiyor ve pazaryeri kalemi reddediyordu.
-                    // Önceden yalnız log'a uyarı yazılıp gönderim yine yapılıyordu.
-                    $errors[] = 'Marka eşleştirmesi geçersiz (pazaryeri marka kimliği yok) — markayı yeniden eşleştirin';
-                }
+            $brandMapping = $this->publishBrandMapping($product, $marketplaceId, $marketplaceSlug);
+            if ($brandMapping === false) {
+                $errors[] = empty($product['brand_id']) ? 'Marka atanmamış' : 'Marka pazaryeri eşleştirmesi yapılmamış';
+            } elseif ((int)($brandMapping['marketplace_brand_id'] ?? 0) <= 0) {
+                $errors[] = 'Marka eşleştirmesi geçersiz (pazaryeri marka kimliği yok) — markayı yeniden eşleştirin';
             }
         }
 
         return ['valid' => empty($errors), 'errors' => $errors];
+    }
+
+    private function validateListingUpdate(int $productId, int $marketplaceId): array
+    {
+        $product = $this->productModel->find($productId);
+        $listing = $this->mpProductModel->findByProductAndMarketplace($productId, $marketplaceId);
+        $errors = [];
+        if (!$product || !$listing) return ['valid'=>false,'errors'=>['Mevcut ilan eşleştirmesi bulunamadı.']];
+        if ((float)$product['base_price'] <= 0) $errors[]='Geçersiz fiyat.';
+        if ((int)$product['stock_qty'] < 0) $errors[]='Geçersiz stok.';
+        if (empty($listing['marketplace_barcode']) || (string)$listing['marketplace_barcode'] !== (string)$product['barcode']) {
+            $errors[]='Ürün barkodu mevcut Trendyol ilanıyla uyuşmuyor.';
+        }
+        return ['valid'=>$errors===[], 'errors'=>$errors];
+    }
+
+    private function publishBrandMapping(array $product, int $marketplaceId, string $slug): array|false
+    {
+        $fallback = !empty($product['brand_id'])
+            ? $this->brandMappingModel->findMapping((int)$product['brand_id'], $marketplaceId) : false;
+        if ($slug !== 'trendyol') return $fallback;
+        return \App\Services\Marketplace\TrendyolBrandResolver::resolve(
+            $this->mpProductModel->findByProductAndMarketplace((int)$product['id'], $marketplaceId), $fallback);
     }
 
     /**
@@ -1006,7 +1067,7 @@ final class ProductPublishService
     {
         $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
         $catMapping = (int) ($product['category_id'] ?? 0) > 0
-            ? $this->catMappingModel->findMapping((int) $product['category_id'], $marketplaceId)
+            ? $this->catMappingModel->forProduct($product, $marketplaceId)
             : false;
         $brandMapping = (int) ($product['brand_id'] ?? 0) > 0
             ? $this->brandMappingModel->findMapping((int) $product['brand_id'], $marketplaceId)
@@ -1544,7 +1605,7 @@ final class ProductPublishService
      * @param object $marketplaceService
      * @return array{success: int, failed: int, skipped: int, errors: array}
      */
-    private function publishBatch(array $productIds, int $marketplaceId, array $marketplace, object $marketplaceService): array
+    private function publishBatch(array $productIds, int $marketplaceId, array $marketplace, object $marketplaceService, string $operation = 'createProducts'): array
     {
         $success = 0;
         $failed = 0;
@@ -1559,7 +1620,9 @@ final class ProductPublishService
 
         // 1. Validasyon — API çağrısından ÖNCE
         foreach ($productIds as $productId) {
-            $validation = $this->validateForPublish($productId, $marketplaceId);
+            $validation = $operation === 'updateListingProducts'
+                ? $this->validateListingUpdate((int)$productId, $marketplaceId)
+                : $this->validateForPublish($productId, $marketplaceId);
 
             if (!$validation['valid']) {
                 $skipped++;
@@ -1592,12 +1655,17 @@ final class ProductPublishService
             }
 
             $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
-            $catMapping = $this->catMappingModel->findMapping((int) $product['category_id'], $marketplaceId);
-            $brandMapping = $this->brandMappingModel->findMapping((int) $product['brand_id'], $marketplaceId);
+            $catMapping = $this->catMappingModel->forProduct($product, $marketplaceId);
+            $brandMapping = $this->publishBrandMapping($product, $marketplaceId, (string)$marketplace['slug']);
             $brandMapping = $this->resolveBrandMappingId($brandMapping, $marketplaceId, (string) $marketplace['slug']);
 
-            // Pazaryerine özel ürün formatı
-            $item = $this->buildMarketplaceItem($product, $price, $catMapping, $brandMapping, $marketplace['slug'], $marketplace);
+            $existingListing = $this->mpProductModel->findByProductAndMarketplace((int)$productId, $marketplaceId);
+            // Existing content has already passed marketplace validation; listing updates only send price/stock.
+            $item = $operation === 'updateListingProducts'
+                ? ['barcode'=>(string)$existingListing['marketplace_barcode'], 'stockCode'=>$product['sku'],
+                    'quantity'=>\App\Services\Marketplace\TrendyolProductRules::quantity((int)$product['stock_qty']),
+                    'salePrice'=>$price['sale_price'], 'listPrice'=>$price['list_price']]
+                : $this->buildMarketplaceItem($product, $price, $catMapping, $brandMapping, $marketplace['slug'], $marketplace);
 
             $validItems[] = $item;
             $validProductMap[$productId] = $product;
@@ -1607,6 +1675,8 @@ final class ProductPublishService
                 'category_mapping' => $catMapping,
                 'brand_mapping' => $brandMapping,
                 'slug' => $slug,
+                'listing_update' => $operation === 'updateListingProducts',
+                'existing_listing' => $existingListing,
             ];
         }
 
@@ -1688,7 +1758,7 @@ final class ProductPublishService
         }
 
         // 2. API çağrısı — tek çağrı, retry AbstractMarketplace'in sorumluluğunda
-        $apiResult = $this->callCreateProducts($marketplaceService, $validItems);
+        $apiResult = $this->callCreateProducts($marketplaceService, $validItems, $operation);
 
         // Ürün → gönderim kimliği (çok parçalı yüklemede her parçanın kendi trackingId'si vardır).
         // validItems, validProductMap ile AYNI sırada kurulur; sıra numarası parçayı belirler.
@@ -1901,14 +1971,14 @@ final class ProductPublishService
         return null;
     }
 
-    private function callCreateProducts(object $marketplaceService, array $items): array
+    private function callCreateProducts(object $marketplaceService, array $items, string $operation = 'createProducts'): array
     {
-        if (!method_exists($marketplaceService, 'createProducts')) {
+        if (!in_array($operation, ['createProducts','updateListingProducts'], true) || !method_exists($marketplaceService, $operation)) {
             return ['success' => false, 'errors' => [['error' => 'Pazaryeri servisi createProducts desteklemiyor']]];
         }
 
         try {
-            $result = $marketplaceService->createProducts($items);
+            $result = $marketplaceService->{$operation}($items);
 
             // Hepsiburada her 100'lük dosya için ayrı trackingId döner (trackingIds[]);
             // diğer servisler tek kimlik (batchRequestId/batchId/taskId/trackingId).
@@ -2058,23 +2128,11 @@ final class ProductPublishService
 
         // Trendyol formatı
         if ($slug === 'trendyol') {
-            $images = $this->buildImageList($product);
+            $images = \App\Services\Marketplace\TrendyolProductRules::images($this->buildImageList($product));
 
-            $attributes = [];
-            $productAttrs = $this->pAttrValueModel->getByProduct((int) $product['id']);
-            foreach ($productAttrs as $pa) {
-                if (!empty($pa['custom_value'])) {
-                    $attributes[] = [
-                        'attributeId' => (int) $pa['attribute_id'],
-                        'customAttributeValue' => $pa['custom_value'],
-                    ];
-                } elseif (!empty($pa['attribute_value_id'])) {
-                    $attributes[] = [
-                        'attributeId' => (int) $pa['attribute_id'],
-                        'attributeValueId' => (int) $pa['attribute_value_id'],
-                    ];
-                }
-            }
+            $resolution = $this->resolveTrendyolAttributes($product, $catMapping ?: []);
+            if ($resolution['errors'] !== []) throw new RuntimeException(implode('; ', $resolution['errors']));
+            $attributes = $resolution['attributes'];
 
             // Trendyol ürün adını 100 karakterle sınırlar. XML/tedarikçi feed'lerinde
             // adlar 120-200 karakteri sık geçer; ham gönderilince kalem bazında
@@ -2090,7 +2148,7 @@ final class ProductPublishService
                 'productMainId' => $product['sku'],
                 'brandId'    => (int) ($brandMapping['marketplace_brand_id'] ?? 0),
                 'categoryId' => (int) ($catMapping['marketplace_category_id'] ?? 0),
-                'quantity'   => max(0, (int) $product['stock_qty']),
+                'quantity'   => \App\Services\Marketplace\TrendyolProductRules::quantity((int)$product['stock_qty']),
                 'stockCode'  => $product['sku'],
                 'dimensionalWeight' => (float) ($product['desi'] ?? 1),
                 'description' => $description,
@@ -2387,7 +2445,7 @@ final class ProductPublishService
         $batchFailure = trim((string) ($meta['batch_failure'] ?? ''));
         $hbSku = trim((string) ($meta['hb_sku'] ?? ''));
 
-        return [
+        $state = [
             'is_listed'                 => ($pendingBatchId === '' && $batchFailure === '') ? 1 : 0,
             'sync_error'                => $batchFailure !== ''
                 ? 'Batch reddedildi: ' . $batchFailure
@@ -2412,6 +2470,10 @@ final class ProductPublishService
             'last_price_sent'           => (float) ($item['salePrice'] ?? $price['sale_price'] ?? $product['base_price'] ?? 0),
             'last_stock_sent'           => (int) ($item['quantity'] ?? $product['stock_qty'] ?? 0),
         ];
+        if (($meta['slug'] ?? '') === 'trendyol' && (!empty($meta['listing_update']) || !empty($meta['existing_listing']['is_listed']))) {
+            $state = \App\Services\Marketplace\TrendyolListingPlan::preserveContent($state, $meta['existing_listing'] ?? false);
+        }
+        return $state;
     }
 
     /**

@@ -374,6 +374,7 @@ final class ProductController extends BaseController
             'attributes'        => $attributes,
             'movements'         => $movements,
             'marketplaceStatus' => $marketplaceStatus,
+            'xmlProfit' => !empty($product['xml_profile_id']) ? $this->container->get(\App\Services\Import\XmlProfileSettings::class)->forProfile((int)$product['xml_profile_id']) : null,
         ]);
     }
 

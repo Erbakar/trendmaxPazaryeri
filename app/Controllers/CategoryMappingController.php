@@ -216,7 +216,9 @@ final class CategoryMappingController extends BaseController
 
         // Hepsiburada: her aramada tüm listeyi canlı API'den çekmek yerine yerel kategori önbelleği;
         // yalnız satışa uygun yapraklar (ara / satışa kapalı kategori önerilmez).
-        if (($marketplace['slug'] ?? '') === 'hepsiburada') {
+        if (($marketplace['slug'] ?? '') === 'hepsiburada'
+            || (($marketplace['slug'] ?? '') === 'trendyol'
+                && $this->container->get(MarketplaceCategory::class)->countByMarketplace($marketplaceId) > 0)) {
             $rows = mb_strlen($query) < 2
                 ? []
                 : $this->container->get(MarketplaceCategory::class)->searchSellable($query, $marketplaceId, 50);
@@ -227,13 +229,17 @@ final class CategoryMappingController extends BaseController
             ], $rows)]);
         }
 
-        $categories = $this->categoryMappingService->searchMarketplaceCategories(
-            $marketplaceId,
-            $query,
-            (string) ($marketplace['slug'] ?? '')
-        );
+        try {
+            $categories = $this->categoryMappingService->searchMarketplaceCategories(
+                $marketplaceId,
+                $query,
+                (string) ($marketplace['slug'] ?? '')
+            );
 
-        $this->success(['categories' => $categories]);
+            $this->success(['categories' => $categories]);
+        } catch (\Throwable $e) {
+            $this->error('Kategori listesi alınamadı: ' . $this->publicError($e), 502);
+        }
     }
 
     /**

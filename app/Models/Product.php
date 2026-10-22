@@ -1177,7 +1177,7 @@ final class Product extends BaseModel
             "SELECT mp.marketplace_id, COUNT(DISTINCT mp.product_id) as cnt
              FROM marketplace_products mp
              JOIN products p ON mp.product_id = p.id AND p.store_id = :store_id_p
-             WHERE p.parent_id IS NULL
+             WHERE p.parent_id IS NULL AND p.is_archived = 0
                AND mp.store_id = :store_id
                AND mp.marketplace_id IN (SELECT sm.marketplace_id FROM store_marketplaces sm WHERE sm.store_id = :store_id_ent AND sm.status = 'active' AND (sm.expires_at IS NULL OR sm.expires_at > NOW()))
              GROUP BY mp.marketplace_id",

@@ -2,6 +2,15 @@
 // Local-only contract fixture. Never use this router for a public server.
 header('Content-Type: application/json');
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);
+if (in_array($path, ['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'], true)) {
+    $status = $_GET['status'] ?? 'approved';
+    $totals = ['approved'=>37,'onSale'=>31,'notOnSale'=>6,'pendingApproval'=>13,'rejected'=>2];
+    $valid = str_ends_with($path, '/unapproved') ? ['pendingApproval','rejected'] : ['approved','onSale','notOnSale'];
+    if (!in_array($status,$valid,true) || ($_GET['size'] ?? '') !== '1' || ($_GET['page'] ?? '') !== '0') {
+        http_response_code(400); echo json_encode(['error'=>'Invalid status query']); return;
+    }
+    echo json_encode(['totalElements'=>$totals[$status],'content'=>[]]); return;
+}
 if($path==='/integration/product/sellers/999/v2/products' && $_SERVER['REQUEST_METHOD']==='POST' && str_starts_with((string)(json_decode(file_get_contents('php://input'),true)['items'][0]['barcode']??''),'XMLFLOW-')) {
     $items=json_decode(file_get_contents('php://input'),true)['items'];
     foreach($items as$item){$a=array_column($item['attributes'],null,'attributeId');$first=$item['barcode']==='XMLFLOW-A';

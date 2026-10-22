@@ -191,7 +191,7 @@ $trDate = str_replace(
     <div class="db-stat db-anim" style="--accent:#f59e0b;animation-delay:.16s">
         <div class="db-stat-icon" style="background:#fdf6e7;color:#f59e0b"><i data-lucide="package"></i></div>
         <div class="db-stat-info">
-            <h4>Toplam Ürün</h4>
+            <h4>Yerel Katalog Ürünleri</h4>
             <div class="db-stat-val" data-count="<?= (int)($stock['total'] ?? 0) ?>"><?= (int)($stock['total'] ?? 0) ?></div>
             <div class="db-stat-sub"><strong><?= (int)($stock['low_stock'] ?? 0) ?></strong> düşük stok</div>
         </div>

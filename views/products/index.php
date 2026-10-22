@@ -400,11 +400,29 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
 
 <!-- Özet kartları (referans: pastel ikon karesi + etiket + değer) -->
 <div class="ui-stats">
-  <div class="ui-stat"><span class="ui-stat-icon"><i data-lucide="package"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Toplam Ürün</p><div class="ui-stat-value"><?= number_format((int) $totalProducts, 0, ',', '.') ?></div><p class="ui-stat-caption">Ana ürün (varyantlar hariç)</p></div></div>
-  <div class="ui-stat"><span class="ui-stat-icon is-green"><i data-lucide="check-circle-2"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Aktif</p><div class="ui-stat-value"><?= number_format((int) $ozet['aktif'], 0, ',', '.') ?></div><p class="ui-stat-caption">Satışa açık ürün</p></div></div>
+  <div class="ui-stat"><span class="ui-stat-icon"><i data-lucide="package"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Katalogdaki Ürünler</p><div class="ui-stat-value"><?= number_format((int) $totalProducts, 0, ',', '.') ?></div><p class="ui-stat-caption">Yerel ana ürün; varyantlar ve arşiv hariç</p></div></div>
+  <div class="ui-stat"><span class="ui-stat-icon is-green"><i data-lucide="check-circle-2"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Katalogda Açık</p><div class="ui-stat-value"><?= number_format((int) $ozet['aktif'], 0, ',', '.') ?></div><p class="ui-stat-caption">Yerel durum; pazaryerinde satışta demek değildir</p></div></div>
   <div class="ui-stat"><span class="ui-stat-icon is-amber"><i data-lucide="alert-triangle"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Düşük Stok</p><div class="ui-stat-value"><?= number_format((int) $ozet['dusuk'], 0, ',', '.') ?></div><p class="ui-stat-caption">Kritik seviyenin altında</p></div></div>
   <div class="ui-stat"><span class="ui-stat-icon is-red"><i data-lucide="package-x"></i></span><div class="ui-stat-body"><p class="ui-stat-label">Tükendi</p><div class="ui-stat-value"><?= number_format((int) $ozet['tukendi'], 0, ',', '.') ?></div><p class="ui-stat-caption">Stok sıfır</p></div></div>
 </div>
+
+<?php
+$catalogTrendyol = null;
+foreach ($marketplaces as $candidate) {
+    if (($candidate['slug'] ?? '') === 'trendyol' && ($data['_canMarketplace'] ?? static fn(int $id): bool => false)((int)$candidate['id'])) $catalogTrendyol = $candidate;
+}
+?>
+<?php if ($catalogTrendyol): ?>
+<div class="o-panel" style="padding:16px;margin-bottom:16px" id="remoteCatalogPanel">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+    <strong>Trendyol — pazaryerinin bildirdiği durum</strong>
+    <button type="button" class="o-btn o-btn-outline o-btn-sm" id="refreshCatalogStatus">Durumu yenile</button>
+  </div>
+  <div id="remoteCatalogCounts" style="display:flex;gap:24px;flex-wrap:wrap;margin:14px 0" aria-live="polite"></div>
+  <p id="remoteCatalogTime" style="font-size:12px;color:var(--text-muted)"></p>
+  <p style="font-size:12px;color:var(--text-muted)">Kaynak: Trendyol API (10 dakikalık aralıklarla kontrol edilir). Onaylı / satışta / satışta olmayan sayıları ürün modeli; onay bekleyen / reddedilen sayıları barkod bazındadır ve toplanmaz. Yerel katalog ve eşleştirme sayıları farklıdır.</p>
+</div>
+<?php endif; ?>
 
 <!-- ═══ Üst Filtre Paneli: pazaryeri tab'leri (logo-only) + araç çubuğu — tek beyaz bütün (Orders deseni) ═══ -->
 <?php $canMarketplace = $data['_canMarketplace'] ?? static fn(int $id): bool => true; ?>
@@ -430,7 +448,7 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
     <?php else: ?>
     <button type="button" class="mp-seg-tab<?= ((string) $currentMp === (string) $mp['id']) ? ' is-active' : '' ?>" data-mp-id="<?= (int)$mp['id'] ?>" onclick="setMpFilter('<?= (int)$mp['id'] ?>', this)" title="<?= $nm ?>">
         <img src="/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.png" onerror="this.onerror=null;this.src='/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.jpg'" alt="<?= $nm ?>">
-        <span class="mp-seg-count" data-mp-cnt="<?= (int)$mp['id'] ?>"><?= $cnt ?></span>
+        <span class="mp-seg-count" title="Yerel eşleştirme sayısı; satıştaki ürün sayısı değildir"><span data-mp-cnt="<?= (int)$mp['id'] ?>"><?= $cnt ?></span> eşleşme</span>
     </button>
     <?php endif; ?>
     <?php endforeach; ?>
@@ -456,8 +474,8 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
     </select>
     <select id="dtActive" class="o-sel">
         <option value="">Tüm Durumlar</option>
-        <option value="1" <?= ($filters['is_active'] ?? '') === '1' ? 'selected' : '' ?>>Aktif</option>
-        <option value="0" <?= ($filters['is_active'] ?? '') === '0' ? 'selected' : '' ?>>Pasif</option>
+        <option value="1" <?= ($filters['is_active'] ?? '') === '1' ? 'selected' : '' ?>>Katalogda açık</option>
+        <option value="0" <?= ($filters['is_active'] ?? '') === '0' ? 'selected' : '' ?>>Katalogda kapalı</option>
     </select>
     <select id="dtSource" class="o-sel" title="Ürünün sisteme nasıl geldiği">
         <option value="">Tüm Kaynaklar</option>
@@ -782,7 +800,7 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
     <th style="text-align:center">Fiyat</th>
     <th style="text-align:center">Stok</th>
     <th style="text-align:center">Pazaryeri</th>
-    <th style="text-align:center">Durum</th>
+    <th style="text-align:center">Katalog Durumu</th>
     <th style="min-width:170px">İşlemler</th>
 </tr></thead>
 <tbody></tbody>
@@ -864,6 +882,42 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
 const CSRF = <?= json_encode($csrf) ?>;
 const MP_COLORS = <?= json_encode($mpColors, JSON_UNESCAPED_UNICODE) ?>;
 const ALL_MP = <?= json_encode(array_map(fn($m) => ['id'=>$m['id'],'slug'=>$m['slug'],'name'=>$m['display_name']??$m['slug'],'active'=>!empty($m['is_active'])], $marketplaces), JSON_UNESCAPED_UNICODE) ?>;
+// Never substitute local catalog totals when the marketplace is unavailable.
+function renderCatalogStatus(snapshot) {
+    const box = document.getElementById('remoteCatalogCounts');
+    if (!box) return;
+    const labels = {approved:'Onaylı modeller',on_sale:'Satıştaki modeller',not_on_sale:'Satışta olmayan modeller',pending:'Onay bekleyen barkodlar',rejected:'Reddedilen barkodlar'};
+    box.replaceChildren();
+    Object.entries(labels).forEach(([key,label]) => {
+        const item = document.createElement('div');
+        const value = snapshot.counts?.[key];
+        item.textContent = label + ': ' + (Number.isInteger(value) ? value.toLocaleString('tr-TR') : 'Doğrulanmadı');
+        box.appendChild(item);
+    });
+    const date = snapshot.checked_at ? new Date(snapshot.checked_at*1000).toLocaleString('tr-TR') : null;
+    document.getElementById('remoteCatalogTime').textContent =
+        (date ? 'Son başarılı kontrol: '+date+'. ' : 'Henüz başarılı kontrol yok. ') +
+        (snapshot.error ? 'Güncel durum alınamadı; varsa son başarılı sonuç gösteriliyor.' :
+            (date && Date.now()/1000-snapshot.checked_at>600 ? 'Önceki kayıt; güncelliği doğrulanmalı.' : ''));
+}
+async function refreshCatalogStatus() {
+    const button = document.getElementById('refreshCatalogStatus');
+    if (!button) return;
+    button.disabled = true;
+    try {
+        const res = await fetch('/products/catalog-status', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF}, body:JSON.stringify({_csrf_token:CSRF})});
+        const result = await res.json();
+        if (!res.ok || !result.success) throw new Error('unavailable');
+        renderCatalogStatus(result.data);
+    } catch (_) {
+        document.getElementById('remoteCatalogTime').textContent = 'Güncel durum alınamadı. Gösterilen sonuçlar önceki kontrolden kalmış olabilir; yerel katalog satış sayısı olarak kullanılmaz.';
+    } finally { button.disabled = false; }
+}
+renderCatalogStatus(<?= json_encode($data['trendyolCatalogStatus'] ?? [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>);
+if (document.getElementById('refreshCatalogStatus')) {
+    document.getElementById('refreshCatalogStatus').addEventListener('click',refreshCatalogStatus);
+    refreshCatalogStatus();
+}
 let selectedIds = new Set();
 let currentMp = <?= json_encode($currentMp) ?>;
 let showArchived = false;
@@ -898,7 +952,7 @@ const PROD_MP_DATA = new Map(); // productId → mpMap
             } else if(mp.sync_error){
                 statusCls = 's-error'; statusTxt = 'Hata';
             } else if(parseInt(mp.is_active)){
-                statusCls = 's-active'; statusTxt = 'Aktif';
+                statusCls = 's-inactive'; statusTxt = 'Eşleşti · satış durumu doğrulanmadı';
             } else {
                 statusCls = 's-inactive'; statusTxt = 'Pasif';
             }
@@ -1043,7 +1097,7 @@ const table = $('#productsTable').DataTable({
           render: function(d,t,r){
               const mpMap = {};
               let activeCount = 0;
-              if(r.marketplaces) r.marketplaces.forEach(mp => { mpMap[mp.slug] = mp; if(parseInt(mp.is_active)) activeCount++; });
+              if(r.marketplaces) r.marketplaces.forEach(mp => { mpMap[mp.slug] = mp; activeCount++; });
               PROD_MP_DATA.set(r.id, mpMap);
               const total = ALL_MP.length;
               
@@ -1055,12 +1109,12 @@ const table = $('#productsTable').DataTable({
                   let cls;
                   if(!mp) cls = 'none';
                   else if(mp.sync_error) cls = 'error';
-                  else if(parseInt(mp.is_active)) cls = 'active';
+                  else if(parseInt(mp.is_active)) cls = 'inactive';
                   else cls = 'inactive';
                   h += '<span class="mp-seg '+cls+'" style="background-color:'+color+'"></span>';
               });
               h += '</div>';
-              h += '<span class="mp-count">'+activeCount+'/'+total+'</span>';
+              h += '<span class="mp-count" title="Yerel eşleştirmeler; satışta olduğu doğrulanmadı">'+activeCount+' eşleşme</span>';
               h += '</div>';
               return h;
           }
@@ -1068,7 +1122,7 @@ const table = $('#productsTable').DataTable({
         // Durum
         { data: 'is_active', orderable: true, className: 'dt-center',
           render: function(d){
-              return d ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-secondary">Pasif</span>';
+              return d ? '<span class="badge badge-success" title="Yerel katalog durumu">Katalogda açık</span>' : '<span class="badge badge-secondary">Katalogda kapalı</span>';
           }
         },
         // İşlemler

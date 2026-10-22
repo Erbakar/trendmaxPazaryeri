@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class TrendyolTransportTest extends TestCase
 {
     private ?PDO $pdo=null;
+    private ?Database $db=null;
     private array $savedEnv=[];
     private ?TrendyolService $service=null;
     protected function setUp(): void
@@ -23,7 +24,7 @@ final class TrendyolTransportTest extends TestCase
             [$key,$value]=explode('=',$line,2);$_ENV[trim($key)]=trim($value," \t\"'");
         }
         if(($_ENV['DB_NAME']??'')!=='trendmax_local' || ($_ENV['DB_HOST']??'')!=='127.0.0.1') throw new RuntimeException('Only the local test DB is supported.');
-        $db=new Database();$this->pdo=$db->getConnection();$this->pdo->beginTransaction();
+        $db=new Database();$this->db=$db;$this->pdo=$db->getConnection();$this->pdo->beginTransaction();
         $tenant=new TenantContext();$tenant->setStoreId(1);
         $model=new Marketplace($db,$tenant);$crypto=new CryptoService();
         $model->saveStoreConfig(1,['is_enabled'=>1,'api_key_encrypted'=>$crypto->encrypt('local-test-key'),'api_secret_encrypted'=>$crypto->encrypt('local-test-secret'),'extra_config_json'=>'{"supplier_id":"999"}']);
@@ -82,6 +83,39 @@ final class TrendyolTransportTest extends TestCase
         $result=$this->service->updateStock($items);
         self::assertSame(1,$result['success']);self::assertSame(0,$result['failed']);
         self::assertSame(20000,$items[0]['quantity']);
+    }
+
+    public function testCatalogCountersUseRemoteTotalsAndCorrectStatuses(): void
+    {
+        self::assertSame(['approved'=>37,'on_sale'=>31,'not_on_sale'=>6,'pending'=>13,'rejected'=>2], $this->service->fetchCatalogStatusCounts());
+    }
+
+    public function testCatalogSnapshotCachesAndKeepsPreviousCountsOnApiFailure(): void
+    {
+        $tenant = new TenantContext(); $tenant->setStoreId(1);
+        $settings = new App\Models\StoreSetting($this->db, $tenant);
+        $settings->setValue('trendyol_catalog_status_v1', '{}');
+        $reader = new App\Services\MarketplaceCatalogStatus($settings, $this->service, new Marketplace($this->db, $tenant));
+        $first = $reader->refresh();
+        self::assertSame(31, $first['counts']['on_sale']);
+        self::assertFalse($first['error']);
+        $otherAccount = $first; $otherAccount['account'] = 'different-seller';
+        $settings->setValue('trendyol_catalog_status_v1', json_encode($otherAccount));
+        self::assertSame([], $reader->read(), 'Another seller snapshot is never reused');
+        $settings->setValue('trendyol_catalog_status_v1', json_encode($first));
+        (new ReflectionProperty(App\Services\Marketplace\AbstractMarketplace::class,'baseUrl'))->setValue($this->service,'http://127.0.0.1:8091/invalid');
+        (new ReflectionProperty(App\Services\Marketplace\AbstractMarketplace::class,'maxRetries'))->setValue($this->service,0);
+        self::assertSame($first, $reader->refresh(), 'Fresh snapshot avoids API requests');
+        $first['attempted_at'] = time()-601;
+        $settings->setValue('trendyol_catalog_status_v1', json_encode($first));
+        $failed = $reader->refresh();
+        self::assertTrue($failed['error']);
+        self::assertSame($first['counts'], $failed['counts']);
+        self::assertSame($first['checked_at'], $failed['checked_at']);
+        $settings->setValue('trendyol_catalog_status_v1', '{}');
+        $unknown = $reader->refresh();
+        self::assertTrue($unknown['error']);
+        self::assertArrayNotHasKey('counts', $unknown, 'Unavailable never becomes zero or local totals');
     }
 
 }

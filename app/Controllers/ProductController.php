@@ -99,7 +99,7 @@ final class ProductController extends BaseController
         $brands = $this->brandModel->getActive();
         $marketplaces = $this->marketplaceModel->getAll();
         $mpProductCounts = $this->productModel->getMarketplaceProductCounts();
-        $totalProducts = $this->productModel->count(['parent_id' => null]);
+        $totalProducts = $this->productModel->countForFilters([]);
         // Üst özet kartları (salt okunur sayımlar; liste süzgeciyle aynı WHERE kuralları)
         $ozet = [
             'aktif'   => $this->productModel->countForFilters(['is_active' => '1']),
@@ -108,6 +108,7 @@ final class ProductController extends BaseController
         ];
 
         $this->view('products.index', [
+            'trendyolCatalogStatus' => $this->container->get(\App\Services\MarketplaceCatalogStatus::class)->read(),
             'ozet'            => $ozet,
             'pageTitle'       => 'Ürünler',
             'filters'         => $filters,
@@ -120,6 +121,16 @@ final class ProductController extends BaseController
             'xmlProfiles'     => $this->container->get(\App\Models\XmlProfile::class)
                 ->all(['direction' => 'import'], 'name ASC'),
         ]);
+    }
+
+    public function catalogStatus(Request $request): void
+    {
+        $mp = $this->marketplaceModel->findBySlug('trendyol');
+        $auth = $this->container->get(\App\Services\AuthorizationService::class);
+        if (!$mp || !$auth->canAccessMarketplaceData('products.view', (int)$mp['id'])) {
+            $this->response->forbidden('Bu pazaryerine erişim yetkiniz yok');
+        }
+        $this->response->success($this->container->get(\App\Services\MarketplaceCatalogStatus::class)->refresh());
     }
 
     /**

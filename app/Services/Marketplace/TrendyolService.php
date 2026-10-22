@@ -243,6 +243,27 @@ final class TrendyolService extends AbstractMarketplace
         return $response;
     }
 
+    /** API totals are content counts for approved products, barcode counts for drafts. */
+    public function fetchCatalogStatusCounts(): array
+    {
+        $this->loadCredentials();
+        $counts = [];
+        foreach (['approved' => ['approved', null], 'on_sale' => ['approved', 'onSale'],
+            'not_on_sale' => ['approved', 'notOnSale'], 'pending' => ['unapproved', 'pendingApproval'],
+            'rejected' => ['unapproved', 'rejected']] as $key => [$endpoint, $status]) {
+            $query = ['page' => 0, 'size' => 1];
+            if ($status !== null) $query['status'] = $status;
+            $url = $this->buildUrl("/product/sellers/{$this->supplierId}/products/{$endpoint}");
+            $response = $this->httpGet($url . '?' . http_build_query($query), $this->authHeaders());
+            $total = $response['totalElements'] ?? null;
+            if (!is_numeric($total) || (int)$total < 0) {
+                throw new RuntimeException('Trendyol ürün sayısı yanıtı doğrulanamadı');
+            }
+            $counts[$key] = (int)$total;
+        }
+        return $counts;
+    }
+
     public function updateStock(array $items): array
     {
         $this->loadCredentials();

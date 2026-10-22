@@ -139,6 +139,7 @@ final class AuthorizationService
         ProductController::class => [
             'index' => ['products.view'],
             'ajaxList' => ['products.view'],
+            'catalogStatus' => ['products.view'],
             'create' => ['products.create'],
             'store' => ['products.create'],
             'bulkAction' => ['products.edit'],

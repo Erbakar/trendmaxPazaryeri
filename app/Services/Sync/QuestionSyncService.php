@@ -172,7 +172,7 @@ final class QuestionSyncService
     private function syncBySlug(int $mpId, string $slug, bool $fullScan = true): int
     {
         return match ($slug) {
-            'trendyol'    => $this->syncTrendyol($mpId),
+            'trendyol'    => $this->syncTrendyol($mpId, $fullScan),
             'idefix'      => $this->syncIdefix($mpId),
             'pazarama'    => $this->syncPazarama($mpId),
             'hepsiburada' => $this->syncHepsiburada($mpId, $fullScan),
@@ -190,31 +190,24 @@ final class QuestionSyncService
         }
     }
 
-    private function syncTrendyol(int $mpId): int
+    private function syncTrendyol(int $mpId, bool $fullScan = true): int
     {
-        $this->trendyolService->loadCredentials();
-        $questions = $this->trendyolService->getQuestions();
-        $synced = 0;
-        foreach ($questions as $q) {
-            $this->upsert($mpId, (string) $q['id'], [
-                'marketplace_id'          => $mpId,
-                'marketplace_question_id' => (string) $q['id'],
-                'marketplace_product_id'  => (string) ($q['productId'] ?? ''),
-                'product_name'            => $q['productName'] ?? null,
-                'product_image_url'       => $q['productImage'] ?? null,
-                'question_text'           => $q['text'] ?? '',
-                'question_date'           => isset($q['creationDate'])
-                    ? date('Y-m-d H:i:s', (int) ($q['creationDate'] / 1000)) : date('Y-m-d H:i:s'),
-                'customer_name'           => $q['customerFirstName'] ?? null,
-                'status'                  => !empty($q['answers']) ? 'answered' : 'waiting',
-                'answer_text'             => !empty($q['answers']) ? ($q['answers'][0]['text'] ?? null) : null,
-                'answer_date'             => !empty($q['answers']) && isset($q['answers'][0]['creationDate'])
-                    ? date('Y-m-d H:i:s', (int) ($q['answers'][0]['creationDate'] / 1000)) : null,
-                'synced_at'               => date('Y-m-d H:i:s'),
-            ]);
-            $synced++;
+        $config = require BASE_PATH.'/config/marketplaces.php';
+        $days = $fullScan ? max(1,(int)($config['trendyol']['api']['question_history_days'] ?? 365)) : 14;
+        $end = time()*1000;
+        $start = $end-$days*86400000;
+        $seen = [];
+        while ($start < $end) {
+            $until = min($start+14*86400000,$end);
+            foreach ($this->trendyolService->getQuestions(0,50,'',$start,$until) as $q) {
+                $id = (string)($q['id'] ?? '');
+                if ($id === '') continue;
+                $this->upsert($mpId,$id,TrendyolQuestionData::normalize($mpId,$q));
+                $seen[$id] = true;
+            }
+            $start = $until;
         }
-        return $synced;
+        return count($seen);
     }
 
     private function syncIdefix(int $mpId): int

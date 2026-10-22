@@ -118,4 +118,24 @@ final class TrendyolTransportTest extends TestCase
         self::assertArrayNotHasKey('counts', $unknown, 'Unavailable never becomes zero or local totals');
     }
 
+    public function testOrderV2ReadsEveryPageIncludingVerifiedStatus(): void
+    {
+        $orders=$this->service->fetchOrders(['startDate'=>1792600000000,'endDate'=>1792700000000]);
+        self::assertCount(2,$orders);
+        self::assertSame(['yeni','yeni'],array_column($orders,'status'));
+        self::assertSame(215.0,$orders[0]['total_amount']);
+        self::assertSame('LOCAL',$orders[1]['items'][0]['sku']);
+        $zone=date_default_timezone_get();
+        try {
+            date_default_timezone_set('Europe/Istanbul');
+            $istanbul=$this->service->fetchOrders();
+            self::assertSame(gmdate('Y-m-d H:i:s',1792660000),$istanbul[0]['ordered_at']);
+        } finally {date_default_timezone_set($zone);}
+    }
+    public function testQuestionsReadAllPagesAndClaimsUseConfiguredServer(): void
+    {
+        self::assertSame([200,201],array_column($this->service->getQuestions(),'id'));
+        self::assertSame('claim-test',$this->service->fetchReturnsResponse(['page'=>0])['content'][0]['id']);
+    }
+
 }

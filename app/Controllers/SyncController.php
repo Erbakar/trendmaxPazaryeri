@@ -102,6 +102,7 @@ final class SyncController extends BaseController
             'logs'               => $this->syncLogModel->getRecent(50),
             'marketplaces'       => $this->marketplaceModel->getActiveForStore($storeId),
             'lastSuccessful'     => $this->syncLogModel->getLastSuccessful(),
+            'lastAutomatic'      => $this->syncLogModel->getLastSuccessful(null, true),
             'syncConfig'         => $syncConfig,
             'platformDisabled'   => $platformDisabled,
             'autoStockBroadcast' => $this->isAutoStockBroadcastEnabled(),

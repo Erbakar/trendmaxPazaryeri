@@ -100,12 +100,13 @@ final class SyncLog extends BaseModel
      *
      * @return array<int, array<string, mixed>>
      */
-    public function getLastSuccessful(?int $marketplaceId = null): array
+    public function getLastSuccessful(?int $marketplaceId = null, bool $automaticOnly = false): array
     {
         $condition = $marketplaceId !== null
             ? "AND marketplace_id = :mid"
             : "";
 
+        $condition .= $automaticOnly ? " AND triggered_by = 'cron'" : '';
         $params = ['store_id' => $this->tenantId(), 'store_id2' => $this->tenantId()];
         if ($marketplaceId !== null) {
             $params['mid'] = $marketplaceId;

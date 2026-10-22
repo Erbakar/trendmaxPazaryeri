@@ -2,6 +2,20 @@
 // Local-only contract fixture. Never use this router for a public server.
 header('Content-Type: application/json');
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);
+if ($path === '/integration/order/sellers/999/v2/orders') {
+    if (isset($_GET['status']) || ($_GET['orderByField'] ?? '') !== 'PackageLastModifiedDate') {
+        http_response_code(400); echo json_encode(['error'=>'All statuses and last-modified ordering are required']); return;
+    }
+    $page=(int)($_GET['page']??0);
+    echo json_encode(['totalPages'=>2,'content'=>[['id'=>100+$page,'orderNumber'=>'TEST-'.(100+$page),'status'=>$page===0?'Created':'Verified', 'orderDate'=>1792660000000,'lastModifiedDate'=>1792660100000,'totalPrice'=>215,'lines'=>[['id'=>10+$page,'merchantSku'=>'LOCAL','barcode'=>'LOCAL','productName'=>'Test product','quantity'=>1,'price'=>215,'amount'=>215]]]]]); return;
+}
+if ($path === '/integration/qna/sellers/999/questions/filter') {
+    $page=(int)($_GET['page']??0);
+    echo json_encode(['totalPages'=>2,'content'=>[['id'=>200+$page,'text'=>'Test question','status'=>$page===0?'WAITING_FOR_ANSWER':'ANSWERED']]]); return;
+}
+if ($path === '/integration/order/sellers/999/claims') {
+    echo json_encode(['totalPages'=>1,'content'=>[['id'=>'claim-test','orderNumber'=>'TEST-100','claimItems'=>[]]]]); return;
+}
 if (in_array($path, ['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'], true)) {
     $status = $_GET['status'] ?? 'approved';
     $totals = ['approved'=>37,'onSale'=>31,'notOnSale'=>6,'pendingApproval'=>13,'rejected'=>2];

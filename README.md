@@ -50,6 +50,17 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
    Aynı görev için eski doğrudan cron ile kuyruk sürümünü birlikte çalıştırmayın. İşlerin log,
    hata, tekrar deneme ve kuyruk durumunu ilk çalışmada izleyin.
 
+Sunucuda kuyruk işleyicisi henüz kurulmadıysa, aşağıdaki cron örneğinde `/PROJE` ve PHP yolunu gerçek sunucu yollarıyla değiştirin. Kuyruk sipariş, iade, soru, stok ve fiyat görevlerini mağazanın açık/kapalı ve süre ayarlarına göre üretir. XML kaynağı ayrı yenilenir; XML maliyetine uygulanan %115 kuralı fiyat gönderiminde hesaplanır. Ürün içe aktarma anahtarını açmak XML fiyatlarını Trendyol fiyatlarıyla değiştirmek için kullanılmamalıdır.
+
+```cron
+* * * * * /usr/bin/php /PROJE/cron/queue_enqueue.php >> /PROJE/storage/logs/queue-enqueue.log 2>&1
+* * * * * /usr/bin/php /PROJE/cron/queue_worker.php --max-jobs=50 --max-seconds=50 >> /PROJE/storage/logs/queue-worker.log 2>&1
+* * * * * /usr/bin/php /PROJE/cron/sync_xml_profiles.php >> /PROJE/storage/logs/xml-cron.log 2>&1
+* * * * * /usr/bin/php /PROJE/cron/sync_publish_batches.php >> /PROJE/storage/logs/publish-batches.log 2>&1
+```
+
+Aynı görevlerin doğrudan `sync_orders.php` vb. cron tanımlarını kuyrukla birlikte çalıştırmayın. Ürün gönderimi için ilgili veritabanı migrasyonları, kuyruk için de `sync_jobs` şeması tamamlanmış olmalıdır. `/sync` ekranında yalnız yeşil anahtar veya elle başarılı çalışma otomatik çalışmanın kanıtı değildir; her satırdaki **Son otomatik** tarihinin seçilen aralıkta ilerlediğini kontrol edin. Gönderim isteklerinin API kabulü, ürünün satışa açılması anlamına gelmez; batch sonucu ve Trendyol durum sayaçları ayrıca doğrulanmalıdır.
+
 Geri dönüşte önce worker/cron'u durdurun; önceki uygulama sürümüne dönün. Şema/veri geri dönüşü
 gerekiyorsa bakım penceresinde alınmış veritabanı ve dosya yedeğini birlikte geri yükleyin.
 Bu sürümün phase14 güncellemelerinin otomatik down migration'ı yoktur. Yedek sonrasında

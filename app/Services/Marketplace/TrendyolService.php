@@ -118,7 +118,7 @@ final class TrendyolService extends AbstractMarketplace
             $this->loadCredentials();
 
             $url = $this->buildUrl(
-                $this->config['endpoints']['orders'] ?? "/suppliers/{$this->supplierId}/orders"
+                $this->config['endpoints']['orders'] ?? "/order/sellers/{$this->supplierId}/v2/orders"
             );
             $url .= '?page=0&size=1';
 
@@ -146,7 +146,7 @@ final class TrendyolService extends AbstractMarketplace
 
         $allOrders = [];
         $page = 0;
-        $size = (int) ($this->config['api']['page_size'] ?? 200);
+        $size = max(1, min(200, (int) ($this->config['api']['page_size'] ?? 200)));
 
         $queryParams = [
             'orderByField'     => $filters['orderByField'] ?? 'PackageLastModifiedDate',
@@ -172,13 +172,16 @@ final class TrendyolService extends AbstractMarketplace
             $queryParams['size'] = $size;
 
             $url = $this->buildUrl(
-                $this->config['endpoints']['orders'] ?? "/suppliers/{$this->supplierId}/orders"
+                $this->config['endpoints']['orders'] ?? "/order/sellers/{$this->supplierId}/v2/orders"
             );
             $url .= '?' . http_build_query($queryParams);
 
             $response = $this->httpGet($url, $this->authHeaders());
 
-            $orders = $response['content'] ?? [];
+            if (!isset($response['content']) || !is_array($response['content'])) {
+                throw new RuntimeException('Trendyol sipariş yanıtı doğrulanamadı');
+            }
+            $orders = $response['content'];
             $totalPages = $response['totalPages'] ?? 1;
 
             foreach ($orders as $order) {
@@ -186,7 +189,10 @@ final class TrendyolService extends AbstractMarketplace
             }
 
             $page++;
-        } while ($page < $totalPages && $this->keepPaging('ty.orders', $page, $orders));
+            if ($page < $totalPages && !$this->keepPaging('ty.orders', $page, $orders)) {
+                throw new RuntimeException('Trendyol sipariş taraması tamamlanamadı; tekrar denenecek');
+            }
+        } while ($page < $totalPages);
 
         $this->logger->info(
             "Trendyol'dan {$page} sayfa, " . count($allOrders) . " sipariş çekildi",
@@ -1044,7 +1050,8 @@ final class TrendyolService extends AbstractMarketplace
                 ? date('Y-m-d H:i:s', intdiv((int) $raw['originShipmentDate'], 1000))
                 : null,
             'ordered_at'           => isset($raw['orderDate'])
-                ? date('Y-m-d H:i:s', intdiv((int) $raw['orderDate'], 1000))
+                // Trendyol orderDate already encodes GMT+3 wall time; do not add it twice.
+                ? gmdate('Y-m-d H:i:s', intdiv((int) $raw['orderDate'], 1000))
                 : date('Y-m-d H:i:s'),
             'items'                => $items,
             'raw_data'             => $raw,
@@ -1694,7 +1701,10 @@ final class TrendyolService extends AbstractMarketplace
 
         $params = [
             'page' => $page,
-            'size' => min($size, 50), // API max 50
+            'size' => max(1,min($size, 50)), // API max 50
+            'supplierId' => $this->supplierId,
+            'orderByField' => 'LastModifiedDate',
+            'orderByDirection' => 'DESC',
         ];
         if ($status !== '') {
             $params['status'] = $status;
@@ -1708,11 +1718,14 @@ final class TrendyolService extends AbstractMarketplace
 
         $query = http_build_query($params);
         // Doğru endpoint: /qna/sellers/{sellerId}/questions/filter
-        $url = "https://apigw.trendyol.com/integration/qna/sellers/{$this->supplierId}/questions/filter?{$query}";
+        $url = $this->buildUrl("/qna/sellers/{$this->supplierId}/questions/filter") . "?{$query}";
 
         $response = $this->httpGet($url, $this->authHeaders());
 
-        $questions = $response['content'] ?? [];
+        if (!isset($response['content']) || !is_array($response['content'])) {
+            throw new RuntimeException('Trendyol soru yanıtı doğrulanamadı');
+        }
+        $questions = $response['content'];
         $totalPages = $response['totalPages'] ?? 1;
 
         // Tüm sayfaları çek
@@ -1720,9 +1733,10 @@ final class TrendyolService extends AbstractMarketplace
             for ($p = 1; $p < $totalPages; $p++) {
                 $params['page'] = $p;
                 $q2 = http_build_query($params);
-                $url2 = "https://apigw.trendyol.com/integration/qna/sellers/{$this->supplierId}/questions/filter?{$q2}";
+                $url2 = $this->buildUrl("/qna/sellers/{$this->supplierId}/questions/filter") . "?{$q2}";
                 $resp2 = $this->httpGet($url2, $this->authHeaders());
-                $questions = array_merge($questions, $resp2['content'] ?? []);
+                if (!isset($resp2['content']) || !is_array($resp2['content'])) throw new RuntimeException('Trendyol soru sayfası doğrulanamadı');
+                $questions = array_merge($questions, $resp2['content']);
             }
         }
 

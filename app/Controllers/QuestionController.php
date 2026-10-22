@@ -385,38 +385,7 @@ final class QuestionController extends BaseController
         $synced = 0;
 
         if ($slug === 'trendyol') {
-            $this->trendyolService->loadCredentials();
-            $questions = $this->trendyolService->getQuestions();
-
-            foreach ($questions as $q) {
-                $existing = $this->questionModel->findByMarketplaceQuestionId($mpId, (string) $q['id']);
-
-                $data = [
-                    'marketplace_id'          => $mpId,
-                    'marketplace_question_id'  => (string) $q['id'],
-                    'marketplace_product_id'   => (string) ($q['productId'] ?? ''),
-                    'product_name'             => $q['productName'] ?? null,
-                    'product_image_url'        => $q['productImage'] ?? null,
-                    'question_text'            => $q['text'] ?? '',
-                    'question_date'            => isset($q['creationDate'])
-                        ? date('Y-m-d H:i:s', (int) ($q['creationDate'] / 1000))
-                        : date('Y-m-d H:i:s'),
-                    'customer_name'            => $q['customerFirstName'] ?? null,
-                    'status'                   => !empty($q['answers']) ? 'answered' : 'waiting',
-                    'answer_text'              => !empty($q['answers']) ? ($q['answers'][0]['text'] ?? null) : null,
-                    'answer_date'              => !empty($q['answers']) && isset($q['answers'][0]['creationDate'])
-                        ? date('Y-m-d H:i:s', (int) ($q['answers'][0]['creationDate'] / 1000))
-                        : null,
-                    'synced_at'                => date('Y-m-d H:i:s'),
-                ];
-
-                if ($existing) {
-                    $this->questionModel->update((int) $existing['id'], $data);
-                } else {
-                    $this->questionModel->create($data);
-                }
-                $synced++;
-            }
+            return $this->container->get(QuestionSyncService::class)->syncOne($mpId, 'trendyol');
         } elseif ($slug === 'pazarama') {
             $this->pazaramaService->loadCredentials();
 

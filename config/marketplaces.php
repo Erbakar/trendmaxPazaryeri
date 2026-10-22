@@ -208,6 +208,7 @@ return [
 
         'status_mapping' => [
             'Awaiting'          => 'beklemede',
+            'Verified'          => 'yeni',
             'Created'           => 'yeni',
             'ReadyToShip'       => 'hazirlaniyor',
             'Picking'           => 'hazirlaniyor',
@@ -227,7 +228,7 @@ return [
         ],
 
         'endpoints' => [
-            'orders'              => '/order/sellers/{supplierId}/orders',
+            'orders'              => '/order/sellers/{supplierId}/v2/orders',
             'order_detail'        => '/order/sellers/{supplierId}/orders/{orderId}',
             'shipment_packages'   => '/order/sellers/{supplierId}/shipment-packages/{shipmentPackageId}',
             'products'            => '/product/sellers/{supplierId}/products/approved',

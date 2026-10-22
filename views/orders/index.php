@@ -92,7 +92,7 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
   <div class="ui-stat" role="button" tabindex="0" style="cursor:pointer" title="<?= htmlspecialchars($l) ?> siparişleri listele"
        onclick="var s=document.getElementById('dtStatus');if(s){s.value='<?= $k ?>';reloadTable();}" onkeydown="if(event.key==='Enter')this.click()">
     <span class="ui-stat-icon <?= $renk ?>"><i data-lucide="<?= $ico ?>"></i></span>
-    <div class="ui-stat-body"><p class="ui-stat-label"><?= htmlspecialchars($l) ?></p><div class="ui-stat-value"><?= number_format($deger, 0, ',', '.') ?></div></div>
+    <div class="ui-stat-body"><p class="ui-stat-label"><?= htmlspecialchars($l) ?></p><div class="ui-stat-value" data-order-count="<?= $k === '' ? 'all' : htmlspecialchars($k) ?>"><?= number_format($deger, 0, ',', '.') ?></div></div>
   </div>
   <?php endforeach; ?>
 </div>
@@ -478,6 +478,9 @@ function clearFilters(){
     table.search('').ajax.reload();
 }
 function updateStatusCounts(counts){
+    document.querySelectorAll('[data-order-count]').forEach(el => {
+        el.textContent = Number(counts[el.dataset.orderCount] || 0).toLocaleString('tr-TR');
+    });
     const sel = document.getElementById('dtStatus');
     const allCnt = counts.all || 0;
     sel.options[0].textContent = 'Tüm Durumlar ('+allCnt+')';

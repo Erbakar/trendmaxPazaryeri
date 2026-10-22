@@ -2,6 +2,11 @@
 $logs = $data['logs'] ?? [];
 $marketplaces = $data['marketplaces'] ?? [];
 $lastSuccessful = $data['lastSuccessful'] ?? [];
+$automaticByType = [];
+foreach ($data['lastAutomatic'] ?? [] as $run) {
+    $key = $run['sync_type'];
+    if (!isset($automaticByType[$key]) || $run['finished_at'] > $automaticByType[$key]) $automaticByType[$key] = $run['finished_at'];
+}
 $syncConfig = $data['syncConfig'] ?? [];
 $platformDisabled = $data['platformDisabled'] ?? [];
 // Ayar ekranına gömülü eski veri kaynağı bu anahtarı vermeyebilir → kart yanlış durum göstermesin.
@@ -495,6 +500,8 @@ $totalProcessed = array_sum(array_map(fn($l) => (int)($l['records_processed'] ??
             </div>
 
             <div class="sc-auto-last">
+                <?php $autoTime = $automaticByType[$typeKey] ?? $automaticByType[$typeKey.'_pull'] ?? $automaticByType[$typeKey.'_push'] ?? ($typeKey === 'price' ? ($automaticByType['prices'] ?? null) : null); ?>
+                <div class="sc-auto-last-status <?= $autoTime ? 'ok' : 'na' ?>"><?= $autoTime ? 'Son otomatik: '.$e(date('d.m.Y H:i', strtotime($autoTime))) : 'Otomatik çalışma doğrulanmadı' ?></div>
                 <div class="sc-auto-last-time"><span class="sc-sr-only">Son çalışma: </span><?= $e($lastTime) ?></div>
                 <div class="sc-auto-last-status <?= $isOk ? 'ok' : ($isFail ? 'err' : 'na') ?>"><?= $e($lastStatusTr) ?></div>
             </div>

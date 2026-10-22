@@ -583,7 +583,7 @@ final class OrderSyncService
             $now = time();
 
             if ($lastSync !== null) {
-                $startTs = strtotime($lastSync);
+                $startTs = max(0, (int)strtotime($lastSync) - 300);
                 // N11 için: son sync'ten en az 15 gün öncesinden başla
                 // (N11 API max 15 günlük veri döndürür)
                 if ($slug === 'n11') {
@@ -601,10 +601,6 @@ final class OrderSyncService
             }
             $endTs = $now;
 
-            $statuses = match ($slug) {
-                'trendyol'    => $this->getTrendyolOrderStatuses(),
-                default       => [],
-            };
 
             // N11: statü filtresi olmadan tarih bazlı tek geçişte çek (performans)
             // Hepsiburada & Pazarama: kümeleme yok, tek sorguda çekilir
@@ -687,21 +683,9 @@ final class OrderSyncService
                 $rawOrders = $this->openCartService->fetchOrders(['days' => 60]);
             }
 
-            // Trendyol: statü bazlı çekim gerekli (API yapısı gereği)
-            $trendyolWindowDays = $this->getOrderQueryWindowDays($slug, 14);
-            foreach ($statuses as $statusFilter) {
-                $blockStart = $startTs;
-                while ($blockStart < $endTs) {
-                    $blockEnd = min($blockStart + ($trendyolWindowDays * 86400), $endTs);
-                    $filters = [
-                        'status'    => $statusFilter,
-                        'startDate' => $blockStart * 1000,
-                        'endDate'   => $blockEnd * 1000,
-                    ];
-                    $blockOrders = $this->trendyolService->fetchOrders($filters);
-                    $rawOrders = array_merge($rawOrders, $blockOrders);
-                    $blockStart = $blockEnd + 1;
-                }
+            // A status filter is optional: one pass includes every package status.
+            if ($slug === 'trendyol') {
+                $rawOrders = $this->fetchOrdersForRange($slug, $startTs, $endTs, 0, $marketplaceId);
             }
 
             // Duplicate'ları kaldır — statü önceliğine göre en güncel olanı tut
@@ -789,8 +773,10 @@ final class OrderSyncService
         // Zaten var mı?
         $existing = $this->orderModel->findByMarketplaceOrderId($marketplaceId, $mpOrderId);
         if ($existing !== false) {
-            // Durum, kargo bilgisi veya müşteri bilgisi değiştiyse güncelle
-            $updateData = [];
+            // Do not regress a package when an older webhook/page arrives late.
+            $isTrendyol = $this->marketplaceSlug($marketplaceId) === 'trendyol';
+            if ($isTrendyol && !TrendyolOrderSnapshot::isCurrent($existing, $orderData)) return false;
+            $updateData = $isTrendyol ? TrendyolOrderSnapshot::fields($orderData) : [];
 
             $orderData['status'] = $this->guardStatusRegression($marketplaceId, (string) $existing['status'], (string) ($orderData['status'] ?? ''));
 
@@ -1104,6 +1090,7 @@ final class OrderSyncService
         $existingItems = $this->orderItemModel->getByOrderId($orderId);
         $hasUsableItem = false;
         $existingLineIds = [];
+        $existingByLineId = [];
         foreach ($existingItems as $existingItem) {
             if ($this->isUsableItem($existingItem)) {
                 $hasUsableItem = true;
@@ -1111,6 +1098,7 @@ final class OrderSyncService
             $lineId = trim((string) ($existingItem['marketplace_item_id'] ?? ''));
             if ($lineId !== '') {
                 $existingLineIds[$lineId] = true;
+                $existingByLineId[$lineId] = $existingItem;
             }
         }
 
@@ -1126,7 +1114,12 @@ final class OrderSyncService
             $added = 0;
             foreach ($usableIncoming as $item) {
                 $lineId = trim((string) ($item['marketplace_item_id'] ?? ''));
-                if ($lineId === '' || isset($existingLineIds[$lineId])) {
+                if ($lineId === '') continue;
+                if (isset($existingLineIds[$lineId])) {
+                    if ($this->marketplaceSlug($marketplaceId) === 'trendyol') {
+                        $fields = array_intersect_key($item, array_flip(['sku','name','qty','unit_price','discount','tax_rate','line_total']));
+                        $this->orderItemModel->update((int)$existingByLineId[$lineId]['id'], $fields);
+                    }
                     continue;
                 }
                 $this->createOrderItem($orderId, $marketplaceId, $item);
@@ -1283,9 +1276,9 @@ final class OrderSyncService
     private function getLastSyncTime(int $marketplaceId): ?string
     {
         $log = $this->db->fetchOne(
-            "SELECT finished_at FROM sync_logs
-             WHERE marketplace_id = :mid AND store_id = :sid AND sync_type = 'orders' AND status IN ('success','partial')
-             ORDER BY finished_at DESC LIMIT 1",
+            "SELECT started_at AS finished_at FROM sync_logs
+             WHERE marketplace_id = :mid AND store_id = :sid AND sync_type = 'orders' AND status = 'success'
+             ORDER BY started_at DESC LIMIT 1",
             ['mid' => $marketplaceId, 'sid' => $this->tenant->currentStoreId()]
         );
 

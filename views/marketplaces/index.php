@@ -128,9 +128,9 @@ $mpResolve = static function (array $mp) use ($mpInfo): array {
       </div>
       <div data-mp-conn class="mk-conn">
         <?php if (!empty($mp['last_connected_at'])): ?>
-        <i data-lucide="check-circle-2" class="text-success"></i> Son: <?= date('d.m.Y H:i', strtotime($mp['last_connected_at'])) ?>
+        <i data-lucide="check-circle-2" class="text-success"></i> Son başarılı test: <?= date('d.m.Y H:i', strtotime($mp['last_connected_at'])) ?>
         <?php else: ?>
-        <i data-lucide="alert-circle" class="text-warning"></i> Henüz bağlantı kurulmadı
+        <i data-lucide="info"></i> Bağlantı testi henüz yapılmadı
         <?php endif; ?>
       </div>
       <div class="mk-actions">
@@ -240,7 +240,7 @@ function testConn(id, btn) {
                     const now = new Date();
                     const dateStr = now.toLocaleDateString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric'})
                                   + ' ' + now.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'});
-                    connEl.innerHTML = '<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-success"></i> Son bağlantı: ' + dateStr;
+                    connEl.innerHTML = '<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-success"></i> Son başarılı test: ' + dateStr;
                     lucide.createIcons({nodes: [connEl]});
                 }
             }

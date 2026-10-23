@@ -55,6 +55,7 @@ final class PriceSyncService
         private readonly PriceRuleEngine $priceEngine,
         private readonly Logger $logger,
         private readonly \App\Core\TenantContext $tenant,
+        private readonly \App\Services\TrendyolListingReconciler $listingReconciler,
     ) {}
 
     /**
@@ -133,6 +134,12 @@ final class PriceSyncService
         $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => []];
 
         try {
+            // Newly approved listings must be matched before selecting sync targets.
+            // This also reads the real remote price so rejected or externally changed
+            // prices are retried rather than skipped using an HTTP acceptance stamp.
+            if ($slug === 'trendyol') {
+                $this->listingReconciler->run(true);
+            }
             $mpProducts = $this->mpProductModel->getActiveForMarketplace($marketplaceId);
 
             $batchItems = [];

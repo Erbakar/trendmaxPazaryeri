@@ -17,6 +17,9 @@ if ($path === '/integration/order/sellers/999/claims') {
     echo json_encode(['totalPages'=>1,'content'=>[['id'=>'claim-test','orderNumber'=>'TEST-100','claimItems'=>[]]]]); return;
 }
 if (in_array($path, ['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'], true)) {
+    if (($_GET['size'] ?? '') === '100') {
+        echo json_encode(['totalPages'=>1,'totalElements'=>1,'content'=>[['id'=>123,'title'=>'Reconcile fixture','stockCode'=>'RECON80','barcode'=>'RAW80','salePrice'=>86,'listPrice'=>86,'quantity'=>498]]]); return;
+    }
     $status = $_GET['status'] ?? 'approved';
     $totals = ['approved'=>37,'onSale'=>31,'notOnSale'=>6,'pendingApproval'=>13,'rejected'=>2];
     $valid = str_ends_with($path, '/unapproved') ? ['pendingApproval','rejected'] : ['approved','onSale','notOnSale'];
@@ -62,6 +65,10 @@ if($path==='/integration/product/sellers/999/v2/products' && $_SERVER['REQUEST_M
 } elseif($path==='/integration/inventory/sellers/999/products/price-and-inventory' && $_SERVER['REQUEST_METHOD']==='POST') {
     $payload=json_decode(file_get_contents('php://input'),true);
     $item=$payload['items'][0]??[];
+    if(($item['barcode']??'')==='RAW80') {
+        if (($item['salePrice']??0)!=166 || ($item['quantity']??0)!==498) {http_response_code(400);echo json_encode(['error'=>'Wrong reconciled shipping price']);return;}
+        echo json_encode(['batchRequestId'=>'local-recon80']);return;
+    }
     if(($item['barcode']??'')==='PRICE-ONLY') {
         if(array_key_exists('quantity',$item) || ($item['salePrice']??0)!=215 || ($item['listPrice']??0)!=215) {http_response_code(400);echo json_encode(['error'=>'Price-only update changed stock']);return;}
         echo json_encode(['batchRequestId'=>'local-price-only']);return;

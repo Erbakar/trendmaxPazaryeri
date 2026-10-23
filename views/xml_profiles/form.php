@@ -214,6 +214,16 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
 
             <div class="xpf-row xpf-r2">
                 <div class="xpf-f">
+                    <label for="xpfShippingAmount">Kargo Tutarı (₺)</label>
+                    <input type="number" id="xpfShippingAmount" name="kargo_tutari" min="0" step="0.01"
+                           value="<?= htmlspecialchars((string) ($ayar['kargo_tutari'] ?? '')) ?>"
+                           placeholder="Pazaryeri ayarını kullan">
+                    <span class="hint">Kâr hesabından sonra satış fiyatına bir kez eklenir. Boşsa pazaryeri kargo tutarı kullanılır; 0 girerseniz kargo eklenmez.</span>
+                </div>
+            </div>
+
+            <div class="xpf-row xpf-r2">
+                <div class="xpf-f">
                     <label>Barkod Ön Eki</label>
                     <input type="text" name="barkod_onek" maxlength="20"
                            value="<?= htmlspecialchars((string) ($ayar['barkod_onek'] ?? '')) ?>" placeholder="Örn: OZK">

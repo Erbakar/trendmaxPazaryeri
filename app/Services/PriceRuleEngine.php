@@ -134,7 +134,7 @@ final class PriceRuleEngine
 
         // A store's fixed marketplace addition is applied once, after all profit
         // rules and their rounding. Never mutate supplier cost/base prices.
-        $addition = $this->shippingAddition($marketplaceId);
+        $addition = $this->shippingAddition($marketplaceId, $product);
         if ($addition > 0) {
             $calculatedPrice += $addition;
             $ruleApplied .= ':shipping_addition:' . $addition;
@@ -150,8 +150,15 @@ final class PriceRuleEngine
         ];
     }
 
-    public function shippingAddition(int $marketplaceId): float
+    public function shippingAddition(int $marketplaceId, array $product = []): float
     {
+        $profileId = (int) ($product['xml_profile_id'] ?? 0);
+        if ($profileId > 0) {
+            $settings = $this->profileSettings->forProfile($profileId);
+            if ($settings['kargo_tutari'] !== null) {
+                return $settings['kargo_tutari'];
+            }
+        }
         $marketplace = $this->marketplaceModel->find($marketplaceId);
         $extra = json_decode((string)($marketplace['extra_config_json'] ?? '{}'), true) ?: [];
         return max(0.0, round((float)($extra['shipping_price_addition'] ?? 0), 2));

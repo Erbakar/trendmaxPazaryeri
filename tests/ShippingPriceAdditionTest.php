@@ -25,8 +25,29 @@ final class ShippingPriceAdditionTest extends TestCase
    self::assertSame(168.75,$product['cost_price']);
    $mp->saveStoreConfig(1,['extra_config_json'=>'{"shipping_price_addition":25}']);
    self::assertSame(388.0,$engine->calculatePrice($product,1)['sale_price']);
+   $settings=$c->get(XmlProfileSettings::class);
+   $settings->save(12345,['kar_tipi'=>'yuzde','kar_degeri'=>115,'kargo_tutari'=>'40,50']);
+   self::assertSame(40.5,$settings->forProfile(12345)['kargo_tutari']);
+   self::assertSame(403.5,$engine->calculatePrice($product,1)['sale_price']);
+   self::assertSame(403.5,$engine->calculatePrice($product,1)['sale_price']);
+   self::assertSame(25.0,$engine->shippingAddition(1,['xml_profile_id'=>54321]));
+   $settings->save(12345,['kar_tipi'=>'yuzde','kar_degeri'=>115,'kargo_tutari'=>'0']);
+   self::assertSame(363.0,$engine->calculatePrice($product,1)['sale_price']);
+   $settings->save(12345,['kar_tipi'=>'yuzde','kar_degeri'=>115,'kargo_tutari'=>'']);
+   self::assertNull($settings->forProfile(12345)['kargo_tutari']);
+   self::assertSame(388.0,$engine->calculatePrice($product,1)['sale_price']);
+   $settings->save(12345,['kar_degeri'=>0,'kargo_tutari'=>'40']);
+   self::assertSame(208.75,$engine->calculatePrice($product,1)['sale_price']);
+   foreach (['-1','abc','1e999'] as $invalid) {
+    try {$settings->save(12345,['kargo_tutari'=>$invalid]);self::fail('Invalid shipping accepted');}
+    catch (InvalidArgumentException $e) {self::assertSame(40.0,$settings->forProfile(12345)['kargo_tutari']);}
+   }
+   $settings->deleteFor(12345);
+   self::assertNull($settings->forProfile(12345)['kargo_tutari']);
+   $settings->save(12345,['kargo_tutari'=>'40']);
    $db->query('INSERT INTO stores(name,slug) VALUES(?,?)',['Other shipping test','shipping-'.bin2hex(random_bytes(6))]);$tenant->setStoreId((int)$db->lastInsertId());
    self::assertSame(0.0,$engine->shippingAddition(1));
+   self::assertSame(0.0,$engine->shippingAddition(1,$product));
   }finally{$db->rollBack();$_ENV=$env;}
  }
 }

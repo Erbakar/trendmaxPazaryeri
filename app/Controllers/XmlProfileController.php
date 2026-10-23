@@ -408,6 +408,7 @@ final class XmlProfileController extends BaseController
         return [
             'kar_tipi'               => (string) $request->post('kar_tipi', 'yuzde'),
             'kar_degeri'             => $request->post('kar_degeri', '0'),
+            'kargo_tutari'           => $request->post('kargo_tutari', ''),
             'barkod_onek'            => (string) $request->post('barkod_onek', ''),
             'kritik_stok'            => $request->post('kritik_stok', '0'),
             'varsayilan_marka_id'    => $request->post('varsayilan_marka_id', '0'),

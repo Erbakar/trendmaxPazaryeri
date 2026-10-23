@@ -409,7 +409,9 @@ final class Marketplace extends BaseModel
             "SELECT m.*,
                     (SELECT COUNT(*) FROM marketplace_products mp WHERE mp.marketplace_id = m.id AND mp.is_active = 1{$mpStore}) as product_count,
                     (SELECT COUNT(*) FROM orders o WHERE o.marketplace_id = m.id{$oStore}) as order_count,
-                    (SELECT MAX(sl.started_at) FROM sync_logs sl WHERE sl.marketplace_id = m.id AND sl.status = 'success'{$slStore}) as last_sync_at
+                    (SELECT MAX(sl.finished_at) FROM sync_logs sl
+                     WHERE sl.marketplace_id = m.id AND sl.status = 'success'
+                       AND sl.records_failed = 0{$slStore}) as last_sync_at
              FROM marketplaces m
              ORDER BY m.is_active DESC, m.id ASC",
             $params

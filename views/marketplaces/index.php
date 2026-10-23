@@ -127,7 +127,9 @@ $mpResolve = static function (array $mp) use ($mpInfo): array {
         <div class="mk-chip" style="background:rgba(16,185,129,.12)"><div class="mk-chip-val" style="color:#059669"><?= number_format($mp['total_orders'] ?? 0) ?></div><div class="mk-chip-lbl">Sipariş</div></div>
       </div>
       <div data-mp-conn class="mk-conn">
-        <?php if (!empty($mp['last_connected_at'])): ?>
+        <?php if (!empty($mp['last_sync_at'])): ?>
+        <i data-lucide="check-circle-2" class="text-success"></i> Son başarılı senkron: <?= date('d.m.Y H:i', strtotime($mp['last_sync_at'])) ?>
+        <?php elseif (!empty($mp['last_connected_at'])): ?>
         <i data-lucide="check-circle-2" class="text-success"></i> Son başarılı test: <?= date('d.m.Y H:i', strtotime($mp['last_connected_at'])) ?>
         <?php else: ?>
         <i data-lucide="info"></i> Bağlantı testi henüz yapılmadı

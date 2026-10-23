@@ -128,3 +128,7 @@ Canlı sunucuya bu düzeltme ayrıca dağıtılmalıdır.
 ### Trendyol ilan eşleştirmelerini onarma
 
 `php tools/reconcile-trendyol-listings.php --store=ID` onaylı Trendyol katalog sayfalarını okuyup mevcut yerel eşleştirmelerle kesin SKU/barkod eşleşmelerini raporlar. `--apply` yalnız bu eşleştirmelerin yayın durumunu ve uzak ilan kimliklerini günceller. Çelişkili veya çoklu eşleşmeler atlanır; ürün oluşturulmaz, XML maliyeti, stok kaynağı, kategori ve görseller değiştirilmez. Tüm sayfalar başarıyla okunmadan veritabanına yazılmaz. Uygulama öncesi mağaza yedeği alınmalıdır. Sonraki stok/fiyat görevi XML fiyat kuralını kullanır; API kabulü sonucun Trendyol'a yansıdığını tek başına kanıtlamaz.
+
+### Fiyata kargo bedeli ekleme
+
+Pazaryerleri → Ayarlar → Fiyat Ayarları bölümündeki “Fiyata eklenecek kargo bedeli (TL)” mağazaya ve pazaryerine özeldir. Kâr kuralı ve mevcut yuvarlama uygulandıktan sonra satış fiyatına bir kez eklenir; liste fiyatı satış fiyatının altında kalmaz. Örnek: 168,75 TL maliyet, %115 artış ile 363 TL; 50 TL kargo bedeliyle 413 TL. XML maliyeti değiştirilmez. Ayar mevcut ilanların fiyat senkronunda, yeni ürün yayınında ve önizlemede kullanılır. 0 girilmesi ek bedeli kaldırır.

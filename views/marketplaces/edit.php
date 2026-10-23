@@ -835,6 +835,11 @@ $absValue = abs($savedPct);
                     </div>
                     <small class="form-help">İçe aktarmada ters uygulanır. Örn: İndirim %10 ayarlandıysa, Trendyol'dan gelen 900₺ sisteme 1.000₺ olarak kaydedilir.</small>
                 </div>
+                <div class="form-group">
+                    <label class="form-label" for="shippingPriceAddition">Fiyata eklenecek kargo bedeli (TL)</label>
+                    <input type="number" id="shippingPriceAddition" name="shipping_price_addition" class="form-input" min="0" step="0.01" value="<?= htmlspecialchars((string)($extraConfig['shipping_price_addition'] ?? 0)) ?>">
+                    <small class="form-help">Kâr kuralı ve yuvarlama sonrasında bir kez eklenir. Mevcut ve yeni ürünlerin gönderiminde kullanılır; XML maliyetini değiştirmez. Örnek: %115 ile 363 TL olan fiyat, 50 TL kargo bedeliyle 413 TL olur.</small>
+                </div>
             </div>
         </div>
 

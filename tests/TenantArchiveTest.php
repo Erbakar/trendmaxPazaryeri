@@ -26,7 +26,7 @@ final class TenantArchiveTest extends TestCase
             $product=(int)$pdo->lastInsertId();
             $pdo->prepare('UPDATE products SET cost_price=100,base_price=100,list_price=100 WHERE id=?')->execute([$product]);
             $productModel=new App\Models\Product($db,$tenant);
-            $engine=new App\Services\PriceRuleEngine(new App\Models\PriceRule($db,$tenant),new App\Models\MarketplaceProduct($db,$tenant),$productModel,new App\Core\Logger(),new App\Services\Import\XmlProfileSettings(new App\Models\StoreSetting($db,$tenant)));
+            $engine=new App\Services\PriceRuleEngine(new App\Models\PriceRule($db,$tenant),new App\Models\MarketplaceProduct($db,$tenant),$productModel,new App\Core\Logger(),new App\Services\Import\XmlProfileSettings(new App\Models\StoreSetting($db,$tenant)),new App\Models\Marketplace($db,$tenant));
             $calculator=new App\Services\Publish\MarginCalculator($engine,$productModel);
             $preview=$calculator->rows([$product],1,[],['price_rule_type'=>'percent_increase','price_rule_value'=>65]);
             self::assertSame(165.0,$preview[0]['sale_price']);

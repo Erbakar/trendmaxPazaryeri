@@ -28,6 +28,7 @@ final class PriceRuleEngine
         private readonly Product $productModel,
         private readonly Logger $logger,
         private readonly \App\Services\Import\XmlProfileSettings $profileSettings,
+        private readonly \App\Models\Marketplace $marketplaceModel,
     ) {}
 
     /**
@@ -131,6 +132,14 @@ final class PriceRuleEngine
             $ruleApplied .= ' (maliyet_siniri)';
         }
 
+        // A store's fixed marketplace addition is applied once, after all profit
+        // rules and their rounding. Never mutate supplier cost/base prices.
+        $addition = $this->shippingAddition($marketplaceId);
+        if ($addition > 0) {
+            $calculatedPrice += $addition;
+            $ruleApplied .= ':shipping_addition:' . $addition;
+        }
+
         // ─── list_price, sale_price'tan büyük olmalı ──
         $finalListPrice = max($listPrice, $calculatedPrice);
 
@@ -139,6 +148,13 @@ final class PriceRuleEngine
             'list_price'   => round($finalListPrice, 2),
             'rule_applied' => $ruleApplied,
         ];
+    }
+
+    public function shippingAddition(int $marketplaceId): float
+    {
+        $marketplace = $this->marketplaceModel->find($marketplaceId);
+        $extra = json_decode((string)($marketplace['extra_config_json'] ?? '{}'), true) ?: [];
+        return max(0.0, round((float)($extra['shipping_price_addition'] ?? 0), 2));
     }
 
     /**

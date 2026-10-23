@@ -271,6 +271,10 @@ final class MarketplaceController extends BaseController
             $extraConfig['price_adjustment_percent'] = 0;
         }
 
+        if ($request->post('shipping_price_addition') !== null) {
+            $extraConfig['shipping_price_addition'] = max(0.0, round((float) str_replace(',', '.', (string)$request->post('shipping_price_addition')), 2));
+        }
+
         // Kargo ayarları (Trendyol)
         if ($mp['slug'] === 'trendyol') {
             $extraConfig['ty_cargo_payment']  = $request->boolean('ty_cargo_payment') ? 1 : 0;

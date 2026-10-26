@@ -55,6 +55,7 @@ final class StockSyncService
         private readonly PriceRuleEngine $priceEngine,
         private readonly Logger $logger,
         private readonly \App\Core\TenantContext $tenant,
+        private readonly \App\Services\TrendyolListingReconciler $listingReconciler,
     ) {}
 
     /**
@@ -134,6 +135,9 @@ final class StockSyncService
         $result = ['sent' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => []];
 
         try {
+            // Re-read actual stock, including previously rejected async updates.
+            if ($slug === 'trendyol') $this->listingReconciler->run(true);
+
             // Stoğu değişen ürünleri al
             $changedProducts = $this->mpProductModel->getStockChanged($marketplaceId);
 
@@ -192,18 +196,15 @@ final class StockSyncService
                 return $result;
             }
 
-            if ($this->isSuspiciousMassZeroStock($batchItems)) {
-                $message = 'Toplu stok gonderimi engellendi: cok sayida urun 0 stok olarak gonderilecekti. Yerel stoklari kontrol edin.';
-                $result['failed'] = count($batchItems);
-                $result['errors'][] = ['error' => $message];
-                $this->syncLogModel->finish($logId, 'failed', count($changedProducts), 0, $result['failed'], $result['errors']);
-                $this->logger->error("Stok sync korumasi ({$slug}): {$message}", 'StockSync');
-                return $result;
-            }
+            // This is a delta, not the entire catalogue: every changed item can
+            // legitimately be sold out. Do not block zero-only stock updates.
 
             // Pazaryerine gönder
             $apiResult = match ($slug) {
-                'trendyol'    => $this->trendyolService->updateStock($batchItems),
+                'trendyol'    => $this->trendyolService->updateStock(array_map(
+                    static fn(array $item): array => ['barcode'=>$item['barcode'], 'quantity'=>$item['quantity']],
+                    $batchItems
+                )),
                 'n11'         => $this->n11Service->updateStock($batchItems),
                 'hepsiburada' => $this->hepsiburadaService->updateStock($batchItems),
                 'pazarama'    => $this->pazaramaService->updateStock($batchItems),
@@ -229,7 +230,9 @@ final class StockSyncService
             $failedKeys = $this->extractFailedKeys($apiResult['errors'] ?? []);
             $stampAll = ($apiResult['failed'] ?? 0) === 0;
 
-            if (($apiResult['success'] ?? 0) > 0) {
+            // Trendyol only acknowledges a queued request. Its next catalogue read
+            // confirms the applied stock; never stamp queue acceptance as completion.
+            if ($slug !== 'trendyol' && ($apiResult['success'] ?? 0) > 0) {
                 foreach ($batchMap as $key => $info) {
                     if (!$stampAll && ($failedKeys === [] || $this->keyIsFailed($key, $failedKeys))) {
                         continue;
@@ -340,23 +343,4 @@ final class StockSyncService
         return 'Bilinmeyen hata';
     }
 
-    /**
-     * Pazaryerindeki tum urunleri yanlislikla sifirlamayi engeller.
-     */
-    private function isSuspiciousMassZeroStock(array $items): bool
-    {
-        $total = count($items);
-        if ($total < 10) {
-            return false;
-        }
-
-        $zero = 0;
-        foreach ($items as $item) {
-            if ((int) ($item['quantity'] ?? 0) <= 0) {
-                $zero++;
-            }
-        }
-
-        return $zero === $total || ($zero / $total) >= 0.90;
-    }
 }

@@ -36,7 +36,7 @@ final class TrendyolListingReconciler
         $mid = (int)$mp['id'];
         $rows = $this->db->fetchAll('SELECT p.id,p.sku,p.barcode,mp.marketplace_sku,mp.marketplace_barcode
             FROM products p JOIN marketplace_products mp ON mp.product_id=p.id AND mp.store_id=p.store_id
-            WHERE p.store_id=:sid AND mp.marketplace_id=:mid AND p.is_active=1 AND p.is_archived=0 AND mp.is_active=1', ['sid'=>$store,'mid'=>$mid]);
+            WHERE p.store_id=:sid AND mp.marketplace_id=:mid', ['sid'=>$store,'mid'=>$mid]);
         $skuIndex = $barcodeIndex = [];
         foreach ($rows as $row) {
             foreach (['sku','marketplace_sku'] as $key) if (trim((string)$row[$key]) !== '') $skuIndex[trim($row[$key])][] = (int)$row['id'];
@@ -72,7 +72,7 @@ final class TrendyolListingReconciler
                     $this->db->query('UPDATE marketplace_products SET is_listed=1,marketplace_barcode=:barcode,
                         marketplace_sku=:sku,marketplace_product_id=:remote_id,last_price_sent=:price,
                         last_stock_sent=COALESCE(:stock,last_stock_sent),sync_error=NULL
-                        WHERE store_id=:sid AND marketplace_id=:mid AND product_id=:pid AND is_active=1',
+                        WHERE store_id=:sid AND marketplace_id=:mid AND product_id=:pid',
                         ['barcode'=>$item['barcode'],'sku'=>$item['marketplace_sku'],'remote_id'=>$item['marketplace_product_id'],
                          'price'=>$item['price'],'stock'=>$item['stock']??null,'sid'=>$store,'mid'=>$mid,'pid'=>$pid]);
                 }

@@ -204,7 +204,10 @@ final class PriceSyncService
                 }
 
                 $apiResult = match ($slug) {
-                    'trendyol'    => $this->trendyolService->updatePrice($batchItems),
+                    'trendyol'    => $this->trendyolService->updatePrice(array_map(
+                        static fn(array $item): array => ['barcode'=>$item['barcode'], 'salePrice'=>$item['salePrice'], 'listPrice'=>$item['listPrice']],
+                        $batchItems
+                    )),
                     'n11'         => $this->n11Service->updatePrice($batchItems),
                     'hepsiburada' => $this->hepsiburadaService->updatePrice($batchItems),
                     'pazarama'    => $this->pazaramaService->updatePrice($batchItems),

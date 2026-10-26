@@ -74,6 +74,9 @@ final class XmlProfileImportService
      */
     private array $profilAyari = [];
 
+    /** SKUs observed in the fully validated supplier snapshot, including variants. */
+    private array $seenSkus = [];
+
     public function __construct(
         private readonly XmlProfile $profileModel,
         private readonly XmlProfileLog $logModel,
@@ -129,8 +132,18 @@ final class XmlProfileImportService
             // 3. Format / eşleme çöz
             $mapping = $this->resolveMapping($profile, $localFile);
 
+            // Reject truncated/malformed downloads before updating any inventory.
+            $this->validateSnapshot($localFile);
+            $this->seenSkus = [];
+
             // 4. Akış halinde işle
             $result = $this->processFile($localFile, $profile, $mapping);
+            $result['removed_stock_zeroed'] = 0;
+            if ($result['total'] > 0 && $result['failed'] === 0
+                && (int) ($profile['update_existing'] ?? 1) === 1
+                && (int) ($profile['update_stock'] ?? 1) === 1) {
+                $result['removed_stock_zeroed'] = $this->zeroMissingStock($profileId);
+            }
 
             $status = $result['failed'] > 0
                 ? ($result['created'] + $result['updated'] > 0 ? 'partial' : 'failed')
@@ -144,6 +157,10 @@ final class XmlProfileImportService
                 $result['skipped'],
                 $result['failed']
             );
+
+            if ($result['removed_stock_zeroed'] > 0) {
+                $message .= sprintf('; XML’den kaldırılan %d ürünün stoğu sıfırlandı', $result['removed_stock_zeroed']);
+            }
 
             $this->logModel->finish(
                 $logId,
@@ -520,11 +537,11 @@ final class XmlProfileImportService
             $ok = $reader->next();
 
             if ($node === false) {
-                continue;
+                throw new \RuntimeException('XML ürün düğümü okunamadı.');
             }
             $item = simplexml_import_dom($node);
             if (!($item instanceof \SimpleXMLElement)) {
-                continue;
+                throw new \RuntimeException('XML ürün düğümü çözümlenemedi.');
             }
 
             $total++;
@@ -988,6 +1005,7 @@ final class XmlProfileImportService
             return $this->upsertVariantFamily($row, $profile);
         }
 
+        $this->seenSkus[(string) $row['sku']] = true;
         $existing = $this->productModel->findBySku($row['sku']);
         $profileId = (int) $profile['id'];
         $listPrice = (float) ($row['list_price'] ?? 0) > 0 ? (float) $row['list_price'] : (float) $row['base_price'];
@@ -1339,6 +1357,47 @@ final class XmlProfileImportService
     }
 
     // ─── Yardımcılar ──────────────────────────────────────
+
+    private function validateSnapshot(string $file): void
+    {
+        $previous = libxml_use_internal_errors(true);
+        libxml_clear_errors();
+        $reader = null;
+        try {
+            $reader = $this->openReader($file);
+            while ($reader->read()) {}
+            foreach (libxml_get_errors() as $error) {
+                if ($error->level >= LIBXML_ERR_ERROR) {
+                    throw new \RuntimeException('XML eksik veya bozuk; stoklar güncellenmedi.');
+                }
+            }
+        } finally {
+            if ($reader !== null) $reader->close();
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+    }
+
+    /** Only this tenant and this profile's products may be retired. */
+    private function zeroMissingStock(int $profileId): int
+    {
+        if ($this->seenSkus === []) return 0;
+        $store = $this->tenant->currentStoreId();
+        $rows = $this->db->fetchAll(
+            'SELECT id,sku FROM products WHERE store_id=:sid AND xml_profile_id=:pid AND stock_qty>0',
+            ['sid'=>$store, 'pid'=>$profileId]
+        );
+        $count = 0;
+        foreach ($rows as $row) {
+            if (isset($this->seenSkus[(string)$row['sku']])) continue;
+            $this->db->query(
+                'UPDATE products SET stock_qty=0,missing_stock=1,updated_at=NOW() WHERE id=:id AND store_id=:sid AND xml_profile_id=:pid',
+                ['id'=>$row['id'], 'sid'=>$store, 'pid'=>$profileId]
+            );
+            $count++;
+        }
+        return $count;
+    }
 
     private function openReader(string $file): \XMLReader
     {

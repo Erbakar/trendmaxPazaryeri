@@ -42,6 +42,31 @@ final class XmlUserPublishFlowTest extends TestCase
             $updated=$publish->publishProducts([(int)$a['id']],1);self::assertSame(1,$updated['success'],json_encode($updated));self::assertSame(0,$updated['failed']);
             // A mapped blank must not keep a previous supplier color; unmapped fields stay untouched.
             $doc=simplexml_load_string($xml);$doc->Item[0]->Color='';$xml=$doc->asXML();file_put_contents($file,$xml);$import->run($pid);$local=array_column($c->get(ProductAttributeValue::class)->getByProduct((int)$a['id']),'custom_value','attribute_name');self::assertArrayNotHasKey('Renk',$local);self::assertSame('TR',$local['Menşei']);
+            // A complete snapshot retires removed SKUs; malformed/empty feeds do not.
+            file_put_contents($file, '<Catalog><Item>');
+            self::assertFalse($import->run($pid)['ok']);
+            self::assertSame(7,(int)$products->find((int)$a['id'])['stock_qty']);
+            file_put_contents($file, '<Catalog/>');
+            $import->run($pid);
+            self::assertSame(7,(int)$products->find((int)$a['id'])['stock_qty']);
+            $manual=$products->create(['sku'=>'MANUAL-STOCK','name'=>'Manual stock','stock_qty'=>9,'is_active'=>1]);
+            $otherProfile=$profile->create(['name'=>'Other stock source','direction'=>'import','source_type'=>'file','source_url'=>basename($file),'format'=>'generic']);
+            $otherProduct=$products->create(['sku'=>'OTHER-STOCK','name'=>'Other profile stock','stock_qty'=>11,'xml_profile_id'=>$otherProfile,'is_active'=>1]);
+            $doc=simplexml_load_string($xml);unset($doc->Item[0]);file_put_contents($file,$doc->asXML());
+            $profile->update($pid,['update_stock'=>0]);$import->run($pid);
+            self::assertSame(7,(int)$products->find((int)$a['id'])['stock_qty']);
+            $profile->update($pid,['update_stock'=>1]);
+            $retired=$import->run($pid);self::assertSame(1,$retired['removed_stock_zeroed']);
+            self::assertSame(0,(int)$products->find((int)$a['id'])['stock_qty']);
+            self::assertSame(5,(int)$products->find((int)$b['id'])['stock_qty']);
+            self::assertSame(9,(int)$products->find($manual)['stock_qty']);
+            self::assertSame(11,(int)$products->find($otherProduct)['stock_qty']);
+            // A disabled/archived item must still send zero to an existing listing.
+            $db->query('UPDATE marketplace_products SET is_listed=1,last_stock_sent=7 WHERE store_id=? AND product_id=?',[$sid,$a['id']]);
+            $db->query('UPDATE products SET is_active=0,stock_qty=7 WHERE store_id=? AND id=?',[$sid,$a['id']]);
+            $changed=$c->get(\App\Models\MarketplaceProduct::class)->getStockChanged(1);
+            $zero=array_values(array_filter($changed,static fn($r)=>(int)$r['product_id']===(int)$a['id']));
+            self::assertCount(1,$zero);self::assertSame(0,(int)$zero[0]['calculated_stock']);
             self::assertSame(0,(int)$db->fetchOne('SELECT COUNT(*) AS n FROM products WHERE store_id=1 AND sku LIKE ?', ['XMLFLOW-%'])['n']);
         }finally{$db->rollBack();@unlink($file);$_ENV=$env;}
     }

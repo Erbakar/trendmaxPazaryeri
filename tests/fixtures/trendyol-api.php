@@ -66,7 +66,8 @@ if($path==='/integration/product/sellers/999/v2/products' && $_SERVER['REQUEST_M
     $payload=json_decode(file_get_contents('php://input'),true);
     $item=$payload['items'][0]??[];
     if(($item['barcode']??'')==='RAW80') {
-        if (($item['salePrice']??0)!=166 || ($item['quantity']??0)!==498) {http_response_code(400);echo json_encode(['error'=>'Wrong reconciled shipping price']);return;}
+        if (array_keys($item)===['barcode','quantity'] && $item['quantity']===0) {echo json_encode(['batchRequestId'=>'local-stock-pending']);return;}
+        if (($item['salePrice']??0)!=166 || array_key_exists('quantity',$item)) {http_response_code(400);echo json_encode(['error'=>'Wrong reconciled shipping price']);return;}
         echo json_encode(['batchRequestId'=>'local-recon80']);return;
     }
     if(($item['barcode']??'')==='PRICE-ONLY') {

@@ -144,6 +144,13 @@ final class ProductPublishService
                     'is_listed'  => (int)($satir['is_listed'] ?? 0),
                     'sync_error' => 'Pazaryeri reddetti: ' . ($sebep !== '' ? $sebep : 'sebep bildirilmedi'),
                 ]);
+                if (($sluglar[$mpId] ?? '') === 'trendyol') {
+                    try {
+                        $this->resolveExistingTrendyolListing((int)$satir['product_id'], $mpId);
+                    } catch (\Throwable $e) {
+                        $sonuc['errors'][] = 'Mevcut ilan kontrolü: '.$e->getMessage();
+                    }
+                }
                 $sonuc['rejected']++;
             } else {
                 $sonuc['pending']++;
@@ -206,6 +213,18 @@ final class ProductPublishService
             $groups = ['createProducts'=>[], 'updateListingProducts'=>[]];
             foreach ($productIds as $pid) {
                 $listing = $this->mpProductModel->findByProductAndMarketplace((int)$pid, $marketplaceId);
+                try {
+                    $listing = $this->resolveExistingTrendyolListing((int)$pid, $marketplaceId, $listing);
+                } catch (\Throwable $e) {
+                    $totalSkipped++;
+                    $allErrors[] = ['product_id'=>$pid, 'error'=>'Mevcut Trendyol kaydı doğrulanamadı: '.$e->getMessage()];
+                    continue;
+                }
+                if (str_starts_with((string)($listing['sync_error'] ?? ''), 'Mevcut Trendyol kaydı')) {
+                    $totalSkipped++;
+                    $allErrors[] = ['product_id'=>$pid, 'error'=>$listing['sync_error']];
+                    continue;
+                }
                 $operation = \App\Services\Marketplace\TrendyolListingPlan::operation($listing);
                 $groups[$operation][] = $pid;
             }
@@ -423,6 +442,28 @@ final class ProductPublishService
         return ['valid' => empty($errors), 'errors' => $errors];
     }
 
+    /** Never replace another product's identity or infer approval from a duplicate error. */
+    public function resolveExistingTrendyolListing(int $productId, int $marketplaceId, array|false $listing = false): array|false
+    {
+        $marketplace = $this->marketplaceModel->find($marketplaceId);
+        if (!$marketplace || $marketplace['slug'] !== 'trendyol') return $listing;
+        $listing = $listing ?: $this->mpProductModel->findByProductAndMarketplace($productId, $marketplaceId);
+        $barcode = \App\Services\Marketplace\TrendyolExistingListing::duplicateBarcode((string)($listing['sync_error'] ?? ''));
+        if ($barcode === null) return $listing;
+        $product = $this->productModel->find($productId);
+        if (!$product) throw new RuntimeException('Ürün bulunamadı.');
+        $owners = $this->db->fetchAll('SELECT DISTINCT p.id FROM products p
+            LEFT JOIN marketplace_products mp ON mp.product_id=p.id AND mp.store_id=p.store_id AND mp.marketplace_id=:mid
+            WHERE p.store_id=:sid AND (p.barcode=:bc OR mp.marketplace_barcode=:mbc OR p.sku=:sku OR mp.marketplace_sku=:msku)',
+            ['mid'=>$marketplaceId,'sid'=>$product['store_id'],'bc'=>$barcode,'mbc'=>$barcode,'sku'=>$product['sku'],'msku'=>$product['sku']]);
+        if (count($owners) !== 1 || (int)$owners[0]['id'] !== $productId) throw new RuntimeException('Barkod veya stok kodu başka ürün kaydıyla çakışıyor.');
+        $response = $this->resolveMarketplaceService('trendyol')->findProductsByBarcode($barcode);
+        $state = \App\Services\Marketplace\TrendyolExistingListing::verified($response, $product, $barcode);
+        if ($state === null) throw new RuntimeException('Eski barkod ve stok kodu tek bir ilanla doğrulanamadı.');
+        $this->mpProductModel->update((int)$listing['id'], $state);
+        return array_replace($listing, $state);
+    }
+
     private function validateListingUpdate(int $productId, int $marketplaceId): array
     {
         $product = $this->productModel->find($productId);
@@ -431,7 +472,7 @@ final class ProductPublishService
         if (!$product || !$listing) return ['valid'=>false,'errors'=>['Mevcut ilan eşleştirmesi bulunamadı.']];
         if ((float)$product['base_price'] <= 0) $errors[]='Geçersiz fiyat.';
         if ((int)$product['stock_qty'] < 0) $errors[]='Geçersiz stok.';
-        if (empty($listing['marketplace_barcode']) || (string)$listing['marketplace_barcode'] !== (string)$product['barcode']) {
+        if (!\App\Services\Marketplace\TrendyolExistingListing::canUpdate($product, $listing)) {
             $errors[]='Ürün barkodu mevcut Trendyol ilanıyla uyuşmuyor.';
         }
         return ['valid'=>$errors===[], 'errors'=>$errors];

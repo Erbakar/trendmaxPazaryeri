@@ -17,6 +17,12 @@ if ($path === '/integration/order/sellers/999/claims') {
     echo json_encode(['totalPages'=>1,'content'=>[['id'=>'claim-test','orderNumber'=>'TEST-100','claimItems'=>[]]]]); return;
 }
 if (in_array($path, ['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'], true)) {
+    if (in_array($_GET['barcode'] ?? '', ['OLD-DUP','OLD-REJECT'], true)) {
+        $barcode = $_GET['barcode'];
+        $approved = str_ends_with($path, '/approved');
+        $content = ($approved === ($barcode === 'OLD-DUP')) ? [['barcode'=>$barcode,'stockCode'=>'DUP-SKU','productMainId'=>'DUP-MODEL','status'=>'rejected','rejectReasonDetails'=>[['rejectReasonDetail'=>'Fixture content rejected']]]] : [];
+        echo json_encode(['totalElements'=>count($content),'content'=>$content]); return;
+    }
     if (($_GET['size'] ?? '') === '100') {
         echo json_encode(['totalPages'=>1,'totalElements'=>1,'content'=>[['id'=>123,'title'=>'Reconcile fixture','stockCode'=>'RECON80','barcode'=>'RAW80','salePrice'=>86,'listPrice'=>86,'quantity'=>498]]]); return;
     }

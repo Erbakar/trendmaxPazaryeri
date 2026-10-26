@@ -42,6 +42,22 @@ final class StockSyncReconciliationTest extends TestCase
    $next=$model->getPendingBatches(1,1)[0];
    self::assertSame($mid2,(int)$next['id']);
    self::assertSame('SENT',$next['barcode']);
+   $duplicate=$c->get(Product::class)->create(['sku'=>'DUP-SKU','name'=>'Duplicate fixture','barcode'=>'NEW-DUP','stock_qty'=>7,'cost_price'=>100]);
+   $duplicateMap=$model->create(['product_id'=>$duplicate,'marketplace_id'=>1,'marketplace_barcode'=>'NEW-DUP','sync_error'=>'farklı barkodlu bir ürün mevcut. Barkod: OLD-DUP']);
+   $publisher=$c->get(\App\Services\ProductPublishService::class);
+   $resolved=$publisher->resolveExistingTrendyolListing($duplicate,1);
+   self::assertSame('OLD-DUP',$resolved['marketplace_barcode']);self::assertSame(1,$resolved['is_listed']);
+   self::assertSame(7,(int)$c->get(Product::class)->find($duplicate)['stock_qty']);
+   self::assertSame(100.0,(float)$c->get(Product::class)->find($duplicate)['cost_price']);
+   $model->update($duplicateMap,['is_listed'=>0,'sync_error'=>'farklı barkodlu bir ürün mevcut. Barkod: OLD-REJECT']);
+   $resolved=$publisher->resolveExistingTrendyolListing($duplicate,1);
+   self::assertSame(0,$resolved['is_listed']);self::assertStringContainsString('Fixture content rejected',$resolved['sync_error']);
+   $retry=$publisher->publishProducts([$duplicate],1);
+   self::assertSame(1,$retry['skipped']);self::assertSame(0,$retry['success']);self::assertEmpty($retry['batch_ids']);
+   $c->get(Product::class)->create(['sku'=>'CONFLICT','name'=>'Another local owner','barcode'=>'OLD-REJECT','stock_qty'=>2]);
+   try { $publisher->resolveExistingTrendyolListing($duplicate,1); self::fail('Conflicting owner must not be overwritten'); }
+   catch(RuntimeException $e){ self::assertStringContainsString('çakışıyor',$e->getMessage()); }
+
 
   }finally{$db->rollBack();$_ENV=$env;}
  }

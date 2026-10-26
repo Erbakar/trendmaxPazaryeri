@@ -223,11 +223,13 @@ $mainImage = $p['main_image'] ?? ($images[0]['url'] ?? ($images[0] ?? ''));
                             echo '<span class="badge badge-secondary" style="font-size:9px">Hiç</span>';
                         }
                         if (!empty($mp['sync_error'])) {
-                            echo '<br><span class="sync-badge error" title="' . htmlspecialchars($mp['sync_error']) . '"><span class="sync-dot"></span>' . htmlspecialchars(mb_substr($mp['sync_error'], 0, 30)) . '</span>';
+                            echo '<details style="max-width:420px;white-space:normal"><summary style="cursor:pointer">İşlem ayrıntısı</summary><div style="margin-top:6px;overflow-wrap:anywhere">' . htmlspecialchars($mp['sync_error']) . '</div></details>';
                         }
                     ?></td>
                     <td><?php if (($mp['slug'] ?? '') === 'trendyol' && !empty($mp['is_listed'])): ?>
                         <span class="badge badge-success" title="İşlem kabul edildi; satışa açılma Trendyol içerik onayına bağlıdır.">Aktarıldı</span>
+                    <?php elseif (($mp['slug'] ?? '') === 'trendyol'): ?>
+                        <span class="badge badge-secondary" title="Senkronizasyon ayarının açık olması ürünün Trendyol tarafından kabul edildiği anlamına gelmez.">Aktarım doğrulanmadı</span>
                     <?php else: ?><?= (int) ($mp['is_active'] ?? 0) ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-secondary">Pasif</span>' ?><?php endif; ?></td>
                     <td>
                         <button class="btn-sync" onclick="syncSingleProduct(<?= $p['id'] ?>, <?= $mp['marketplace_id'] ?>)" title="Bu ürünü senkronize et">

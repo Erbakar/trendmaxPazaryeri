@@ -103,6 +103,7 @@ $mainImage = $product['main_image'] ?? ($images[0]['url'] ?? ($images[0] ?? ''))
     <div class="pf-actions">
         <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-primary)">
             <span class="pf-toggle">
+                <input type="hidden" name="is_active" value="0">
                 <input type="checkbox" name="is_active" value="1" <?= ($product['is_active'] ?? 1) ? 'checked' : '' ?>>
                 <span class="pf-toggle-slider"></span>
             </span>

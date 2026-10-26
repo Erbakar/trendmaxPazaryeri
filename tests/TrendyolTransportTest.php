@@ -36,6 +36,11 @@ final class TrendyolTransportTest extends TestCase
         if($this->pdo?->inTransaction())$this->pdo->rollBack();
         if($this->savedEnv!==[])$_ENV=$this->savedEnv;
     }
+    public function testStockOnlyUpdateDoesNotSendZeroPrices(): void
+    {
+        $r=$this->service->updateListingProducts([['barcode'=>'STOCK-ONLY','quantity'=>0]]);
+        self::assertTrue($r['success']);self::assertSame('local-stock-only',$r['batchRequestId']);
+    }
     public function testV2MetadataAndSeparatelyPaginatedOptions(): void
     {
         $attributes=$this->service->fetchCategoryAttributes('1017');

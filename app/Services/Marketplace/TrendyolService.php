@@ -1137,8 +1137,14 @@ final class TrendyolService extends AbstractMarketplace
         $this->loadCredentials();
         $payload = [];
         foreach ($items as $item) {
-            $row = ['barcode'=>(string)$item['barcode'],
-                'salePrice'=>(float)$item['salePrice'], 'listPrice'=>(float)$item['listPrice']];
+            $row = ['barcode'=>(string)$item['barcode']];
+            if (array_key_exists('salePrice', $item) && array_key_exists('listPrice', $item)) {
+                $row['salePrice'] = (float)$item['salePrice'];
+                $row['listPrice'] = (float)$item['listPrice'];
+            }
+            if (!array_key_exists('quantity', $item) && !isset($row['salePrice'])) {
+                throw new \InvalidArgumentException('Stok veya fiyat değeri gerekli.');
+            }
             // Omit stock for price-only updates; absence must never become zero.
             if (array_key_exists('quantity', $item)) {
                 $row['quantity'] = TrendyolProductRules::quantity((int)$item['quantity']);

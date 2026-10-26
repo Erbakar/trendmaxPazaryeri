@@ -65,6 +65,10 @@ if($path==='/integration/product/sellers/999/v2/products' && $_SERVER['REQUEST_M
 } elseif($path==='/integration/inventory/sellers/999/products/price-and-inventory' && $_SERVER['REQUEST_METHOD']==='POST') {
     $payload=json_decode(file_get_contents('php://input'),true);
     $item=$payload['items'][0]??[];
+    if(($item['barcode']??'')==='STOCK-ONLY') {
+        if($item!==['barcode'=>'STOCK-ONLY','quantity'=>0]){http_response_code(400);echo json_encode(['error'=>'Stock-only update changed price']);return;}
+        echo json_encode(['batchRequestId'=>'local-stock-only']);return;
+    }
     if(($item['barcode']??'')==='RAW80') {
         if (array_keys($item)===['barcode','quantity'] && $item['quantity']===0) {echo json_encode(['batchRequestId'=>'local-stock-pending']);return;}
         if (($item['salePrice']??0)!=166 || array_key_exists('quantity',$item)) {http_response_code(400);echo json_encode(['error'=>'Wrong reconciled shipping price']);return;}

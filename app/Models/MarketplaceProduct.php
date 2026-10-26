@@ -117,13 +117,14 @@ final class MarketplaceProduct extends BaseModel
 
         return $this->rawQuery(
             "SELECT mp.id, mp.product_id, mp.marketplace_id, mp.sync_error, mp.is_listed,
-                    p.barcode, p.sku, p.name AS product_name
+                    COALESCE(NULLIF(mp.marketplace_barcode, ''), p.barcode) AS barcode,
+                    COALESCE(NULLIF(mp.marketplace_sku, ''), p.sku) AS sku, p.name AS product_name
              FROM marketplace_products mp
              JOIN products p ON mp.product_id = p.id AND p.store_id = :store_id2
              WHERE mp.store_id = :store_id
                AND mp.sync_error LIKE 'Batch kontrol bekliyor: %'
                {$ek}
-             ORDER BY mp.marketplace_id ASC, mp.id ASC
+             ORDER BY mp.updated_at ASC, mp.id ASC
              LIMIT {$limit}",
             $par
         );

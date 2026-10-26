@@ -109,10 +109,12 @@ final class ProductPublishService
             }
 
             $sonuc['checked']++;
+            // Rotate unresolved receipts so old batches cannot starve newer submissions.
+            $this->mpProductModel->update((int) $satir['id'], ['updated_at' => date('Y-m-d H:i:s')]);
             $anahtar = $mpId . ':' . $batchId;
 
             try {
-                $batchOnbellek[$anahtar] ??= $this->checkBatchStatus($servis, $batchId);
+                $batchOnbellek[$anahtar] ??= $this->checkBatchStatus($servis, $batchId, true);
             } catch (\Throwable $e) {
                 $batchOnbellek[$anahtar] = [];
                 $sonuc['errors'][] = "batch {$batchId}: " . $e->getMessage();
@@ -2574,7 +2576,7 @@ final class ProductPublishService
      *
      * @return array<string, array<string, string>>
      */
-    private function checkBatchStatus(object $marketplaceService, string $batchId): array
+    private function checkBatchStatus(object $marketplaceService, string $batchId, bool $throwErrors = false): array
     {
         if ($batchId === '' || !method_exists($marketplaceService, 'getBatchStatus')) {
             return [];
@@ -2589,6 +2591,7 @@ final class ProductPublishService
             try {
                 $status = $marketplaceService->getBatchStatus($batchId);
             } catch (\Throwable $e) {
+                if ($throwErrors) throw $e;
                 return [];
             }
 
@@ -2618,7 +2621,7 @@ final class ProductPublishService
                 ?? $item['barcode']
                 ?? ''
             ));
-            $skuKeys = $this->batchSkuKeys((string) ($item['merchantSku'] ?? $item['sku'] ?? ''));
+            $skuKeys = $this->batchSkuKeys((string) ($item['merchantSku'] ?? $item['sku'] ?? $requestItem['stockCode'] ?? $requestProduct['stockCode'] ?? ''));
 
             if ($barcode === '' && $skuKeys === []) {
                 continue;

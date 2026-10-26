@@ -33,6 +33,15 @@ final class StockSyncReconciliationTest extends TestCase
    $map=$c->get(MarketplaceProduct::class)->find($mid);
    self::assertSame(498,(int)$map['last_stock_sent']);
    self::assertSame(86.0,(float)$map['last_price_sent']);
+   $model=$c->get(MarketplaceProduct::class);
+   $model->update($mid,['sync_error'=>'Batch kontrol bekliyor: old','updated_at'=>'2000-01-01 00:00:00']);
+   $pid2=$c->get(Product::class)->create(['sku'=>'SECOND','name'=>'Second pending','barcode'=>'NEW','stock_qty'=>1]);
+   $mid2=$model->create(['product_id'=>$pid2,'marketplace_id'=>1,'sync_error'=>'Batch kontrol bekliyor: new','marketplace_barcode'=>'SENT','updated_at'=>'2001-01-01 00:00:00']);
+   self::assertSame($mid,(int)$model->getPendingBatches(1,1)[0]['id']);
+   $model->update($mid,['updated_at'=>date('Y-m-d H:i:s')]);
+   $next=$model->getPendingBatches(1,1)[0];
+   self::assertSame($mid2,(int)$next['id']);
+   self::assertSame('SENT',$next['barcode']);
 
   }finally{$db->rollBack();$_ENV=$env;}
  }

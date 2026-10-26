@@ -77,6 +77,8 @@ final class XmlProfileImportService
     /** SKUs observed in the fully validated supplier snapshot, including variants. */
     private array $seenSkus = [];
 
+    private array $existingCategoryPaths = [];
+
     public function __construct(
         private readonly XmlProfile $profileModel,
         private readonly XmlProfileLog $logModel,
@@ -117,6 +119,7 @@ final class XmlProfileImportService
         $this->categoryCache = [];
         $this->brandCache = [];
         $this->attributeCache = [];
+        $this->existingCategoryPaths = [];
         $this->profilAyari = $this->profileSettings->forProfile($profileId);
 
         $localFile = null;
@@ -1012,7 +1015,19 @@ final class XmlProfileImportService
 
         $categoryId = null;
         if (!empty($row['category_path']) && (int) ($profile['create_categories'] ?? 1) === 1) {
-            $categoryId = $this->ensureCategoryChain($row['category_path']);
+            // Whitespace-only supplier changes must not move products off their mapped category.
+            $oldId = (int) ($existing['category_id'] ?? 0);
+            if ($oldId > 0) {
+                if (!array_key_exists($oldId, $this->existingCategoryPaths)) {
+                    $old = $this->categoryModel->find($oldId);
+                    $this->existingCategoryPaths[$oldId] = $old ? (string) ($old['full_path'] ?? '') : '';
+                }
+                $oldPath = $this->existingCategoryPaths[$oldId];
+                if ($oldPath !== '' && self::categoryPathKey(explode('>', $oldPath)) === self::categoryPathKey(array_slice($row['category_path'], 0, 5))) {
+                    $categoryId = $oldId;
+                }
+            }
+            $categoryId ??= $this->ensureCategoryChain($row['category_path']);
         }
 
         $brandId = null;
@@ -1268,7 +1283,7 @@ final class XmlProfileImportService
         $parentId = null;
         $walked = [];
         foreach ($path as $name) {
-            $name = mb_substr($name, 0, 290);
+            $name = mb_substr(self::categoryName($name), 0, 290);
             $walked[] = $name;
             $walkKey = implode('|', $walked);
 
@@ -1300,19 +1315,28 @@ final class XmlProfileImportService
      *
      * @return array<string, mixed>|false
      */
+    private static function categoryName(string $name): string
+    {
+        return trim((string) preg_replace('/[\s\p{Z}]+/u', ' ', $name));
+    }
+
+    private static function categoryPathKey(array $path): string
+    {
+        return mb_strtolower(implode(' > ', array_map(self::categoryName(...), $path)));
+    }
+
     private function findCategory(string $name, ?int $parentId): array|false
     {
         $storeId = $this->tenant->currentStoreId();
-        if ($parentId === null) {
-            return $this->db->fetchOne(
-                "SELECT id FROM categories WHERE store_id = :sid AND parent_id IS NULL AND LOWER(name) = LOWER(:name) LIMIT 1",
-                ['sid' => $storeId, 'name' => $name]
-            );
-        }
-        return $this->db->fetchOne(
-            "SELECT id FROM categories WHERE store_id = :sid AND parent_id = :pid AND LOWER(name) = LOWER(:name) LIMIT 1",
-            ['sid' => $storeId, 'pid' => $parentId, 'name' => $name]
+        $rows = $this->db->fetchAll(
+            'SELECT id,name FROM categories WHERE store_id=:sid AND parent_id <=> :pid ORDER BY id',
+            ['sid'=>$storeId, 'pid'=>$parentId]
         );
+        // Exact canonical spelling first; fallback only to an unambiguous whitespace equivalent.
+        foreach ($rows as $row) if (mb_strtolower($row['name']) === mb_strtolower($name)) return $row;
+        $matches = array_values(array_filter($rows, static fn(array $r): bool =>
+            mb_strtolower(self::categoryName($r['name'])) === mb_strtolower(self::categoryName($name))));
+        return count($matches) === 1 ? $matches[0] : false;
     }
 
     /**

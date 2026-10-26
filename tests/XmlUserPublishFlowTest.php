@@ -35,6 +35,16 @@ final class XmlUserPublishFlowTest extends TestCase
             $invalid=$publish->previewForPublish((int)$bad['id'],1);self::assertFalse($invalid['valid']);self::assertStringContainsString('Materyal',implode(' / ',$invalid['errors']));
             $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(2,$sent['success'],json_encode($sent));self::assertSame(0,$sent['failed']);
             $unchanged=$import->run($pid);self::assertSame(0,$unchanged['created']);self::assertSame(0,$unchanged['updated']);self::assertSame(3,$unchanged['skipped']);
+            // Supplier whitespace changes must preserve category IDs and their publish mapping.
+            $spaced=str_replace('XML test combs', 'XML  test&#160;combs', $xml);
+            file_put_contents($file,$spaced);self::assertTrue($import->run($pid)['ok']);
+            self::assertSame((int)$a['category_id'],(int)$products->find((int)$a['id'])['category_id']);
+            self::assertSame(1,(int)$db->fetchOne('SELECT COUNT(*) n FROM categories WHERE store_id=?',[$sid])['n']);
+            self::assertSame($mappingId,(int)$maps->forProduct($products->find((int)$a['id']),1)['id']);
+            $categoryMethod=new ReflectionMethod($import,'ensureCategoryChain');
+            self::assertSame((int)$a['category_id'],$categoryMethod->invoke($import,[' XML   test combs ']));
+            self::assertNotSame((int)$a['category_id'],$categoryMethod->invoke($import,['Different parent','XML test combs']));
+            file_put_contents($file,$xml);
             $maps->saveTrendyolAttributes($mappingId,['47'=>'Lacivert'],[],(int)$a['id']);
             $doc=simplexml_load_string($xml);$doc->Item[0]->Color='Mavi';$doc->Item[0]->Price='120';$doc->Item[0]->Cost='120';$doc->Item[0]->Stock='7';$xml=$doc->asXML();file_put_contents($file,$xml);
             $refresh=$import->run($pid);self::assertSame(1,$refresh['updated']);self::assertSame(3,$profile->getProductCount($pid));$a=$products->find((int)$a['id']);self::assertSame(7,(int)$a['stock_qty']);self::assertSame(258.0,$c->get(PriceRuleEngine::class)->calculatePrice($a,1)['sale_price']);

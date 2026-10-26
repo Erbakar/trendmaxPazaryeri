@@ -541,7 +541,9 @@ final class StockManager
                 $metaKey = $barcode !== '' ? $barcode : 'mp:' . $mpProductId;
 
                 $calculatedStock = $this->calculateMarketplaceStock($productId, $marketplaceId);
-                $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
+                $price = ($marketplace['slug'] ?? $slug ?? '') === 'trendyol'
+            ? ['sale_price' => 0, 'list_price' => 0]
+            : $this->priceEngine->calculatePrice($product, $marketplaceId);
 
                 $batchItems[] = [
                     'id'       => $mpProductId,
@@ -567,7 +569,7 @@ final class StockManager
 
             try {
                 $result = match ($slug) {
-                    'trendyol'    => $this->trendyolService->updateStock($batchItems),
+                    'trendyol'    => $this->trendyolService->updateStock(array_map(static fn(array $item): array => ['barcode' => $item['barcode'], 'quantity' => $item['quantity']], $batchItems)),
                     'n11'         => $this->n11Service->updateStock($batchItems),
                     'hepsiburada' => $this->hepsiburadaService->updateStock($batchItems),
                     'pazarama'    => $this->pazaramaService->updateStock($batchItems),
@@ -583,7 +585,7 @@ final class StockManager
                 $totalFailed += ($result['failed'] ?? 0);
 
                 // Başarılıysa son gönderilen değerleri güncelle
-                if (($result['failed'] ?? 0) === 0) {
+                if ($slug !== 'trendyol' && ($result['failed'] ?? 0) === 0) {
                     foreach ($batchMeta as $info) {
                         $this->mpProductModel->updateLastSent($info['mp_id'], $info['stock'], $info['price']);
                     }
@@ -626,7 +628,9 @@ final class StockManager
         }
 
         $calculatedStock = $this->calculateMarketplaceStock($productId, $marketplaceId);
-        $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
+        $price = ($marketplace['slug'] ?? $slug ?? '') === 'trendyol'
+            ? ['sale_price' => 0, 'list_price' => 0]
+            : $this->priceEngine->calculatePrice($product, $marketplaceId);
         $slug = $marketplace['slug'];
 
         $mpProductId = (string) ($mpProduct['marketplace_product_id'] ?? '');
@@ -649,7 +653,7 @@ final class StockManager
         ]];
 
         $result = match ($slug) {
-            'trendyol'    => $this->trendyolService->updateStock($items),
+            'trendyol'    => $this->trendyolService->updateStock(array_map(static fn(array $item): array => ['barcode' => $item['barcode'], 'quantity' => $item['quantity']], $items)),
             'n11'         => $this->n11Service->updateStock($items),
             'hepsiburada' => $this->hepsiburadaService->updateStock($items),
             'pazarama'    => $this->pazaramaService->updateStock($items),
@@ -662,6 +666,10 @@ final class StockManager
         };
 
         if (($result['failed'] ?? 0) === 0) {
+            // Trendyol confirms asynchronously; reconciliation records the observed stock.
+            if ($slug === 'trendyol') {
+                return true;
+            }
             $this->mpProductModel->updateLastSent(
                 (int) $mpProduct['id'],
                 $calculatedStock,
@@ -687,8 +695,11 @@ final class StockManager
             return 0;
         }
 
-        $realStock = (int) $product['stock_qty'];
-        $offset = (int) ($mpProduct['stock_offset'] ?? 0);
+        $realStock = StockAvailability::quantity($product);
+        if (!(bool) ($mpProduct['is_active'] ?? true)) {
+            return 0;
+        }
+        $offset = max(0, (int) ($mpProduct['stock_offset'] ?? 0));
 
         return max(0, $realStock - $offset);
     }

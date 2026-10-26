@@ -85,12 +85,12 @@ final class MarketplaceProduct extends BaseModel
         return $this->rawQuery(
             "SELECT mp.*, p.stock_qty, p.base_price, p.barcode,
                     p.name as product_name, p.sku as internal_sku,
-                    (CASE WHEN p.is_active=0 OR p.is_archived=1 OR mp.is_active=0 THEN 0 ELSE GREATEST(0,p.stock_qty - GREATEST(0,mp.stock_offset)) END) as calculated_stock
+                    (CASE WHEN p.is_active=0 OR p.is_archived=1 OR mp.is_active=0 OR (p.xml_profile_id IS NOT NULL AND p.missing_stock=1) THEN 0 ELSE GREATEST(0,p.stock_qty - GREATEST(0,mp.stock_offset)) END) as calculated_stock
              FROM marketplace_products mp
              JOIN products p ON mp.product_id = p.id AND p.store_id = :store_id2
              WHERE mp.marketplace_id = :mid
                AND mp.is_listed = 1
-               AND (mp.last_stock_sent IS NULL OR mp.last_stock_sent != (CASE WHEN p.is_active=0 OR p.is_archived=1 OR mp.is_active=0 THEN 0 ELSE GREATEST(0,p.stock_qty - GREATEST(0,mp.stock_offset)) END))
+               AND (mp.last_stock_sent IS NULL OR mp.last_stock_sent != (CASE WHEN p.is_active=0 OR p.is_archived=1 OR mp.is_active=0 OR (p.xml_profile_id IS NOT NULL AND p.missing_stock=1) THEN 0 ELSE GREATEST(0,p.stock_qty - GREATEST(0,mp.stock_offset)) END))
                AND mp.store_id = :store_id
              ORDER BY p.id ASC",
             ['mid' => $marketplaceId, 'store_id' => $this->tenantId(), 'store_id2' => $this->tenantId()]

@@ -28,6 +28,12 @@ final class StockSyncReconciliationTest extends TestCase
    // Remote still reports 498: the rejected/pending zero must remain eligible.
    self::assertCount(1,$c->get(MarketplaceProduct::class)->getStockChanged(1));
    self::assertSame(40.0,(float)$c->get(Product::class)->find($pid)['cost_price']);
+   // The immediate order/return path must also send stock only and leave receipt unconfirmed.
+   self::assertTrue($c->get(\App\Services\StockManager::class)->syncStockToMarketplace($pid,1));
+   $map=$c->get(MarketplaceProduct::class)->find($mid);
+   self::assertSame(498,(int)$map['last_stock_sent']);
+   self::assertSame(86.0,(float)$map['last_price_sent']);
+
   }finally{$db->rollBack();$_ENV=$env;}
  }
 }

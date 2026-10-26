@@ -1663,7 +1663,7 @@ final class ProductPublishService
             // Existing content has already passed marketplace validation; listing updates only send price/stock.
             $item = $operation === 'updateListingProducts'
                 ? ['barcode'=>(string)$existingListing['marketplace_barcode'], 'stockCode'=>$product['sku'],
-                    'quantity'=>\App\Services\Marketplace\TrendyolProductRules::quantity((int)$product['stock_qty']),
+                    'quantity'=>\App\Services\Marketplace\TrendyolProductRules::quantity(StockAvailability::quantity($product)),
                     'salePrice'=>$price['sale_price'], 'listPrice'=>$price['list_price']]
                 : $this->buildMarketplaceItem($product, $price, $catMapping, $brandMapping, $marketplace['slug'], $marketplace);
 
@@ -2148,7 +2148,7 @@ final class ProductPublishService
                 'productMainId' => $product['sku'],
                 'brandId'    => (int) ($brandMapping['marketplace_brand_id'] ?? 0),
                 'categoryId' => (int) ($catMapping['marketplace_category_id'] ?? 0),
-                'quantity'   => \App\Services\Marketplace\TrendyolProductRules::quantity((int)$product['stock_qty']),
+                'quantity'   => \App\Services\Marketplace\TrendyolProductRules::quantity(StockAvailability::quantity($product)),
                 'stockCode'  => $product['sku'],
                 'dimensionalWeight' => (float) ($product['desi'] ?? 1),
                 'description' => $description,

@@ -38,7 +38,10 @@ final class XmlUserPublishFlowTest extends TestCase
             foreach([$a,$b]as$p){$preview=$publish->previewForPublish((int)$p['id'],1);self::assertTrue($preview['valid'],implode(' / ',$preview['errors']));self::assertCount(2,$preview['item']['images']);self::assertSame(ceil((float)$p['cost_price']*2.15),$preview['item']['salePrice']);}
             $invalid=$publish->previewForPublish((int)$bad['id'],1);self::assertFalse($invalid['valid']);self::assertStringContainsString('Materyal',implode(' / ',$invalid['errors']));
             $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(2,$sent['success'],json_encode($sent));self::assertSame(0,$sent['failed']);
-            $unchanged=$import->run($pid);self::assertSame(0,$unchanged['created']);self::assertSame(0,$unchanged['updated']);self::assertSame(3,$unchanged['skipped']);
+            $db->query("UPDATE sync_jobs SET status='running' WHERE store_id=? AND job_type='stock_sync'",[$sid]);
+            $unchanged=$import->run($pid);
+            self::assertSame(1,(int)$db->fetchOne("SELECT COUNT(*) n FROM sync_jobs WHERE store_id=? AND job_type='stock_sync' AND status='pending'",[$sid])['n'],'Fresh XML queues a follow-up behind an already-running stock job');
+            self::assertSame(0,$unchanged['created']);self::assertSame(0,$unchanged['updated']);self::assertSame(3,$unchanged['skipped']);
             // Supplier whitespace changes must preserve category IDs and their publish mapping.
             $spaced=str_replace('XML test combs', 'XML  test&#160;combs', $xml);
             file_put_contents($file,$spaced);self::assertTrue($import->run($pid)['ok']);

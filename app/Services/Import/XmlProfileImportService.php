@@ -153,7 +153,7 @@ final class XmlProfileImportService
                 $mp = $this->marketplaces->findBySlug('trendyol');
                 if ($mp && !empty($mp['is_active']) && !empty($mp['api_key_encrypted'])) {
                     $this->queue->enqueueUnique($this->tenant->currentStoreId(), 'stock_sync', (int)$mp['id'],
-                        ['source'=>'xml_profile','profile_id'=>$profileId]);
+                        ['source'=>'xml_profile','profile_id'=>$profileId], afterRunning: true);
                 }
             }
 

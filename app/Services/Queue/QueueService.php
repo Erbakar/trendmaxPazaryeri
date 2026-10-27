@@ -96,14 +96,18 @@ final class QueueService
         array $payload = [],
         int $maxAttempts = 3,
         ?int $enqueuedBy = null,
+        bool $afterRunning = false,
     ): array {
         $this->assertStore($storeId);
         $this->assertJobType($jobType);
 
+        // A fresh XML snapshot must get a follow-up even if a stock job has
+        // already read the previous snapshot. Reuse a pending follow-up only.
+        $statuses = $afterRunning ? "'pending'" : "'pending','running'";
         $existing = $this->db->fetchOne(
             "SELECT id FROM sync_jobs
               WHERE store_id = :store_id AND job_type = :job_type
-                AND status IN ('pending','running')
+                AND status IN ({$statuses})
                 AND ((:mp IS NULL AND marketplace_id IS NULL) OR marketplace_id = :mp2)
               ORDER BY id LIMIT 1",
             ['store_id' => $storeId, 'job_type' => $jobType, 'mp' => $marketplaceId, 'mp2' => $marketplaceId]

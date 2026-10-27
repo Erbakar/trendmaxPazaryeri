@@ -40,7 +40,7 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
 5. Önce `php database/migrate.php --dry-run` ile bekleyen güncellemeleri inceleyin.
    Yedekten sonra `php database/migrate.php --allow-live` ile uygulayın; tekrar dry-run'da
    bekleyen işlem kalmamalı. Mevcut bilinmeyen bir şemaya gelişigüzel `--baseline` uygulamayın.
-   Bu sürümün yeni şema dosyaları phase14/056–058'dir.
+   Bu sürümün phase14 güncellemeleri 059 ve 060'ı da içerir; katalog kontrolü ve görsel önbelleği için beş yeni tablo gerekir.
 6. Uygulamayı yeni sürüme yönlendirin; kullanıcı girişi, kendi mağaza görünürlüğü, XML analizi,
    kategori/özellik seçimleri, fiyat önizlemesi ve sınırlı gerçek ürünün batch sonucunu doğrulayın.
    Batch kabulü, içerik onayı ve satışa açılma ayrı aşamalardır.
@@ -57,9 +57,14 @@ Sunucuda kuyruk işleyicisi henüz kurulmadıysa, aşağıdaki cron örneğinde 
 * * * * * /usr/bin/php /PROJE/cron/queue_worker.php --max-jobs=50 --max-seconds=50 >> /PROJE/storage/logs/queue-worker.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/sync_xml_profiles.php >> /PROJE/storage/logs/xml-cron.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/sync_publish_batches.php >> /PROJE/storage/logs/publish-batches.log 2>&1
+* * * * * /usr/bin/php /PROJE/cron/catalog_audit.php >> /PROJE/storage/logs/catalog-audit.log 2>&1
 ```
 
 Aynı görevlerin doğrudan `sync_orders.php` vb. cron tanımlarını kuyrukla birlikte çalıştırmayın. Ürün gönderimi için ilgili veritabanı migrasyonları, kuyruk için de `sync_jobs` şeması tamamlanmış olmalıdır. `/sync` ekranında yalnız yeşil anahtar veya elle başarılı çalışma otomatik çalışmanın kanıtı değildir; her satırdaki **Son otomatik** tarihinin seçilen aralıkta ilerlediğini kontrol edin. Gönderim isteklerinin API kabulü, ürünün satışa açılması anlamına gelmez; batch sonucu ve Trendyol durum sayaçları ayrıca doğrulanmalıdır.
+
+Ürünler → **Katalog Kontrolü** (`/products/catalog-audit`) tüm XML kaynaklarını, panel ürünlerini ve eski Trendyol ilanlarını tek raporda toplar. Kontrol ve otomatik gönderim mağaza bazında ayrı açılır; varsayılan olarak kapalıdır. Sunucu işi kaldığı yerden sürdürür, tamamlanan turdan 15 dakika sonra yeniden başlar. Mağaza/pazaryeri yetkisi ve ürün düzenleme izni gerekir. Mevcut sipariş, XML, fiyat ve stok görevleri çalışmaya devam eder.
+
+Yeni gönderimde güncel XML ile panel stoğu, fiyat tabanı ve görseller uyuşmalı; kategori/özellik doğrulaması ve kayıtlı içerik incelemesi bulunmalıdır. Görsel kontrol sonuçları mağazaya özel veritabanı önbelleğinde tutulur; görsel başına dosya oluşturulmaz ve kullanılmayan kayıtlar yedi gün sonra temizlenir. Görsel adresleri güvenli genel IP'lere sabitlenerek okunur; teknik erişim, kategori ve görselin ürüne uygun olduğuna dair incelemenin yerine geçmez. İçerik, kategori veya özellik değişikliği onayı geçersiz kılar. Kâr/kargo için mevcut fiyat motoru kullanılır. Eski ilanlarda yalnız kanıtlı XML bağlantıları kullanılır; stok bağlantısı fiyat/marka/görsel sahipliğini değiştirmez. Eksik veya bozuk XML, sıfır stok kabul edilmez. Yeni ürün isteğinin sonucu belirsizse otomatik mükerrer gönderim yapılmaz; doğrulama/ret sonucu raporda tutulur. Kaynak ve rapor dosyaları özel `storage/catalog-audit/` alanındadır ve dağıtım paketine alınmaz.
 
 Geri dönüşte önce worker/cron'u durdurun; önceki uygulama sürümüne dönün. Şema/veri geri dönüşü
 gerekiyorsa bakım penceresinde alınmış veritabanı ve dosya yedeğini birlikte geri yükleyin.

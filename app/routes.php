@@ -159,6 +159,9 @@ $router->post('/customers/{id}',             [CustomerController::class, 'update
 
 // ─── Ürünler ───────────────────────────────────────────
 $router->get('/products',                    [ProductController::class, 'index'],       $authMiddleware);
+$router->get('/products/catalog-audit', [\App\Controllers\CatalogAuditController::class, 'index'], $authMiddleware);
+$router->post('/products/catalog-audit/configure', [\App\Controllers\CatalogAuditController::class, 'configure'], $authCsrf);
+$router->post('/products/catalog-audit/approve', [\App\Controllers\CatalogAuditController::class, 'approve'], $authCsrf);
 $router->get('/products/ajax',              [ProductController::class, 'ajaxList'],    $authMiddleware);
 $router->post('/products/catalog-status', [ProductController::class, 'catalogStatus'], $authCsrf);
 $router->get('/products/create',             [ProductController::class, 'create'],      $authMiddleware);

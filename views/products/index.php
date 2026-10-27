@@ -384,6 +384,7 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
     <p>Kataloğunuzu yönetin, pazaryerlerine gönderin ve stokları eşitleyin.</p>
   </div>
   <div class="ui-page-actions">
+    <a href="/products/catalog-audit" class="ui-btn ui-btn-outline">Katalog Kontrolü</a>
     <button type="button" onclick="doSync()" title="Tüm pazaryerlerinden ürünleri çek" class="ui-btn ui-btn-outline"><i data-lucide="refresh-cw"></i> Senkronize Et</button>
     <button type="button" onclick="prodFormOpen(null)" class="ui-btn ui-btn-primary"><i data-lucide="plus"></i> Yeni Ürün</button>
   </div>

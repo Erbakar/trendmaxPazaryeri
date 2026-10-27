@@ -205,6 +205,52 @@ final class XmlProfileImportService
         }
     }
 
+    /** A complete read-only supplier snapshot. A failed/empty/duplicate feed never means zero stock. */
+    public function snapshotForAudit(int $profileId): array
+    {
+        $profile=$this->profileModel->findOrFail($profileId);
+        if(($profile['direction']??'import')!=='import'||empty($profile['is_active']))throw new \RuntimeException('XML profili açık bir içe aktarım profili olmalı.');
+        [$file,$temporary]=$this->resolveSource($profile);
+        try{
+            $this->validateSnapshot($file);$mapping=$this->resolveMapping($profile,$file);$rows=[];
+            $reader=$this->openReader($file);$doc=new \DOMDocument('1.0','UTF-8');$rates=[];
+            $getRate=function(string $code,float $feed)use(&$rates):float{
+                if(!isset($rates[$code]))$rates[$code]=$this->exchangeRates->getRate($code);
+                return $rates[$code]>0?$rates[$code]:$feed;
+            };
+            $append=static function(array $row)use(&$rows):void{
+                $sku=(string)($row['sku']??'');
+                if($sku===''||isset($rows[$sku]))throw new \RuntimeException('XML stok kodu boş veya mükerrer; tam katalog doğrulanamadı.');
+                $rows[$sku]=$row;
+            };
+            try{
+                $more=$reader->read();
+                while($more){
+                    if($reader->nodeType!==\XMLReader::ELEMENT||$reader->name!==$mapping['item_tag']){$more=$reader->read();continue;}
+                    $node=$reader->expand($doc);$item=$node?simplexml_import_dom($node):false;
+                    if(!$item)throw new \RuntimeException('XML satırı okunamadı.');
+                    $stockNodes=!empty($mapping['_ticimax'])
+                        ? (isset($item->UrunSecenek->Secenek)?iterator_to_array($item->UrunSecenek->Secenek):[$item]) : [$item];
+                    $stockTag=!empty($mapping['_ticimax'])?'StokAdedi':(string)($mapping['stock']??'');
+                    foreach($stockNodes as$stockNode){
+                        $rawStock=$stockTag!==''?trim((string)($stockNode->{$stockTag}??'')):'';
+                        if($rawStock===''||!preg_match('/^-?[0-9]+(?:[.,][0-9]+)?$/D',$rawStock))throw new \RuntimeException('XML stok alanı eksik veya sayısal değil; sıfır stok varsayılmadı.');
+                    }
+                    $row=!empty($mapping['_ticimax'])?$this->parseTicimaxItem($item,$getRate):$this->parseGenericItem($item,$mapping);
+                    if(!$row)throw new \RuntimeException('XML satırı çözümlenemedi.');
+                    $append($row);
+                    foreach($row['variants']??[]as$variant){
+                        if(($variant['sku']??'')!==($row['sku']??''))$append(array_replace($row,$variant));
+                    }
+                    $more=$reader->next();
+                }
+            }finally{$reader->close();}
+            if(!$rows)throw new \RuntimeException('XML boş; yok olan ürün kararı verilemez.');
+            return ['profile_id'=>$profileId,'checked_at'=>date(DATE_ATOM),'sha256'=>hash_file('sha256',$file),
+                'profile'=>$profile,'rows'=>$rows];
+        }finally{if($temporary)@unlink($file);}
+    }
+
     /**
      * XML kaynağını analiz et (kaydetmeden önizleme): ürün düğümü, adet, etiketler.
      *

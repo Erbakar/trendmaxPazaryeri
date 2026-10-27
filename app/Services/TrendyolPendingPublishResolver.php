@@ -34,6 +34,7 @@ final class TrendyolPendingPublishResolver
             $unapproved=$this->trendyol->readProductCatalog(false,true);
             $index=TrendyolPublishReceipt::index($approved,$unapproved);
         }
+        $identityChecks=0;
         foreach ($rows as $row) {
             $expired=TrendyolPublishReceipt::expired($row);
             $batch=substr($row['sync_error'],strlen('Batch kontrol bekliyor: '));
@@ -55,9 +56,25 @@ final class TrendyolPendingPublishResolver
             }
             $match=$index===null ? [] : TrendyolPublishReceipt::match($row,$index);
             if (!empty($match['conflict'])) {
-                $this->listings->update((int)$row['id'],['sync_error'=>'Mevcut Trendyol kaydı — eşleştirme belirsiz; barkod/stok kodu kontrol edilmeli.']);
-                $result['errors'][]='Ürün #'.$row['product_id'].': kimlik çakışması';
-                continue;
+                // Catalogue pages can overlap during approval even when totals stay
+                // constant. Confirm this barcode directly before leaving a receipt stuck.
+                if ($identityChecks < 20) {
+                    $identityChecks++;
+                    try {
+                        $direct=$this->trendyol->findProductsByBarcode((string)$row['barcode']);
+                        $match=TrendyolPublishReceipt::match($row,TrendyolPublishReceipt::index(
+                            $direct['approved']['content'] ?? [], $direct['unapproved']['content'] ?? []));
+                    } catch (\Throwable $e) {
+                        $result['errors'][]='Ürün #'.$row['product_id'].': doğrudan kimlik kontrolü başarısız: '.$e->getMessage();
+                    }
+                }
+                if (!$match || !empty($match['conflict'])) {
+                    // Keep the receipt eligible for a later check; never choose an
+                    // ambiguous identity or permanently stop after a transient overlap.
+                    $result['pending']++;
+                    $result['errors'][]='Ürün #'.$row['product_id'].': kimlik çakışması; yeniden doğrulanacak';
+                    continue;
+                }
             }
             if ($match) {
                 $owners=$this->db->fetchAll('SELECT DISTINCT p.id FROM products p

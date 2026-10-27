@@ -43,12 +43,19 @@ final class TrendyolPendingPublishResolverTest extends TestCase
         $ids=[];foreach(['OK','REJECT','WAIT','ABSENT','CONFLICT']as$sku)$ids[$sku]=$this->row($sku);
         $before=$this->db->fetchAll('SELECT * FROM products WHERE store_id=?',[$this->c->get(TenantContext::class)->currentStoreId()]);
         $r=$this->c->get(TrendyolPendingPublishResolver::class)->resolve(1,$this->listings->getPendingBatches(1));
-        self::assertSame(1,$r['approved']);self::assertSame(1,$r['rejected']);self::assertSame(1,$r['expired']);self::assertSame(1,$r['pending']);self::assertCount(1,$r['errors']);
+        self::assertSame(1,$r['approved']);self::assertSame(1,$r['rejected']);self::assertSame(1,$r['expired']);self::assertSame(2,$r['pending']);self::assertCount(1,$r['errors']);
         self::assertSame(1,(int)$this->listings->findByProductAndMarketplace($ids['OK'],1)['is_listed']);
         self::assertStringContainsString('Yeniden gönderilebilir',$this->listings->findByProductAndMarketplace($ids['ABSENT'],1)['sync_error']);
         self::assertStringContainsString('Fixture rejection',$this->listings->findByProductAndMarketplace($ids['REJECT'],1)['sync_error']);
         self::assertStringStartsWith('Batch kontrol bekliyor:',$this->listings->findByProductAndMarketplace($ids['WAIT'],1)['sync_error']);
         self::assertSame($before,$this->db->fetchAll('SELECT * FROM products WHERE store_id=?',[$this->c->get(TenantContext::class)->currentStoreId()]));
+    }
+    public function testTemporaryCatalogueOverlapIsResolvedByDirectBarcodeLookup(): void
+    {
+        $id=$this->row('TRANSIENT');
+        $result=$this->c->get(TrendyolPendingPublishResolver::class)->resolve(1,$this->listings->getPendingBatches(1));
+        self::assertSame(1,$result['approved']);self::assertSame([],$result['errors']);
+        self::assertSame(1,(int)$this->listings->findByProductAndMarketplace($id,1)['is_listed']);
     }
     public function testBatchSuccessAloneIsNotApprovalAndFailedUpdatesRemainFailures(): void
     {

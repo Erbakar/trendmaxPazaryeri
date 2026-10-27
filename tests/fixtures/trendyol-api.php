@@ -11,7 +11,11 @@ if (str_starts_with($path, '/receipts')) {
     $approved=str_ends_with($path,'/approved');
     $content=$approved ? [['id'=>'A','productMainId'=>'A','variants'=>[['barcode'=>'OK','stockCode'=>'OK']]],['id'=>'B','productMainId'=>'B','variants'=>[['barcode'=>'CONFLICT','stockCode'=>'OTHER']]]]
         : [['productMainId'=>'R','barcode'=>'REJECT','stockCode'=>'REJECT','status'=>'rejected','rejectReasonDetails'=>[['rejectReasonDetail'=>'Fixture rejection']]],['productMainId'=>'W','barcode'=>'WAIT','stockCode'=>'WAIT','status'=>'pendingApproval']];
-    echo json_encode(['totalPages'=>1,'totalElements'=>$incomplete?3:2,'content'=>$content]);return;
+    if ($approved) {
+        if (($_GET['barcode']??'')==='TRANSIENT') $content=[['id'=>'NEW','productMainId'=>'TRANSIENT','barcode'=>'TRANSIENT','stockCode'=>'TRANSIENT']];
+        else { $content[]=['id'=>'OLD','productMainId'=>'TRANSIENT','barcode'=>'TRANSIENT','stockCode'=>'TRANSIENT']; $content[]=['id'=>'NEW','productMainId'=>'TRANSIENT','barcode'=>'TRANSIENT','stockCode'=>'TRANSIENT']; }
+    } elseif (($_GET['barcode']??'')==='TRANSIENT') $content=[];
+    echo json_encode(['totalPages'=>1,'totalElements'=>count($content)+($incomplete?1:0),'content'=>$content]);return;
 }
 $xmlFlow=str_starts_with($path,'/xml-flow/');
 if($xmlFlow)$path=substr($path,strlen('/xml-flow'));

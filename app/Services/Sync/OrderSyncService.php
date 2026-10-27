@@ -68,6 +68,7 @@ final class OrderSyncService
         private readonly Customer $customerModel,
         private readonly Logger $logger,
         private readonly TenantContext $tenant,
+        private readonly \App\Services\XmlStockLinks $stockLinks,
     ) {}
 
     /**
@@ -1237,6 +1238,10 @@ final class OrderSyncService
     {
         $barcode = $item['barcode'] ?? '';
         $sku = $item['sku'] ?? '';
+        if ($barcode !== '') {
+            $source = $this->stockLinks->productForListing($marketplaceId, (string)$barcode);
+            if ($source !== null) return $source;
+        }
 
         // 1. Barkod ile eşleştir
         if ($barcode !== '') {

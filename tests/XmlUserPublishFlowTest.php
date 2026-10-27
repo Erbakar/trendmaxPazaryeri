@@ -29,6 +29,10 @@ final class XmlUserPublishFlowTest extends TestCase
             $c->get(XmlProfileSettings::class)->save($pid,['kar_tipi'=>'yuzde','kar_degeri'=>115]);
             $result=$import->run($pid);self::assertTrue($result['ok'],$result['message']);self::assertSame(3,$result['created']);self::assertSame(0,$result['failed']);
             $products=$c->get(Product::class);$a=$products->findBySku('XMLFLOW-A');$b=$products->findBySku('XMLFLOW-B');$bad=$products->findBySku('XMLFLOW-C');self::assertSame(3,$profile->getProductCount($pid));
+            $links=$c->get(\App\Services\XmlStockLinks::class);
+            $links->register(1,$pid,['barcode'=>'OLD-XMLFLOW-A','source_sku'=>'XMLFLOW-A','match_method'=>'historical_source','evidence'=>['verified'=>true]]);
+            self::assertSame(3,$links->items(1)[0]['quantity']);
+            self::assertNotFalse($db->fetchOne("SELECT id FROM sync_jobs WHERE store_id=? AND job_type='stock_sync' AND marketplace_id=1",[$sid]));
             $publish=$c->get(ProductPublishService::class);$initial=$publish->previewForPublish((int)$a['id'],1);self::assertFalse($initial['valid']);self::assertContains('Kategori pazaryeri eşleştirmesi yapılmamış',$initial['errors']);
             $maps=$c->get(CategoryMarketplaceMapping::class);$mappingId=$maps->saveMapping((int)$a['category_id'],1,'1017','Saç Fırçası ve Tarak');$c->get(BrandMarketplaceMapping::class)->saveMapping((int)$a['brand_id'],1,'999','Test marka');
             foreach([$a,$b]as$p){$preview=$publish->previewForPublish((int)$p['id'],1);self::assertTrue($preview['valid'],implode(' / ',$preview['errors']));self::assertCount(2,$preview['item']['images']);self::assertSame(ceil((float)$p['cost_price']*2.15),$preview['item']['salePrice']);}
@@ -56,6 +60,7 @@ final class XmlUserPublishFlowTest extends TestCase
             file_put_contents($file, '<Catalog><Item>');
             self::assertFalse($import->run($pid)['ok']);
             self::assertSame(7,(int)$products->find((int)$a['id'])['stock_qty']);
+            self::assertSame(7,$links->items(1)[0]['quantity']);
             file_put_contents($file, '<Catalog/>');
             $import->run($pid);
             self::assertSame(7,(int)$products->find((int)$a['id'])['stock_qty']);
@@ -68,6 +73,7 @@ final class XmlUserPublishFlowTest extends TestCase
             $profile->update($pid,['update_stock'=>1]);
             $retired=$import->run($pid);self::assertSame(1,$retired['removed_stock_zeroed']);
             self::assertSame(0,(int)$products->find((int)$a['id'])['stock_qty']);
+            self::assertSame(0,$links->items(1)[0]['quantity']);
             self::assertSame(5,(int)$products->find((int)$b['id'])['stock_qty']);
             self::assertSame(9,(int)$products->find($manual)['stock_qty']);
             self::assertSame(11,(int)$products->find($otherProduct)['stock_qty']);

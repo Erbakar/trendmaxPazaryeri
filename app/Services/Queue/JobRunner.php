@@ -473,7 +473,7 @@ final class JobRunner
         return match ($jobType) {
             'order_sync'    => fn(int $s, array $j) => $this->container->get(OrderSyncService::class)->syncAll('cron'),
             'return_sync'   => fn(int $s, array $j) => $this->container->get(ReturnSyncService::class)->syncAll('cron'),
-            'stock_sync'    => fn(int $s, array $j) => $this->container->get(StockSyncService::class)->syncAll('cron'),
+            'stock_sync'    => fn(int $s, array $j) => $this->container->get(StockSyncService::class)->syncAll('cron', isset($j['marketplace_id']) ? (int)$j['marketplace_id'] : null),
             'price_sync'    => fn(int $s, array $j) => $this->container->get(PriceSyncService::class)->syncAll('cron'),
             'question_sync' => fn(int $s, array $j) => $this->container->get(QuestionSyncService::class)->syncAll('cron'),
             'import'        => fn(int $s, array $j) => $this->runImport($j),

@@ -28,7 +28,7 @@ final class TrendyolTransportTest extends TestCase
         $tenant=new TenantContext();$tenant->setStoreId(1);
         $model=new Marketplace($db,$tenant);$crypto=new CryptoService();
         $model->saveStoreConfig(1,['is_enabled'=>1,'api_key_encrypted'=>$crypto->encrypt('local-test-key'),'api_secret_encrypted'=>$crypto->encrypt('local-test-secret'),'extra_config_json'=>'{"supplier_id":"999"}']);
-        $this->service=new TrendyolService(new Logger(),$crypto,$model);
+        $this->service=new TrendyolService(new Logger(),$crypto,$model,new \App\Services\XmlStockLinks($db,$tenant));
         (new ReflectionProperty(App\Services\Marketplace\AbstractMarketplace::class,'baseUrl'))->setValue($this->service,'http://127.0.0.1:8091/integration');
     }
     protected function tearDown(): void
@@ -36,6 +36,20 @@ final class TrendyolTransportTest extends TestCase
         if($this->pdo?->inTransaction())$this->pdo->rollBack();
         if($this->savedEnv!==[])$_ENV=$this->savedEnv;
     }
+    public function testRetiredAliasCannotBeReopenedByStockOrListingTransport(): void
+    {
+        $tenant=new TenantContext(); $tenant->setStoreId(1);
+        $profile=(new App\Models\XmlProfile($this->db,$tenant))->create(['name'=>'Transport stock source','direction'=>'import','source_type'=>'url','source_url'=>'https://example.com/feed.xml']);
+        $links=new App\Services\XmlStockLinks($this->db,$tenant);
+        $links->register(1,$profile,['barcode'=>'STOCK-ONLY','source_sku'=>'DEFINITELY-REMOVED-FIXTURE','match_method'=>'historical_source','evidence'=>['fixture'=>true]]);
+        // The fixture rejects any quantity other than zero and any price fields.
+        self::assertTrue($this->service->updateListingProducts([['barcode'=>'STOCK-ONLY','quantity'=>999]])['success']);
+        $result=$this->service->updateStock([['barcode'=>'STOCK-ONLY','quantity'=>999]]);
+        self::assertSame(1,$result['success']);self::assertSame(0,$result['pending']);self::assertSame(0,$result['failed']);
+        $receipt=$this->db->fetchOne('SELECT quantity,status FROM trendyol_stock_receipts WHERE store_id=1 AND barcode=?',['STOCK-ONLY']);
+        self::assertSame(0,(int)$receipt['quantity']);self::assertSame('accepted',$receipt['status']);
+    }
+
     public function testStockOnlyUpdateDoesNotSendZeroPrices(): void
     {
         $r=$this->service->updateListingProducts([['barcode'=>'STOCK-ONLY','quantity'=>0]]);

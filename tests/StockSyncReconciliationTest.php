@@ -23,7 +23,7 @@ final class StockSyncReconciliationTest extends TestCase
    $pid=$c->get(Product::class)->create(['sku'=>'RECON80','name'=>'Reconcile fixture','barcode'=>'TPTRECON80','base_price'=>40,'cost_price'=>40,'list_price'=>40,'stock_qty'=>0,'is_active'=>0]);
    $mid=$c->get(MarketplaceProduct::class)->create(['product_id'=>$pid,'marketplace_id'=>1,'is_active'=>1,'is_listed'=>0,'price_rule_type'=>'percent_increase','price_rule_value'=>115,'last_price_sent'=>166]);
    $result=$c->get(StockSyncService::class)->syncMarketplace(1,'trendyol');
-   self::assertSame(1,$result['sent'],json_encode($result));self::assertSame(0,$result['failed']);
+   self::assertSame(0,$result['sent'],json_encode($result));self::assertSame(1,$result['pending']);self::assertSame(0,$result['failed']);
    $map=$c->get(MarketplaceProduct::class)->find($mid);self::assertSame(1,(int)$map['is_listed']);self::assertSame('RAW80',$map['marketplace_barcode']);self::assertSame(86.0,(float)$map['last_price_sent']);self::assertSame(498,(int)$map['last_stock_sent']);
    // Remote still reports 498: the rejected/pending zero must remain eligible.
    self::assertCount(1,$c->get(MarketplaceProduct::class)->getStockChanged(1));

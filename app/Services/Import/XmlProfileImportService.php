@@ -91,6 +91,9 @@ final class XmlProfileImportService
         private readonly Logger $logger,
         private readonly XmlProfileSettings $profileSettings,
         private readonly ProductAttributeValue $productAttributeValues,
+        private readonly \App\Services\XmlStockLinks $stockLinks,
+        private readonly \App\Services\Queue\QueueService $queue,
+        private readonly \App\Models\Marketplace $marketplaces,
     ) {}
 
     /**
@@ -146,6 +149,12 @@ final class XmlProfileImportService
                 && (int) ($profile['update_existing'] ?? 1) === 1
                 && (int) ($profile['update_stock'] ?? 1) === 1) {
                 $result['removed_stock_zeroed'] = $this->zeroMissingStock($profileId);
+                $this->stockLinks->refreshLegacyStock($profileId);
+                $mp = $this->marketplaces->findBySlug('trendyol');
+                if ($mp && !empty($mp['is_active']) && !empty($mp['api_key_encrypted'])) {
+                    $this->queue->enqueueUnique($this->tenant->currentStoreId(), 'stock_sync', (int)$mp['id'],
+                        ['source'=>'xml_profile','profile_id'=>$profileId]);
+                }
             }
 
             $status = $result['failed'] > 0

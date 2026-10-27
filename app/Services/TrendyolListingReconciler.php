@@ -12,7 +12,7 @@ final class TrendyolListingReconciler
 {
     public function __construct(private readonly Database $db, private readonly TenantContext $tenant,
         private readonly Marketplace $marketplace, private readonly TrendyolService $trendyol,
-        private readonly EntitlementService $entitlements) {}
+        private readonly EntitlementService $entitlements, private readonly XmlStockLinks $stockLinks) {}
 
     public static function match(array $remote, array $skuIndex, array $barcodeIndex): ?int
     {
@@ -56,6 +56,11 @@ final class TrendyolListingReconciler
             if ((int)$response['totalElements']>0 && empty($response['products'])) throw new \RuntimeException('Katalog sayfası eksik; eşleştirme yapılmadı.');
             array_push($remote, ...$response['products']);
         }
+        $blocked = [];
+        foreach ($remote as $item) {
+            $variant = $item['raw']['variant'] ?? $item['raw'] ?? [];
+            if (!empty($variant['blacklisted'])) $blocked[(string)$item['barcode']] = (string)($variant['blacklistReason'] ?? 'Engelli ilan');
+        }
         $plan=[]; $unmatched=0; $conflicts=[];
         foreach ($remote as $item) {
             $pid=self::match($item,$skuIndex,$barcodeIndex);
@@ -76,11 +81,12 @@ final class TrendyolListingReconciler
                         ['barcode'=>$item['barcode'],'sku'=>$item['marketplace_sku'],'remote_id'=>$item['marketplace_product_id'],
                          'price'=>$item['price'],'stock'=>$item['stock']??null,'sid'=>$store,'mid'=>$mid,'pid'=>$pid]);
                 }
+                $this->stockLinks->observe($mid, $remote);
                 $this->db->commit();
             } catch (\Throwable $e) { $this->db->rollBack(); throw $e; }
         }
         return ['store'=>$store,'mode'=>$apply?'applied':'dry_run','approved_variants'=>count($remote),
-            'matched'=>count($plan),'unmatched'=>$unmatched,'conflicting_products'=>count($conflicts),
+            'blocked_barcodes'=>$blocked,'matched'=>count($plan),'unmatched'=>$unmatched,'conflicting_products'=>count($conflicts),
             'samples'=>array_slice(array_map(static fn($r)=>['sku'=>$r['marketplace_sku'],'barcode'=>$r['barcode'],'remote_price'=>$r['price'],'remote_stock'=>$r['stock']??null],array_values($plan)),0,5)];
     }
 }

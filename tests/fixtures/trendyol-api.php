@@ -2,6 +2,12 @@
 // Local-only contract fixture. Never use this router for a public server.
 header('Content-Type: application/json');
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);
+if ($path === '/integration/product/sellers/999/products/batch-requests/local-stock-pending') {
+    echo json_encode(['status'=>'IN_PROGRESS','items'=>[]]); return;
+}
+if ($path === '/integration/product/sellers/999/products/batch-requests/local-stock-only') {
+    echo json_encode(['status'=>'COMPLETED','items'=>[['requestItem'=>['barcode'=>'STOCK-ONLY'],'status'=>'SUCCESS']]]); return;
+}
 if ($path === '/integration/order/sellers/999/v2/orders') {
     if (isset($_GET['status']) || ($_GET['orderByField'] ?? '') !== 'PackageLastModifiedDate') {
         http_response_code(400); echo json_encode(['error'=>'All statuses and last-modified ordering are required']); return;

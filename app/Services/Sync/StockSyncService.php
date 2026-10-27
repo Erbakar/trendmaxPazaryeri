@@ -56,12 +56,13 @@ final class StockSyncService
         private readonly Logger $logger,
         private readonly \App\Core\TenantContext $tenant,
         private readonly \App\Services\TrendyolListingReconciler $listingReconciler,
+        private readonly \App\Services\XmlStockLinks $stockLinks,
     ) {}
 
     /**
      * Tüm aktif pazaryerlerine stok senkronizasyonu
      */
-    public function syncAll(string $triggeredBy = 'cron'): array
+    public function syncAll(string $triggeredBy = 'cron', ?int $onlyMarketplaceId = null): array
     {
         // Faz 4 — FAIL-CLOSED + entitlement (per-store).
         $storeId = $this->tenant->currentStoreId();
@@ -77,6 +78,7 @@ final class StockSyncService
         $results = [];
 
         foreach ($marketplaces as $mp) {
+            if ($onlyMarketplaceId !== null && (int)$mp['id'] !== $onlyMarketplaceId) continue;
             try {
                 // Credential kontrolü - encrypted key yoksa atla
                 if (!$this->hasRequiredCredentials($mp['slug'], $mp)) {
@@ -136,12 +138,19 @@ final class StockSyncService
 
         try {
             // Re-read actual stock, including previously rejected async updates.
-            if ($slug === 'trendyol') $this->listingReconciler->run(true);
+            $blocked = [];
+            $linkedItems = [];
+            if ($slug === 'trendyol') {
+                $remote = $this->listingReconciler->run(true);
+                $blocked = $remote['blocked_barcodes'];
+                $this->stockLinks->refreshLegacyStock();
+                $linkedItems = $this->stockLinks->items($marketplaceId);
+            }
 
             // Stoğu değişen ürünleri al
             $changedProducts = $this->mpProductModel->getStockChanged($marketplaceId);
 
-            if (empty($changedProducts)) {
+            if (empty($changedProducts) && empty($linkedItems)) {
                 $this->syncLogModel->finish($logId, 'success', 0, 0);
                 return $result;
             }
@@ -171,7 +180,15 @@ final class StockSyncService
                 }
 
                 $calculatedStock = max(0, (int) $mp['calculated_stock']);
-                $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
+                if ($slug === 'trendyol') {
+                    $calculatedStock = \App\Services\Marketplace\TrendyolProductRules::quantity($calculatedStock);
+                    if (($calculatedStock > 0 && isset($blocked[$barcode]))
+                        || ($mp['last_stock_sent'] !== null && (int)$mp['last_stock_sent'] === $calculatedStock)) {
+                        $result['skipped']++;
+                        continue;
+                    }
+                }
+                $price = $slug === 'trendyol' ? ['sale_price'=>0,'list_price'=>0] : $this->priceEngine->calculatePrice($product, $marketplaceId);
 
                 $batchItems[] = [
                     'id'        => $mpProductId,
@@ -191,6 +208,13 @@ final class StockSyncService
                 ];
             }
 
+            if ($slug === 'trendyol') {
+                // A legacy barcode may have no local marketplace_products row.
+                // The source link takes precedence over stale legacy-card stock.
+                $byBarcode = array_column($batchItems, null, 'barcode');
+                foreach ($linkedItems as $item) $byBarcode[(string)$item['barcode']] = $item;
+                $batchItems = array_values($byBarcode);
+            }
             if (empty($batchItems)) {
                 $this->syncLogModel->finish($logId, 'success', count($changedProducts), 0);
                 return $result;
@@ -222,6 +246,10 @@ final class StockSyncService
             $result['sent'] = $apiResult['success'];
             $result['failed'] = $apiResult['failed'];
             $result['errors'] = $apiResult['errors'];
+            if ($slug === 'trendyol') {
+                $result['pending'] = $apiResult['pending'] ?? 0;
+                $result['batch_ids'] = $apiResult['batch_ids'] ?? [];
+            }
 
             // SADECE gerçekten gönderilen ve pazaryerince kabul edilen kayıtlar
             // damgalanır. (Hatalı kaydı damgalamak, bir sonraki senkronda "değişiklik
@@ -252,7 +280,7 @@ final class StockSyncService
             }
 
             $status = $result['failed'] > 0 ? 'partial' : 'success';
-            $this->syncLogModel->finish($logId, $status, count($changedProducts), $result['sent'], $result['failed'], $result['errors']);
+            $this->syncLogModel->finish($logId, $status, count($batchItems), $result['sent'], $result['failed'], $result['errors']);
 
             $this->logger->info(
                 "Stok sync ({$slug}): {$result['sent']} gönderildi, {$result['failed']} hatalı",

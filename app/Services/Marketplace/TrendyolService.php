@@ -36,6 +36,7 @@ final class TrendyolService extends AbstractMarketplace
         Logger $logger,
         private readonly CryptoService $crypto,
         private readonly Marketplace $marketplaceModel,
+        private readonly \App\Services\XmlStockLinks $stockLinks,
     ) {
         parent::__construct($logger);
 
@@ -272,13 +273,24 @@ final class TrendyolService extends AbstractMarketplace
 
     public function updateStock(array $items): array
     {
+        $lock = $this->stockLinks->acquire();
+        try { return $this->updateStockLocked($items); }
+        finally { $this->stockLinks->release($lock); }
+    }
+
+    private function updateStockLocked(array $items): array
+    {
         $this->loadCredentials();
+        $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
+        $items = $this->stockLinks->guardPayload($items, $mid);
 
         $batchLimit = $this->config['api']['batch_limit'] ?? 1000;
         $chunks = array_chunk($items, $batchLimit);
 
         $totalSuccess = 0;
         $totalFailed = 0;
+        $totalPending = 0;
+        $batchIds = [];
         $errors = [];
 
         foreach ($chunks as $chunk) {
@@ -288,14 +300,35 @@ final class TrendyolService extends AbstractMarketplace
                         ?? "/suppliers/{$this->supplierId}/products/price-and-inventory"
                 );
 
+                $chunk = $this->stockLinks->guardPayload($chunk, $mid);
                 foreach ($chunk as &$item) {
                     if (array_key_exists('quantity', $item)) $item['quantity'] = TrendyolProductRules::quantity((int)$item['quantity']);
                 }
                 unset($item);
                 $body = ['items' => $chunk];
-                $this->httpPost($url, $body, $this->authHeaders());
-
-                $totalSuccess += count($chunk);
+                $response = $this->httpPost($url, $body, $this->authHeaders());
+                $stockOnly = count(array_filter($chunk, static fn(array $i): bool => array_key_exists('quantity',$i)
+                    && !array_key_exists('salePrice',$i) && !array_key_exists('listPrice',$i))) === count($chunk);
+                if ($stockOnly) {
+                    $batch = (string)($response['batchRequestId'] ?? '');
+                    if ($batch === '') throw new RuntimeException('Trendyol stok işlem kimliği dönmedi.');
+                    $batchIds[] = $batch;
+                    $this->stockLinks->receipt($batch, $chunk);
+                    // A queued request is not a completed inventory change.
+                    try {
+                        $receipt = $this->stockLinks->recordBatch($batch, $this->getBatchStatus($batch));
+                        $totalSuccess += $receipt['success'];
+                        $totalFailed += $receipt['failed'];
+                        array_push($errors, ...$receipt['errors']);
+                        $totalPending += max(0,count($chunk)-$receipt['success']-$receipt['failed']);
+                    } catch (\Throwable $e) {
+                        $totalPending += count($chunk);
+                        $this->logger->warning('Stok işlem sonucu henüz doğrulanamadı: '.$e->getMessage(), 'TrendyolService');
+                    }
+                } else {
+                    // Keep the existing price-only transport contract.
+                    $totalSuccess += count($chunk);
+                }
             } catch (\Throwable $e) {
                 $totalFailed += count($chunk);
                 $errors[] = ['chunk_size' => count($chunk), 'error' => $e->getMessage()];
@@ -312,6 +345,8 @@ final class TrendyolService extends AbstractMarketplace
             'success' => $totalSuccess,
             'failed'  => $totalFailed,
             'errors'  => $errors,
+            'pending' => $totalPending,
+            'batch_ids' => $batchIds,
         ];
     }
 
@@ -1067,7 +1102,16 @@ final class TrendyolService extends AbstractMarketplace
      */
     public function createProducts(array $items): array
     {
+        $lock = $this->stockLinks->acquire();
+        try { return $this->createProductsLocked($items); }
+        finally { $this->stockLinks->release($lock); }
+    }
+
+    private function createProductsLocked(array $items): array
+    {
         $this->loadCredentials();
+        $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
+        $items = $this->stockLinks->guardPayload($items, $mid);
 
         $url = $this->buildUrl(
             $this->config['endpoints']['create_products']
@@ -1134,7 +1178,16 @@ final class TrendyolService extends AbstractMarketplace
     /** Existing listings retain their approved content; price/stock use the dedicated endpoint. */
     public function updateListingProducts(array $items): array
     {
+        $lock = $this->stockLinks->acquire();
+        try { return $this->updateListingProductsLocked($items); }
+        finally { $this->stockLinks->release($lock); }
+    }
+
+    private function updateListingProductsLocked(array $items): array
+    {
         $this->loadCredentials();
+        $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
+        $items = $this->stockLinks->guardPayload($items, $mid);
         $payload = [];
         foreach ($items as $item) {
             $row = ['barcode'=>(string)$item['barcode']];
@@ -1163,7 +1216,16 @@ final class TrendyolService extends AbstractMarketplace
 
     public function updateProducts(array $items): array
     {
+        $lock = $this->stockLinks->acquire();
+        try { return $this->updateProductsLocked($items); }
+        finally { $this->stockLinks->release($lock); }
+    }
+
+    private function updateProductsLocked(array $items): array
+    {
         $this->loadCredentials();
+        $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
+        $items = $this->stockLinks->guardPayload($items, $mid);
 
         $url = $this->buildUrl(
             $this->config['endpoints']['create_products']

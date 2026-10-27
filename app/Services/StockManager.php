@@ -563,6 +563,12 @@ final class StockManager
                 ];
             }
 
+            if ($slug === 'trendyol') {
+                $linked = $this->container->get(XmlStockLinks::class)->items($marketplaceId, array_map('intval',$productIds), false);
+                $byBarcode = array_column($batchItems, null, 'barcode');
+                foreach ($linked as $item) $byBarcode[(string)$item['barcode']] = $item;
+                $batchItems = array_values($byBarcode);
+            }
             if (empty($batchItems)) {
                 continue;
             }
@@ -612,6 +618,19 @@ final class StockManager
      */
     public function syncStockToMarketplace(int $productId, int $marketplaceId): bool
     {
+        $marketplace = $this->marketplaceModel->find($marketplaceId);
+        if ($marketplace && $marketplace['slug'] === 'trendyol') {
+            $items = $this->container->get(XmlStockLinks::class)->items($marketplaceId, [$productId], false);
+            $mapping = $this->mpProductModel->findByProductAndMarketplace($productId,$marketplaceId);
+            if ($mapping && !empty($mapping['is_listed'])) {
+                $product = $this->productModel->find($productId);
+                $barcode = (string)(($mapping['marketplace_barcode'] ?? '') ?: ($product['barcode'] ?? ''));
+                if ($barcode !== '') $items[] = ['barcode'=>$barcode,'quantity'=>$this->calculateMarketplaceStock($productId,$marketplaceId)];
+            }
+            if (!$items) return false;
+            $result = $this->trendyolService->updateStock(array_values(array_column($items,null,'barcode')));
+            return ($result['failed'] ?? 0) === 0;
+        }
         $mpProduct = $this->mpProductModel->findByProductAndMarketplace($productId, $marketplaceId);
         if ($mpProduct === false || !(bool) $mpProduct['is_active']) {
             return false;

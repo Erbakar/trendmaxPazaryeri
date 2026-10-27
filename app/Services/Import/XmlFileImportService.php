@@ -631,7 +631,7 @@ final class XmlFileImportService
             'stock_qty'     => (int) $this->clamp((float) round($this->toFloat($get('stock_qty'))), 2147483647.0),
             'tax_rate'      => ($tax >= 0 && $tax <= 100) ? $tax : -1.0,
             'weight'        => $this->clamp($this->toFloat($get('weight')), 99999.999),
-            'desi'          => $this->clamp($this->toFloat($get('desi')), 999999.99),
+            'desi'          => XmlDesiValue::parse($get('desi')),
             'brand'         => mb_substr($this->clean($get('brand')), 0, 190),
             'category_path' => array_slice($categoryPath, 0, self::MAX_CATEGORY_DEPTH),
             'images'        => $this->collectImages($item, $index, (string) ($map['image'] ?? '')),

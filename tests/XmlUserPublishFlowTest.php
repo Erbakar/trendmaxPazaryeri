@@ -37,6 +37,30 @@ final class XmlUserPublishFlowTest extends TestCase
             $maps=$c->get(CategoryMarketplaceMapping::class);$mappingId=$maps->saveMapping((int)$a['category_id'],1,'1017','Saç Fırçası ve Tarak');$c->get(BrandMarketplaceMapping::class)->saveMapping((int)$a['brand_id'],1,'999','Test marka');
             foreach([$a,$b]as$p){$preview=$publish->previewForPublish((int)$p['id'],1);self::assertTrue($preview['valid'],implode(' / ',$preview['errors']));self::assertCount(2,$preview['item']['images']);self::assertSame(ceil((float)$p['cost_price']*2.15),$preview['item']['salePrice']);}
             $invalid=$publish->previewForPublish((int)$bad['id'],1);self::assertFalse($invalid['valid']);self::assertStringContainsString('Materyal',implode(' / ',$invalid['errors']));
+            // The permanent catalog worker publishes a verified item, records intent before HTTP,
+            // refuses a duplicate while the receipt is pending, and confirms only remote observation.
+            $db->query('SAVEPOINT catalog_worker_test');
+            $audit=$c->get(App\Services\Catalog\CatalogAuditService::class);$repo=$c->get(App\Services\Catalog\CatalogAuditRepository::class);
+            $repo->review(1,(int)$a['id'],$audit->contentFingerprint($a,$maps->forProduct($a,1)),['type'=>'test_content_review'],null);
+            foreach(App\Services\Catalog\CatalogAuditPolicy::images($a)as$url){
+                $proof=['algorithm'=>2,'url'=>$url,'at'=>time(),'ok'=>true,'sha256'=>hash('sha256',$url),'width'=>100,'height'=>100];
+                $db->query('INSERT INTO catalog_image_checks(store_id,url_hash,result_json,checked_at) VALUES(?,?,?,NOW())',[$sid,hash('sha256',$url),json_encode($proof)]);
+            }
+            $source=$import->snapshotForAudit($pid);$snapshot=['source_at'=>time(),'remote_at'=>date(DATE_ATOM),'sources'=>[$pid=>$source]];
+            $entity=['key'=>'barcode:'.hash('sha256',$a['barcode']),'product_id'=>$a['id'],'source_product_id'=>$a['id'],'profile_id'=>$pid,'sku'=>$a['sku'],'remote'=>null,'identity_error'=>null,'linked'=>false];
+            $inspect=new ReflectionMethod($audit,'inspect');$dispatch=new ReflectionMethod($audit,'dispatch');
+            $ready=$inspect->invoke($audit,1,$entity,$snapshot);self::assertSame('ready',$ready['status'],json_encode($ready['checks']));
+            $run=$repo->create(1);(new ReflectionProperty(AbstractMarketplace::class,'baseUrl'))->setValue($ty,'http://127.0.0.1:8091/catalog-audit/integration');
+            $submitted=$dispatch->invoke($audit,1,(int)$run['id'],$ready,$snapshot);self::assertSame('awaiting_result',$submitted['status']);
+            self::assertSame('accepted',$repo->pending(1,$entity['key'])['status']);
+            $again=$dispatch->invoke($audit,1,(int)$run['id'],$ready,$snapshot);self::assertSame('awaiting_result',$again['status']);
+            self::assertSame(1,(int)$db->fetchOne('SELECT COUNT(*) n FROM catalog_audit_actions WHERE store_id=?',[$sid])['n']);
+            $entity['remote']=array_replace($ready['expected'],['name'=>$a['name'],'categoryId'=>'1017','images'=>App\Services\Catalog\CatalogAuditPolicy::images($a),'status'=>'approved','blocked'=>false,'onSale'=>true]);
+            $observed=$inspect->invoke($audit,1,$entity,$snapshot);self::assertSame('verified',$observed['status'],json_encode($observed['checks']));
+            $dispatch->invoke($audit,1,(int)$run['id'],$observed,$snapshot);self::assertNull($repo->pending(1,$entity['key']));
+            self::assertSame('confirmed',$db->fetchOne('SELECT status FROM catalog_audit_actions WHERE store_id=?',[$sid])['status']);
+            $db->query('ROLLBACK TO SAVEPOINT catalog_worker_test');
+            (new ReflectionProperty(AbstractMarketplace::class,'baseUrl'))->setValue($ty,'http://127.0.0.1:8091/xml-flow/integration');
             $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(0,$sent['success'],json_encode($sent));self::assertSame(2,$sent['processing']);self::assertSame(0,$sent['failed']);
             $resolved=$publish->resolvePendingBatches(1);self::assertSame(2,$resolved['approved'],json_encode($resolved));
             $db->query("UPDATE sync_jobs SET status='running' WHERE store_id=? AND job_type='stock_sync'",[$sid]);

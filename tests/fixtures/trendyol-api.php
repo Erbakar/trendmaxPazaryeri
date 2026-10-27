@@ -17,6 +17,13 @@ if (str_starts_with($path, '/receipts')) {
     } elseif (($_GET['barcode']??'')==='TRANSIENT') $content=[];
     echo json_encode(['totalPages'=>1,'totalElements'=>count($content)+($incomplete?1:0),'content'=>$content]);return;
 }
+$catalogAudit=str_starts_with($path,'/catalog-audit/');
+if($catalogAudit){
+    $path=substr($path,strlen('/catalog-audit'));
+    if(in_array($path,['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'],true)){
+        echo json_encode(['totalPages'=>0,'totalElements'=>0,'content'=>[]]);return;
+    }
+}
 $xmlFlow=str_starts_with($path,'/xml-flow/');
 if($xmlFlow)$path=substr($path,strlen('/xml-flow'));
 if ($xmlFlow && in_array($path,['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'],true)) {

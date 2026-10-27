@@ -116,7 +116,7 @@ final class MarketplaceProduct extends BaseModel
         }
 
         return $this->rawQuery(
-            "SELECT mp.id, mp.product_id, mp.marketplace_id, mp.sync_error, mp.is_listed,
+            "SELECT mp.id, mp.product_id, mp.marketplace_id, mp.sync_error, mp.is_listed, mp.last_synced_at, mp.created_at,
                     COALESCE(NULLIF(mp.marketplace_barcode, ''), p.barcode) AS barcode,
                     COALESCE(NULLIF(mp.marketplace_sku, ''), p.sku) AS sku, p.name AS product_name
              FROM marketplace_products mp

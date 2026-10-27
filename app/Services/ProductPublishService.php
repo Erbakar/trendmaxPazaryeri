@@ -69,11 +69,36 @@ final class ProductPublishService
      */
     public function resolvePendingBatches(int $marketplaceId = 0, int $limit = 500): array
     {
+        $store=$this->container->get(\App\Core\TenantContext::class)->currentStoreId();
+        $key='publish_batches_'.$store;
+        if ((int)($this->db->fetchOne('SELECT GET_LOCK(?,0) acquired',[$key])['acquired']??0)!==1) {
+            return ['checked'=>0,'approved'=>0,'rejected'=>0,'pending'=>0,'errors'=>[],'skipped_running'=>true];
+        }
+        try { return $this->resolvePendingBatchesUnlocked($marketplaceId,$limit); }
+        finally { $this->db->query('SELECT RELEASE_LOCK(?)',[$key]); }
+    }
+
+    private function resolvePendingBatchesUnlocked(int $marketplaceId, int $limit): array
+    {
         $sonuc = ['checked' => 0, 'approved' => 0, 'rejected' => 0, 'pending' => 0, 'errors' => []];
 
         $bekleyen = $this->mpProductModel->getPendingBatches($marketplaceId, $limit);
         if ($bekleyen === []) {
             return $sonuc;
+        }
+
+        $trendyol=$this->marketplaceModel->findBySlug('trendyol');
+        if ($trendyol && ($marketplaceId===0 || $marketplaceId===(int)$trendyol['id'])) {
+            $rows=array_values(array_filter($bekleyen,static fn($r)=>(int)$r['marketplace_id']===(int)$trendyol['id']));
+            try {
+                $resolved=$this->container->get(TrendyolPendingPublishResolver::class)->resolve((int)$trendyol['id'],$rows);
+                foreach (['checked','approved','rejected','pending'] as $key) $sonuc[$key]+=$resolved[$key];
+                $sonuc['expired']=$resolved['expired']; $sonuc['errors']=array_merge($sonuc['errors'],$resolved['errors']);
+            } catch (\Throwable $e) {
+                // A Trendyol outage must not interrupt receipt checks for other marketplaces.
+                $sonuc['errors'][]='Trendyol gönderim sonucu: '.$e->getMessage();
+            }
+            $bekleyen=array_values(array_filter($bekleyen,static fn($r)=>(int)$r['marketplace_id']!==(int)$trendyol['id']));
         }
 
         $servisler     = [];   // mpId  => servis|null
@@ -188,6 +213,20 @@ final class ProductPublishService
     public function publishProducts(array $productIds, int $marketplaceId): array
     {
         $marketplace = $this->marketplaceModel->find($marketplaceId);
+        if (($marketplace['slug'] ?? '') !== 'trendyol') {
+            return $this->publishProductsUnlocked($productIds, $marketplaceId);
+        }
+        $key = 'publish_batches_' . $this->container->get(\App\Core\TenantContext::class)->currentStoreId();
+        if ((int)($this->db->fetchOne('SELECT GET_LOCK(?,15) acquired', [$key])['acquired'] ?? 0) !== 1) {
+            throw new RuntimeException('Başka bir Trendyol gönderimi veya sonuç kontrolü sürüyor; tekrar deneyin.');
+        }
+        try { return $this->publishProductsUnlocked($productIds, $marketplaceId); }
+        finally { $this->db->query('SELECT RELEASE_LOCK(?)', [$key]); }
+    }
+
+    private function publishProductsUnlocked(array $productIds, int $marketplaceId): array
+    {
+        $marketplace = $this->marketplaceModel->find($marketplaceId);
         if ($marketplace === false) {
             return ['success' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => [['error' => 'Pazaryeri bulunamadı']]];
         }
@@ -210,9 +249,42 @@ final class ProductPublishService
         // Batch'lere böl
         $groups = ['createProducts' => $productIds];
         if ($marketplace['slug'] === 'trendyol') {
+            $linkedSources = [];
+            foreach ($this->container->get(XmlStockLinks::class)->rows($marketplaceId) as $link) {
+                if (!empty($link['legacy_product_id']) && !empty($link['source_product_id'])
+                    && (int)$link['legacy_product_id'] !== (int)$link['source_product_id']) {
+                    $linkedSources[(int)$link['source_product_id']][] = (string)$link['barcode'];
+                }
+            }
+            // Resolve selected receipts before validation/routing. An expired receipt is
+            // retryable only after a complete seller catalogue proves the item absent.
+            $pending = [];
+            foreach ($productIds as $pid) {
+                $listing = $this->mpProductModel->findByProductAndMarketplace((int)$pid, $marketplaceId);
+                if (!str_starts_with((string)($listing['sync_error'] ?? ''), 'Batch kontrol bekliyor: ')) continue;
+                $product = $this->productModel->find((int)$pid);
+                if (!$product) continue;
+                $pending[] = $listing + ['barcode'=>$listing['marketplace_barcode'] ?: $product['barcode'],
+                    'sku'=>$listing['marketplace_sku'] ?: $product['sku']];
+            }
+            try {
+                $this->container->get(TrendyolPendingPublishResolver::class)->resolve($marketplaceId, $pending);
+            } catch (\Throwable $e) {
+                $allErrors[] = ['error'=>'Önceki gönderim doğrulanamadı: '.$e->getMessage()];
+            }
             $groups = ['createProducts'=>[], 'updateListingProducts'=>[]];
             foreach ($productIds as $pid) {
                 $listing = $this->mpProductModel->findByProductAndMarketplace((int)$pid, $marketplaceId);
+                if (empty($listing['is_listed']) && isset($linkedSources[(int)$pid])) {
+                    $totalSkipped++;
+                    $allErrors[] = ['product_id'=>$pid, 'error'=>'Bu XML ürünü mevcut Trendyol ilanının stok kaynağıdır; mükerrer ilan açılmadı. Barkod: '.implode(', ', $linkedSources[(int)$pid])];
+                    continue;
+                }
+                if (str_starts_with((string)($listing['sync_error'] ?? ''), 'Batch kontrol bekliyor: ')) {
+                    $totalProcessing++;
+                    $allErrors[] = ['product_id'=>$pid, 'error'=>'Önceki gönderimin sonucu bekleniyor; tekrar gönderilmedi.'];
+                    continue;
+                }
                 try {
                     $listing = $this->resolveExistingTrendyolListing((int)$pid, $marketplaceId, $listing);
                 } catch (\Throwable $e) {
@@ -1736,7 +1808,7 @@ final class ProductPublishService
         //     ürün için YENİ create atma. (Trendyol art arda create isteklerini
         //     satıcı bazında "recurring" hatasıyla engeller; kullanıcı tekrar
         //     Yayınla'ya bastığında önce önceki batch'in sonucuna bakılır.)
-        if (method_exists($marketplaceService, 'getBatchStatus')) {
+        if ($slug !== 'trendyol' && method_exists($marketplaceService, 'getBatchStatus')) {
             // Aynı batch'i ürün başına sormak 50 üründe 50 isteğe ve her birinde
             // 4 denemeye kadar beklemeye yol açıyordu — batch başına BİR kez sor.
             $batchOnbellek = [];
@@ -1834,7 +1906,8 @@ final class ProductPublishService
                     }
 
                     $batchRequestId = $productBatchIds[$productId] ?? '';
-                    $onaylandi = ($batchStatus['status'] ?? '') === 'SUCCESS';
+                    $onaylandi = ($batchStatus['status'] ?? '') === 'SUCCESS'
+                        && ($slug !== 'trendyol' || $operation === 'updateListingProducts');
 
                     if ($batchRequestId !== '' && !$onaylandi) {
                         $meta['pending_batch_id'] = $batchRequestId;
@@ -2624,7 +2697,8 @@ final class ProductPublishService
         }
 
         $status = [];
-        for ($attempt = 0; $attempt < 4; $attempt++) {
+        $maxAttempts = $marketplaceService instanceof \App\Services\Marketplace\TrendyolService ? 1 : 4;
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
             if ($attempt > 0) {
                 usleep(1500000);
             }

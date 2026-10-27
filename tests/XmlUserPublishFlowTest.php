@@ -20,7 +20,7 @@ final class XmlUserPublishFlowTest extends TestCase
         try{
             $db->query('INSERT INTO stores(name,slug) VALUES(?,?)',['XML flow test','xml-flow-'.bin2hex(random_bytes(6))]);$sid=(int)$db->lastInsertId();$c->get(TenantContext::class)->setStoreId($sid);
             $crypto=$c->get(CryptoService::class);$c->get(Marketplace::class)->saveStoreConfig(1,['is_enabled'=>1,'api_key_encrypted'=>$crypto->encrypt('local-test-key'),'api_secret_encrypted'=>$crypto->encrypt('local-test-secret'),'extra_config_json'=>'{"supplier_id":"999"}']);
-            $ty=$c->get(TrendyolService::class);(new ReflectionProperty(AbstractMarketplace::class,'baseUrl'))->setValue($ty,'http://127.0.0.1:8091/integration');
+            $ty=$c->get(TrendyolService::class);(new ReflectionProperty(AbstractMarketplace::class,'baseUrl'))->setValue($ty,'http://127.0.0.1:8091/xml-flow/integration');
             // In-memory metadata belongs to this isolated test tenant; no seller cache is overwritten.
             $attrs=[['id'=>14,'name'=>'Materyal','required'=>true,'allowCustom'=>false,'values'=>[['id'=>501,'name'=>'Plastik']]],['id'=>47,'name'=>'Renk','required'=>true,'allowCustom'=>true,'values'=>[]],['id'=>348,'name'=>'Web Color','required'=>true,'allowCustom'=>false,'values'=>[['id'=>9001,'name'=>'Siyah'],['id'=>9002,'name'=>'Mavi']]],['id'=>1192,'name'=>'Menşei','required'=>true,'allowCustom'=>false,'values'=>[['id'=>100,'name'=>'TR']]]];
             (new ReflectionProperty(TrendyolAttributeCatalog::class,'memory'))->setValue($c->get(TrendyolAttributeCatalog::class),[$sid.'_1017'=>['attributes'=>$attrs]]);
@@ -37,7 +37,8 @@ final class XmlUserPublishFlowTest extends TestCase
             $maps=$c->get(CategoryMarketplaceMapping::class);$mappingId=$maps->saveMapping((int)$a['category_id'],1,'1017','Saç Fırçası ve Tarak');$c->get(BrandMarketplaceMapping::class)->saveMapping((int)$a['brand_id'],1,'999','Test marka');
             foreach([$a,$b]as$p){$preview=$publish->previewForPublish((int)$p['id'],1);self::assertTrue($preview['valid'],implode(' / ',$preview['errors']));self::assertCount(2,$preview['item']['images']);self::assertSame(ceil((float)$p['cost_price']*2.15),$preview['item']['salePrice']);}
             $invalid=$publish->previewForPublish((int)$bad['id'],1);self::assertFalse($invalid['valid']);self::assertStringContainsString('Materyal',implode(' / ',$invalid['errors']));
-            $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(2,$sent['success'],json_encode($sent));self::assertSame(0,$sent['failed']);
+            $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(0,$sent['success'],json_encode($sent));self::assertSame(2,$sent['processing']);self::assertSame(0,$sent['failed']);
+            $resolved=$publish->resolvePendingBatches(1);self::assertSame(2,$resolved['approved'],json_encode($resolved));
             $db->query("UPDATE sync_jobs SET status='running' WHERE store_id=? AND job_type='stock_sync'",[$sid]);
             $unchanged=$import->run($pid);
             self::assertSame(1,(int)$db->fetchOne("SELECT COUNT(*) n FROM sync_jobs WHERE store_id=? AND job_type='stock_sync' AND status='pending'",[$sid])['n'],'Fresh XML queues a follow-up behind an already-running stock job');

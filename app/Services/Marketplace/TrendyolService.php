@@ -397,6 +397,44 @@ final class TrendyolService extends AbstractMarketplace
     // KATEGORİ & MARKA
     // ═══════════════════════════════════════════════════════
 
+    /** Complete raw catalogue used to verify expired publish receipts, without importing products. */
+    public function readProductCatalog(bool $approved, bool $identityOnly = false): array
+    {
+        $this->loadCredentials();
+        $endpoint=$approved ? 'products' : 'products_unapproved';
+        $all=[]; $seen=[]; $total=null; $pages=1; $token=null; $size=$approved ? 100 : 1000;
+        for ($page=0; $page<$pages; $page++) {
+            if ($page>=1000) throw new RuntimeException('Trendyol katalog sayfalama sınırı aşıldı.');
+            $query=['size'=>$size];
+            if ($page*$size>=10000) {
+                if (!$token) throw new RuntimeException('Trendyol devam anahtarı eksik.');
+                $query['nextPageToken']=$token;
+            } else $query['page']=$page;
+            $response=$this->httpGet($this->buildUrl($this->config['endpoints'][$endpoint]).'?'.http_build_query($query),$this->authHeaders());
+            if (!isset($response['totalElements'],$response['totalPages']) || !is_array($response['content']??null)) throw new RuntimeException('Eksik Trendyol katalog yanıtı.');
+            $current=(int)$response['totalElements'];
+            if ($total!==null && $total!==$current) throw new RuntimeException('Trendyol kataloğu okunurken değişti; sonraki kontrolde tekrar denenecek.');
+            $total=$current; $pages=max(1,(int)$response['totalPages']);
+            if ($total>0 && !$response['content']) throw new RuntimeException('Trendyol katalog sayfası boş; sonuç doğrulanamadı.');
+            foreach ($response['content'] as $content) {
+                if (!is_array($content)) throw new RuntimeException('Geçersiz Trendyol katalog kaydı.');
+                $fingerprint=hash('sha256',json_encode($content,JSON_THROW_ON_ERROR));
+                if (isset($seen[$fingerprint])) throw new RuntimeException('Trendyol katalog sayfası tekrarladı; sonuç doğrulanamadı.');
+                $seen[$fingerprint]=true;
+                if ($identityOnly) {
+                    // Receipt reconciliation does not need descriptions/images; keep large
+                    // seller catalogues bounded in memory without losing variant identities.
+                    $content=array_intersect_key($content,array_flip(['id','contentId','productMainId','status','rejectReasonDetails','barcode','stockCode','variants']));
+                    if (isset($content['variants'])) $content['variants']=array_map(static fn($v)=>array_intersect_key($v,array_flip(['barcode','stockCode'])), $content['variants']);
+                }
+                $all[]=$content;
+            }
+            $token=$response['nextPageToken']??null;
+        }
+        if (count($all)!==$total) throw new RuntimeException('Trendyol kataloğu tamamlanamadı; eşleştirme yapılmadı.');
+        return $all;
+    }
+
     public function fetchCategories(int $parentId = 0): array
     {
         $this->loadCredentials();

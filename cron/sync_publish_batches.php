@@ -14,6 +14,10 @@
 // diye); doğrudan aktif mağazaları dolaşır ve her mağazayı izole çalıştırır.
 declare(strict_types=1);
 
+// Prevent overlapping minute jobs from multiplying expired batch queries.
+$processLock=fopen(sys_get_temp_dir().'/trendmax-publish-batches-'.sha1(dirname(__DIR__)).'.lock','c');
+if (!$processLock || !flock($processLock,LOCK_EX|LOCK_NB)) exit(0);
+
 define('BASE_PATH', dirname(__DIR__));
 require_once BASE_PATH . '/public/index.php';
 
@@ -36,12 +40,13 @@ $sonuclar = $runner->runForActiveStores(
         $r = $publish->resolvePendingBatches(0, 500);
         if ($r['checked'] > 0 || $r['errors'] !== []) {
             echo sprintf(
-                "  mağaza #%d — sorulan: %d · onaylandı: %d · reddedildi: %d · hâlâ işleniyor: %d\n",
+                "  mağaza #%d — sorulan: %d · onaylandı: %d · reddedildi: %d · hâlâ işleniyor: %d · süresi dolmuş: %d\n",
                 $storeId,
                 $r['checked'],
                 $r['approved'],
                 $r['rejected'],
-                $r['pending']
+                $r['pending'],
+                $r['expired'] ?? 0
             );
             foreach (array_slice($r['errors'], 0, 5) as $hata) {
                 echo '  ! ' . $hata . "\n";
@@ -52,7 +57,7 @@ $sonuclar = $runner->runForActiveStores(
 );
 
 $hataliMagaza = 0;
-$toplam = ['checked' => 0, 'approved' => 0, 'rejected' => 0, 'pending' => 0];
+$toplam = ['checked' => 0, 'approved' => 0, 'rejected' => 0, 'pending' => 0, 'expired' => 0];
 foreach ($sonuclar as $storeId => $s) {
     if (!($s['ok'] ?? false)) {
         $hataliMagaza++;
@@ -65,12 +70,13 @@ foreach ($sonuclar as $storeId => $s) {
 }
 
 echo sprintf(
-    "[%s] Bitti — sorulan: %d · onaylandı: %d · reddedildi: %d · işleniyor: %d · hatalı mağaza: %d\n",
+    "[%s] Bitti — sorulan: %d · onaylandı: %d · reddedildi: %d · işleniyor: %d · süresi dolmuş: %d · hatalı mağaza: %d\n",
     date('Y-m-d H:i:s'),
     $toplam['checked'],
     $toplam['approved'],
     $toplam['rejected'],
     $toplam['pending'],
+    $toplam['expired'],
     $hataliMagaza
 );
 

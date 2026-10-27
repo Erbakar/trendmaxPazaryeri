@@ -2,6 +2,23 @@
 // Local-only contract fixture. Never use this router for a public server.
 header('Content-Type: application/json');
 $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH);
+if (str_starts_with($path, '/receipts')) {
+    $incomplete=str_starts_with($path,'/receipts-incomplete/');
+    if (str_contains($path,'batch-requests/')) {
+        if(str_ends_with($path,'/expired')){http_response_code(410);echo json_encode(['error'=>'Expired receipts must not be requested']);return;}
+        echo json_encode(['status'=>'COMPLETED','items'=>[['requestItem'=>['barcode'=>str_ends_with($path,'/failed')?'OK':'ABSENT'],'status'=>str_ends_with($path,'/failed')?'FAILED':'SUCCESS','failureReasons'=>['Failed update']]]]);return;
+    }
+    $approved=str_ends_with($path,'/approved');
+    $content=$approved ? [['id'=>'A','productMainId'=>'A','variants'=>[['barcode'=>'OK','stockCode'=>'OK']]],['id'=>'B','productMainId'=>'B','variants'=>[['barcode'=>'CONFLICT','stockCode'=>'OTHER']]]]
+        : [['productMainId'=>'R','barcode'=>'REJECT','stockCode'=>'REJECT','status'=>'rejected','rejectReasonDetails'=>[['rejectReasonDetail'=>'Fixture rejection']]],['productMainId'=>'W','barcode'=>'WAIT','stockCode'=>'WAIT','status'=>'pendingApproval']];
+    echo json_encode(['totalPages'=>1,'totalElements'=>$incomplete?3:2,'content'=>$content]);return;
+}
+$xmlFlow=str_starts_with($path,'/xml-flow/');
+if($xmlFlow)$path=substr($path,strlen('/xml-flow'));
+if ($xmlFlow && in_array($path,['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'],true)) {
+    $content=str_ends_with($path,'/approved')?array_map(fn($s)=>['productMainId'=>$s,'barcode'=>$s,'stockCode'=>$s],['XMLFLOW-A','XMLFLOW-B']):[];
+    echo json_encode(['totalPages'=>1,'totalElements'=>count($content),'content'=>$content]);return;
+}
 if ($path === '/integration/product/sellers/999/products/batch-requests/local-stock-pending') {
     echo json_encode(['status'=>'IN_PROGRESS','items'=>[]]); return;
 }

@@ -49,6 +49,7 @@ final class CatalogAuditService
         $run=null;$deadline=microtime(true)+max(10,$seconds);
         try {
             $this->settings->setValue('catalog_audit_heartbeat',date('Y-m-d H:i:s'));
+            $this->reconcileReceipts($mid,$deadline);
             $run=$this->repo->latest($mid);
             if(!$run||in_array($run['status'],['complete','failed'],true)){
                 $delay=($run['status']??'')==='failed'?300:900;
@@ -198,6 +199,7 @@ final class CatalogAuditService
         }
         $rejected=$remote&&str_contains(strtolower($remote['status']),'reject');
         if(!$remote||$rejected){
+            if(!CatalogAuditPolicy::validPublishBarcode($item['barcode']))$errors[]='Trendyol barkodu en fazla 40 karakter olmalı; harf, rakam, nokta, tire ve alt çizgi kullanılabilir. Barkod kimliği düzeltilmeden otomatik gönderilmez.';
             $preview=$this->get(ProductPublishService::class)->previewForPublish((int)$product['id'],$mid);
             $errors=array_merge($errors,$preview['errors']);
             if(!empty($preview['item'])){$item['payload']=$preview['item'];$item['expected']=array_intersect_key($preview['item'],array_flip(['barcode','quantity','salePrice','listPrice','categoryId']));}
@@ -218,7 +220,53 @@ final class CatalogAuditService
             if($changed){$item['status']='ready';$item['replace_rejected']=true;}
         }
 
+        // A rejected request may never enter the remote catalogue. Keep the rejection visible
+        // and do not automatically resend identical content simply because the barcode is absent.
+        if(!$remote&&!empty($item['payload'])){
+            $last=$this->repo->db->fetchOne("SELECT status,payload_hash,result_json FROM catalog_audit_actions WHERE store_id=? AND marketplace_id=? AND entity_key=? AND operation='publish' ORDER BY id DESC LIMIT 1",[$this->repo->store(),$mid,$item['key']]);
+            if($last&&$last['status']==='rejected'&&hash('sha256',CatalogAuditRepository::json($item['payload']))===$last['payload_hash']){
+                $result=json_decode($last['result_json'],true)?:[];
+                $item['status']='rejected';$item['checks']['errors'][]='Trendyol reddetti: '.($result['rejection']??'Aynı içerik yeniden gönderilmedi.');
+            }
+        }
         return $item;
+    }
+    private function reconcileReceipts(int $mid,float $deadline): void
+    {
+        $db=$this->repo->db;$sid=$this->repo->store();
+        $actions=$db->fetchAll("SELECT * FROM catalog_audit_actions WHERE store_id=? AND marketplace_id=? AND operation='publish' AND status IN ('accepted','unknown','submitting') ORDER BY updated_at,id LIMIT 20",[$sid,$mid]);
+        foreach($actions as$action){
+            if(microtime(true)>$deadline-5)break;
+            $result=json_decode($action['result_json']??'null',true)?:[];$payload=json_decode($action['payload_json'],true);
+            if(($result['receipt_checked_at']??0)>time()-300||empty($result['batch_ids']))continue;
+            // Receipts expire after four hours. Absence or a failed read never proves rejection.
+            if(strtotime($action['created_at'])<time()-4*3600)continue;
+            $reason=null;$result['receipt_checked_at']=time();
+            foreach($result['batch_ids']as$batch){
+                try{
+                    $receipt=$this->get(TrendyolService::class)->getBatchStatus((string)$batch);$matches=[];
+                    foreach($receipt['items']??[]as$entry){
+                        $request=$entry['requestItem']['product']??$entry['requestItem']??[];
+                        $barcode=(string)($request['barcode']??'');$sku=(string)($request['stockCode']??'');
+                        // The API can strip spaces from invalid barcodes in its own receipt.
+                        // An exact, unique SKU in this action's batch still identifies its rejection.
+                        if(($barcode===(string)$payload['barcode']&&($sku===''||$sku===(string)$payload['stockCode']))
+                            ||($sku!==''&&$sku===(string)$payload['stockCode']))$matches[]=$entry;
+                    }
+                    if(count($matches)===1&&strtoupper((string)($matches[0]['status']??''))==='FAILED'){
+                        $reasons=$matches[0]['failureReasons']??[];
+                        $reason=is_array($reasons)?implode('; ',array_map(static fn($r)=>is_array($r)?(string)($r['message']??json_encode($r,JSON_UNESCAPED_UNICODE)):(string)$r,$reasons)):(string)$reasons;
+                        $reason=$reason?:'Pazaryeri ürün isteğini reddetti.';break;
+                    }
+                }catch(\Throwable $e){$result['receipt_error']=$e->getMessage();}
+            }
+            if($reason!==null){
+                $result['rejection']=$reason;$this->repo->actionResult((int)$action['id'],'rejected',$result);
+                $row=$db->fetchOne('SELECT checks_json FROM catalog_audit_items WHERE store_id=? AND marketplace_id=? AND entity_key=?',[$sid,$mid,$action['entity_key']]);
+                if($row){$checks=json_decode($row['checks_json'],true)?:[];$checks['errors']=array_values(array_unique(array_merge($checks['errors']??[],['Trendyol reddetti: '.$reason])));
+                    $db->query("UPDATE catalog_audit_items SET status='rejected',checks_json=? WHERE store_id=? AND marketplace_id=? AND entity_key=? AND status='awaiting_result'",[CatalogAuditRepository::json($checks),$sid,$mid,$action['entity_key']]);}
+            }else $this->repo->actionResult((int)$action['id'],$action['status'],$result);
+        }
     }
     private function dispatch(int $mid,int $run,array $item,array $snapshot): array
     {
@@ -270,7 +318,9 @@ final class CatalogAuditService
         try {
             $result=$publish?$this->get(ProductPublishService::class)->publishProducts([(int)$item['product_id']],$mid):$this->get(TrendyolService::class)->updateStock([$payload]);
             // A transport response is only a submission. Remote observation confirms completion on the next pass.
-            $this->repo->actionResult($id,'accepted',$result);$item['status']='awaiting_result';
+            $failed=$publish&&!empty($result['failed'])&&empty($result['processing'])&&empty($result['batch_ids']);
+            if($failed)$result['rejection']=self::responseErrors($result['errors']??[])?:'Gönderim doğrulaması başarısız.';
+            $this->repo->actionResult($id,$failed?'rejected':'accepted',$result);$item['status']=$failed?'rejected':'awaiting_result';
             if(!empty($result['errors']))$item['checks']['errors'][]='Gönderim yanıtı: '.self::responseErrors($result['errors']);
         }catch(\Throwable $e){$this->repo->actionResult($id,'unknown',['error'=>$e->getMessage()]);$item['status']='awaiting_result';$item['checks']['errors'][]='İstek sonucu belirsiz: '.$e->getMessage();}
         return $item;

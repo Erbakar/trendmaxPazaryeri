@@ -59,6 +59,22 @@ final class XmlUserPublishFlowTest extends TestCase
             $observed=$inspect->invoke($audit,1,$entity,$snapshot);self::assertSame('verified',$observed['status'],json_encode($observed['checks']));
             $dispatch->invoke($audit,1,(int)$run['id'],$observed,$snapshot);self::assertNull($repo->pending(1,$entity['key']));
             self::assertSame('confirmed',$db->fetchOne('SELECT status FROM catalog_audit_actions WHERE store_id=?',[$sid])['status']);
+            // A batch rejection can exist without any catalogue record (including a normalized
+            // receipt barcode). It must become visible and must not be resent on the next pass.
+            $entity['remote']=null;$ready=$inspect->invoke($audit,1,$entity,$snapshot);
+            $failedId=$repo->intent(1,(int)$run['id'],$ready,'publish',$ready['payload']);
+            $repo->actionResult($failedId,'accepted',['batch_ids'=>['catalog-failed']]);
+            $ready['status']='awaiting_result';$repo->put(1,(int)$run['id'],$ready);
+            (new ReflectionMethod($audit,'reconcileReceipts'))->invoke($audit,1,microtime(true)+30);
+            self::assertNull($repo->pending(1,$entity['key']));
+            self::assertSame('rejected',$repo->report(1)['items'][0]['status']);
+            $held=$inspect->invoke($audit,1,$entity,$snapshot);self::assertSame('rejected',$held['status']);
+            self::assertStringContainsString('Barkod kabul edilmiyor',implode(' / ',$held['checks']['errors']));
+            $dispatch->invoke($audit,1,(int)$run['id'],$held,$snapshot);
+            self::assertSame(2,(int)$db->fetchOne('SELECT COUNT(*) n FROM catalog_audit_actions WHERE store_id=?',[$sid])['n']);
+            // Genuine corrected content can be reconsidered; an unchanged rejection cannot.
+            $db->query('UPDATE catalog_audit_actions SET payload_hash=? WHERE id=?',[hash('sha256','old rejected content'),$failedId]);
+            self::assertSame('ready',$inspect->invoke($audit,1,$entity,$snapshot)['status']);
             $db->query('ROLLBACK TO SAVEPOINT catalog_worker_test');
             (new ReflectionProperty(AbstractMarketplace::class,'baseUrl'))->setValue($ty,'http://127.0.0.1:8091/xml-flow/integration');
             $sent=$publish->publishProducts([(int)$a['id'],(int)$b['id']],1);self::assertSame(0,$sent['success'],json_encode($sent));self::assertSame(2,$sent['processing']);self::assertSame(0,$sent['failed']);

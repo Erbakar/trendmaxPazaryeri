@@ -44,6 +44,11 @@ final class CatalogAuditTest extends TestCase
     {
         $this->expectException(RuntimeException::class);Policy::remoteRows([['barcode'=>'A','stockCode'=>'S','onSale'=>false]],[]);
     }
+    public function testInvalidBarcodesAreHeldWithoutChangingTheirIdentity(): void
+    {
+        foreach(['TPTCml-NO:53','TPTCml-DSAYANG NO:7','A/B','A&B',str_repeat('A',41),'']as$barcode)self::assertFalse(Policy::validPublishBarcode($barcode));
+        foreach(['SMR-D263-SİYAH','ÜRÜN_1.2',str_repeat('A',40)]as$barcode)self::assertTrue(Policy::validPublishBarcode($barcode));
+    }
     public function testIncompleteBarcodeLookupNeverAuthorizesANewListing(): void
     {
         self::assertTrue(Policy::barcodeAbsent(['approved'=>['totalElements'=>0,'content'=>[]],'unapproved'=>['totalElements'=>0,'content'=>[]]]));

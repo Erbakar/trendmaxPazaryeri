@@ -59,6 +59,12 @@ final class CatalogAuditPolicy
         }
         return $rows;
     }
+    public static function validPublishBarcode(string $barcode): bool
+    {
+        // Product Create v2 permits letters (including Turkish), numbers, dot, dash and underscore.
+        // Do not silently normalize spaces: stock updates must retain the exact remote identity.
+        return mb_strlen($barcode)<=40&&preg_match('/^[\p{L}\p{N}._-]+$/u',$barcode)===1;
+    }
     public static function barcodeAbsent(array $lookup): bool
     {
         $absent=true;

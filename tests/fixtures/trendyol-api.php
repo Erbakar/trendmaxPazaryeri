@@ -20,6 +20,10 @@ if (str_starts_with($path, '/receipts')) {
 $catalogAudit=str_starts_with($path,'/catalog-audit/');
 if($catalogAudit){
     $path=substr($path,strlen('/catalog-audit'));
+    if(str_ends_with($path,'/batch-requests/catalog-failed')){
+        echo json_encode(['status'=>'COMPLETED','items'=>[['requestItem'=>['product'=>['barcode'=>'API-NORMALIZED','stockCode'=>'XMLFLOW-A']],'status'=>'FAILED','failureReasons'=>['Barkod kabul edilmiyor']]]]);return;
+    }
+
     if(in_array($path,['/integration/product/sellers/999/products/approved','/integration/product/sellers/999/products/unapproved'],true)){
         echo json_encode(['totalPages'=>0,'totalElements'=>0,'content'=>[]]);return;
     }

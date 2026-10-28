@@ -64,6 +64,10 @@ final class SupplierCatalogTest extends TestCase
             self::assertSame($own,$c->get(ProductCategoryOverride::class)->forProduct((int)$p['id'],1),'XML refresh preserves supplemental marketplace values');
             self::assertSame(123.0,$c->get(App\Services\PriceRuleEngine::class)->calculatePrice($p,1)['sale_price']);
             self::assertSame(0,$worker->tick(40)['checked']);self::assertSame(2,$http->calls,'Inventory changes do not trigger a supplier metadata recrawl');
+            $mapping['attribute_color']='Color';$c->get(XmlProfile::class)->update($pid,['field_mapping_json'=>json_encode($mapping)]);
+            file_put_contents($file,str_replace('</Item>','<Color>Mavi</Color></Item>',$xml(20,3)));self::assertTrue($import->run($pid)['ok']);$p=$c->get(Product::class)->find((int)$p['id']);
+            self::assertNotEmpty($supplier->errors($p),'A newly provided XML color must not silently retain an earlier secondary-source color');
+            $supplier->acknowledge($p);self::assertSame([],$supplier->errors($p),'Only an explicit new review can accept the changed product facts');
             file_put_contents($file,$xml(20,0));self::assertTrue($import->run($pid)['ok']);self::assertSame(0,(int)$c->get(Product::class)->find((int)$p['id'])['stock_qty']);
             $db->query('UPDATE products SET description=? WHERE id=? AND store_id=?',['Changed product',$p['id'],$sid]);$p=$c->get(Product::class)->find((int)$p['id']);self::assertNotEmpty($supplier->errors($p));self::assertNull($supplier->evidence($p),'A changed source cannot reuse earlier supplier facts');
             try{$supplier->acknowledge($p);self::fail('An outdated supplier check cannot be acknowledged');}catch(RuntimeException $e){self::assertStringContainsString('güncel kontrolü',$e->getMessage());}

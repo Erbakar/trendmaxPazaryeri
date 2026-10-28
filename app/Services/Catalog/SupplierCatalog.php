@@ -16,6 +16,11 @@ final class SupplierCatalog
     {
         return hash('sha256',json_encode([$p['sku'],$p['name'],$p['description']??'',CatalogAuditPolicy::images($p)],JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR));
     }
+    private function appliedFingerprint(array $p): string
+    {
+        $attributes=$this->db->fetchAll('SELECT attribute_id,attribute_value_id,custom_value FROM product_attribute_values WHERE store_id=? AND product_id=? ORDER BY attribute_id,id',[$this->tenant->currentStoreId(),$p['id']]);
+        return hash('sha256',CatalogAuditRepository::json([self::fingerprint($p),$attributes]));
+    }
     private function enabled(array $p): bool
     {
         if(empty($p['xml_profile_id']))return false;$key=$this->tenant->currentStoreId().'_'.(int)$p['xml_profile_id'];
@@ -34,21 +39,22 @@ final class SupplierCatalog
     public function errors(array $p): array
     {
         if(!$this->enabled($p))return [];$r=$this->row((int)$p['id']);if(!$r||!$r['applied_source_hash'])return [];
-        return $r['applied_source_hash']!==self::fingerprint($p)||$r['source_hash']!==self::fingerprint($p)
+        return $r['applied_source_hash']!==$this->appliedFingerprint($p)||$r['source_hash']!==self::fingerprint($p)
             ||$r['applied_facts_hash']!==$r['facts_hash']||(int)$r['checked_epoch']<time()-86400||!in_array($r['status'],['extra','no_extra'],true)
             ?['Ek tedarikçi bilgisi değişti veya güncelliği doğrulanamadı; ürün özellikleri yeniden incelenmeli.']:[];
     }
     public function markApplied(array $p,array $evidence): void
     {
-        $stmt=$this->db->query('UPDATE catalog_supplier_pages SET applied_source_hash=source_hash,applied_facts_hash=facts_hash WHERE store_id=? AND product_id=? AND source_hash=? AND facts_hash=?',[$this->tenant->currentStoreId(),$p['id'],$evidence['source_hash'],$evidence['facts_hash']]);
-        if($stmt->rowCount()!==1&&!$this->db->fetchOne('SELECT id FROM catalog_supplier_pages WHERE store_id=? AND product_id=? AND source_hash=? AND facts_hash=? AND applied_source_hash=source_hash AND applied_facts_hash=facts_hash',[$this->tenant->currentStoreId(),$p['id'],$evidence['source_hash'],$evidence['facts_hash']]))throw new \RuntimeException('Tedarikçi bilgisi işlem sırasında değişti; tamamlama yeniden denenecek.');
+        $applied=$this->appliedFingerprint($p);
+        $stmt=$this->db->query('UPDATE catalog_supplier_pages SET applied_source_hash=?,applied_facts_hash=facts_hash WHERE store_id=? AND product_id=? AND source_hash=? AND facts_hash=?',[$applied,$this->tenant->currentStoreId(),$p['id'],$evidence['source_hash'],$evidence['facts_hash']]);
+        if($stmt->rowCount()!==1&&!$this->db->fetchOne('SELECT id FROM catalog_supplier_pages WHERE store_id=? AND product_id=? AND source_hash=? AND facts_hash=? AND applied_source_hash=? AND applied_facts_hash=facts_hash',[$this->tenant->currentStoreId(),$p['id'],$evidence['source_hash'],$evidence['facts_hash'],$applied]))throw new \RuntimeException('Tedarikçi bilgisi işlem sırasında değişti; tamamlama yeniden denenecek.');
     }
     public function acknowledge(array $p): void
     {
         if(!$this->enabled($p))return;$r=$this->row((int)$p['id']);
         if(!$r||!$r['applied_source_hash'])return;
         if($r['source_hash']!==self::fingerprint($p)||!in_array($r['status'],['extra','no_extra'],true)||(int)$r['checked_epoch']<time()-86400)throw new \RuntimeException('Tedarikçi sayfasının güncel kontrolü bekleniyor; özellik onayı henüz kaydedilmedi.');
-        $this->db->query('UPDATE catalog_supplier_pages SET applied_source_hash=source_hash,applied_facts_hash=facts_hash WHERE store_id=? AND product_id=?',[$this->tenant->currentStoreId(),$p['id']]);
+        $this->db->query('UPDATE catalog_supplier_pages SET applied_source_hash=?,applied_facts_hash=facts_hash WHERE store_id=? AND product_id=?',[$this->appliedFingerprint($p),$this->tenant->currentStoreId(),$p['id']]);
     }
     public function record(array $p,?array $page,string $status='',?string $error=null,?int $observedAt=null): void
     {

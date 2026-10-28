@@ -183,7 +183,8 @@ Tamamlanan değerler sonraki XML içe aktarımlarında silinmeyen ürün eşleş
 yazılır; tedarikçinin sunucusundaki XML dosyası değiştirilmez.
 
 Aynı açıklama ek bilgi sayılmaz. Sayfalar günde bir yenilenir; ürün adı, açıklaması
-veya görseli değişirse yeniden kontrol edilir. Daha önce kullanılan ek bilgi
+veya görseli değişirse yeniden kontrol edilir. XML'den gelen özellik alanları
+değiştiğinde eski ek kaynak değeriyle otomatik gönderime devam edilmez; yeni inceleme gerekir. Daha önce kullanılan ek bilgi
 değiştiğinde yeni gönderim inceleme bekler. Hata veya istek sınırında tekrar deneme
 uygulanır; site genelinde istekler arasında en az beş saniye bırakılır. Kontrol,
 ek metin ve gerçekte kullanılan bilgi sayıları Katalog Kontrolü ekranında ayrıdır.

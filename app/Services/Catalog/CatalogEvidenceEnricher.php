@@ -15,6 +15,8 @@ final class CatalogEvidenceEnricher
         if(!empty($entity['identity_error'])||empty($entity['product_id']))return null;
         $product=$this->container->get(Product::class)->find((int)$entity['product_id']);
         if(!$product||empty($product['xml_profile_id'])||empty($product['is_active'])||!empty($product['is_archived'])||!empty($product['missing_stock']))return null;
+        $supplier=$this->container->get(SupplierCatalog::class);
+        if($supplier->errors($product))return null;
         if($this->repo->blockedReason($mid,$product))return null;
         $source=$snapshot['sources'][(int)$entity['profile_id']]['rows'][(string)$entity['sku']]??null;
         if(!$source||CatalogAuditPolicy::sourceErrors($product,$source)||(string)$source['name']!==(string)$product['name']
@@ -37,8 +39,17 @@ final class CatalogEvidenceEnricher
         // Explicit field-source mappings retain their authority and are never flattened into defaults.
         if(array_filter($config['sources']??[]))return null;
         $proposed=CatalogSourceEvidence::attributes($product,$attributes,$values);
+        $web=$supplier->evidence($product);$webAdded=[];
+        if($web){
+            $extra=SupplierPage::supplement($product,$web['page']);
+            if($extra!==null&&$extra!==''){
+                $more=CatalogSourceEvidence::attributes(array_replace($product,['description'=>$product['description']."\n".htmlspecialchars($extra,ENT_QUOTES,'UTF-8')]),$attributes,$proposed['values']);
+                $webAdded=$more['evidence'];$proposed['values']=$more['values'];$proposed['evidence']=array_replace($proposed['evidence'],$webAdded);
+            }
+        }
         $proof=['type'=>'supplier_text_rules','version'=>CatalogSourceEvidence::VERSION,'category'=>$guess,
             'attributes'=>$proposed['evidence'],'source_hash'=>hash('sha256',$product['name']."\n".$product['description'])];
+        if($webAdded)$proof['web_source']=['url'=>$web['page']['url'],'checked_at'=>$web['checked_at'],'facts_hash'=>$web['facts_hash'],'attributes'=>$webAdded];
         if($current!==$target||$proposed['evidence']){
             $db=$this->repo->db;$db->beginTransaction();
             try{
@@ -51,6 +62,7 @@ final class CatalogEvidenceEnricher
                 $overrides->saveAttributes((int)$own['id'],$target,$proposed['values'],[],(int)$product['id']);
                 $after=$overrides->forProduct((int)$product['id'],$mid);
                 $db->query('INSERT INTO catalog_enrichment_events(store_id,marketplace_id,product_id,before_json,after_json,evidence_json,created_at) VALUES(?,?,?,?,?,?,NOW())',[$this->repo->store(),$mid,$product['id'],CatalogAuditRepository::json($mapping),CatalogAuditRepository::json($after),CatalogAuditRepository::json($proof)]);
+                if($webAdded)$supplier->markApplied($product,$web);
                 $db->commit();
             }catch(\Throwable $e){$db->rollBack();throw $e;}
         }

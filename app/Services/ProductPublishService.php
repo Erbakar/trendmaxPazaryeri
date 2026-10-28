@@ -396,6 +396,10 @@ final class ProductPublishService
         $marketplace = $this->marketplaceModel->find($marketplaceId);
         $marketplaceSlug = (string) ($marketplace['slug'] ?? '');
 
+        if ($marketplaceSlug === 'trendyol') {
+            $errors = array_merge($errors, $this->container->get(\App\Services\Catalog\SupplierCatalog::class)->errors($product));
+        }
+
         // WooCommerce kendi kurallarıyla doğrulanır (barkod/kategori/marka isteğe bağlı, SKU zorunlu)
         if ($marketplaceSlug === self::WOO_SLUG && is_array($marketplace)) {
             return $this->validateForWooCommerce($product, $marketplace);

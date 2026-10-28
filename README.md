@@ -40,7 +40,7 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
 5. Önce `php database/migrate.php --dry-run` ile bekleyen güncellemeleri inceleyin.
    Yedekten sonra `php database/migrate.php --allow-live` ile uygulayın; tekrar dry-run'da
    bekleyen işlem kalmamalı. Mevcut bilinmeyen bir şemaya gelişigüzel `--baseline` uygulamayın.
-   Bu sürümün phase14 güncellemeleri 059, 060 ve 061'i de içerir; katalog kontrolü, görsel önbelleği ve eşleştirme değişiklik geçmişi için altı yeni tablo gerekir.
+   Bu sürümün phase14 güncellemeleri 059–062'yi de içerir; katalog kontrolü, görsel önbelleği, eşleştirme geçmişi ve tedarikçi sayfa kontrolleri için yedi yeni tablo gerekir.
 6. Uygulamayı yeni sürüme yönlendirin; kullanıcı girişi, kendi mağaza görünürlüğü, XML analizi,
    kategori/özellik seçimleri, fiyat önizlemesi ve sınırlı gerçek ürünün batch sonucunu doğrulayın.
    Batch kabulü, içerik onayı ve satışa açılma ayrı aşamalardır.
@@ -58,6 +58,7 @@ Sunucuda kuyruk işleyicisi henüz kurulmadıysa, aşağıdaki cron örneğinde 
 * * * * * /usr/bin/php /PROJE/cron/sync_xml_profiles.php >> /PROJE/storage/logs/xml-cron.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/sync_publish_batches.php >> /PROJE/storage/logs/publish-batches.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/catalog_audit.php >> /PROJE/storage/logs/catalog-audit.log 2>&1
+* * * * * /usr/bin/php /PROJE/cron/supplier_catalog.php >> /PROJE/storage/logs/supplier-catalog.log 2>&1
 ```
 
 Aynı görevlerin doğrudan `sync_orders.php` vb. cron tanımlarını kuyrukla birlikte çalıştırmayın. Ürün gönderimi için ilgili veritabanı migrasyonları, kuyruk için de `sync_jobs` şeması tamamlanmış olmalıdır. `/sync` ekranında yalnız yeşil anahtar veya elle başarılı çalışma otomatik çalışmanın kanıtı değildir; her satırdaki **Son otomatik** tarihinin seçilen aralıkta ilerlediğini kontrol edin. Gönderim isteklerinin API kabulü, ürünün satışa açılması anlamına gelmez; batch sonucu ve Trendyol durum sayaçları ayrıca doğrulanmalıdır.
@@ -165,3 +166,24 @@ kaynağından hesapla” seçeneği, kanıtlanmış stok bağlantılarını fiya
 olarak kullanmayı ayrıca açar. XML profilinin kâr/kargo ayarı uygulanır; bu fiyat
 işlemi stok miktarı veya ürün içeriği göndermez. Ayar kapalıyken eski fiyat
 sahipliği korunur.
+
+### Tedarikçi sitesinden ek ürün bilgisi
+
+XML profili düzenleme ekranındaki **Eksik Ürün Bilgilerini Tamamla** seçeneği,
+Toptanarabul ürün sayfalarının arka planda kontrolünü açar. Bu seçim varsayılan
+olarak kapalıdır ve yalnız ilgili mağaza/profili etkiler. `supplier_catalog.php`
+görevi, katalog raporunda eksikleri bulunan ürünleri kalıcı önbellekle kontrol eder;
+müşterinin her ürün veya yeni XML yüklemesinde komut çalıştırması gerekmez.
+
+Tam stok kodu ve normalleştirilmiş ürün adı eşleşmelidir. Tedarikçi kategorisi,
+fiyatı, stoğu ve görselleri kopyalanmaz. Ek açıklama ve açık özellik alanlarındaki
+doğrulanabilen bilgiler, boş Trendyol özelliklerini tamamlamak için kullanılır;
+XML/panel stok-fiyat-görsel kontrolleri ve mevcut kullanıcı seçimleri korunur.
+Tamamlanan değerler sonraki XML içe aktarımlarında silinmeyen ürün eşleştirmelerine
+yazılır; tedarikçinin sunucusundaki XML dosyası değiştirilmez.
+
+Aynı açıklama ek bilgi sayılmaz. Sayfalar günde bir yenilenir; ürün adı, açıklaması
+veya görseli değişirse yeniden kontrol edilir. Daha önce kullanılan ek bilgi
+değiştiğinde yeni gönderim inceleme bekler. Hata veya istek sınırında tekrar deneme
+uygulanır; site genelinde istekler arasında en az beş saniye bırakılır. Kontrol,
+ek metin ve gerçekte kullanılan bilgi sayıları Katalog Kontrolü ekranında ayrıdır.

@@ -60,4 +60,13 @@ final class CatalogSourceEvidenceTest extends TestCase
         $r=Evidence::attributes(['name'=>'Duvar Saati','description'=>'Ürün ölçüleri: 60 x 42 cm'],$attributes,['92'=>'3']);
         self::assertSame('3',$r['values'][92]);self::assertArrayNotHasKey(92,$r['evidence']);
     }
+    public function testConflictingSupplementalFactsRemainUnknown(): void
+    {
+        $r=Evidence::attributes(['name'=>'Kalem','description'=>'<p>Renk: Siyah ve Mavi</p><p>Menşei: TR</p><p>Menşei: CN</p>'],$this->attributes(),[]);
+        self::assertArrayNotHasKey(47,$r['values']);self::assertArrayNotHasKey(1192,$r['values']);
+        $r=Evidence::attributes(['name'=>'Kalem','description'=>'<p>Materyal: Metal</p><p>Renk: Siyah</p>'],$this->attributes(),[]);
+        self::assertSame('11',$r['values'][14]);self::assertSame('Siyah',$r['values'][47]);
+        $r=Evidence::attributes(['name'=>'Kalem','description'=>'<p>Ambalaj materyal: Metal</p>'],$this->attributes(),[]);
+        self::assertSame('12',$r['values'][14],'Packaging must not become product material');
+    }
 }

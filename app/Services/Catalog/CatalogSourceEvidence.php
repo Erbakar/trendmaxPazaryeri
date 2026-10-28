@@ -5,7 +5,7 @@ namespace App\Services\Catalog;
 /** Conservative facts from supplier text. Unknown facts remain unknown. */
 final class CatalogSourceEvidence
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
     public static function text(string $text): string
     {
         $text=preg_replace('~<(?:br\b[^>]*|/p|/div|/li)>~iu',' ',$text);
@@ -102,7 +102,10 @@ final class CatalogSourceEvidence
         if(preg_match('~gumus renk~u',$name))$found[]='Gümüş';if(preg_match('~altin renk~u',$name))$found[]='Altın';
         if(preg_match('~cok renkli|rengarenk~u',$name))$found=['Çok Renkli'];
         if(!$found){
-            foreach($colors as$color)if(preg_match('~\b(?:renk|rengi)\s*[:=]\s*'.self::text($color).'\b~u',$desc))$found[]=$color;
+            foreach(self::labelled((string)($product['description']??''),'renk|rengi')as$label){
+                if(preg_match('~cok renkli|rengarenk~u',$label)){$found[]='Çok Renkli';continue;}
+                foreach(array_merge($colors,['Altın','Gümüş','Rose'])as$color)if(preg_match('~\b'.self::text($color).'\b~u',$label))$found[]=$color;
+            }
             if(preg_match('~micro gumus kaplama~u',$desc))$found[]='Gümüş';
             if(preg_match('~rose(?: altin)? kaplama~u',$desc))$found[]='Rose';
             $found=array_values(array_unique($found));
@@ -116,8 +119,10 @@ final class CatalogSourceEvidence
         if(preg_match('~\bunisex\b~u',$text))$add('343','Unisex','Ürün metninde unisex');
         if(preg_match('~\byetiskin\b~u',$text)||(($female||$male)&&!preg_match('~\b(cocuk|bebek)\b~u',$text)))$add('346','Yetişkin','Ürün metnindeki hedef yaş');
         if(preg_match('~\bcocuk\b~u',$name)&&!preg_match('~\bbebek\b~u',$name))$add('346','Çocuk','Ürün adında çocuk');
-        if(preg_match('~(?:mensei|uretim yeri|uretildigi ulke)\s*[:=]\s*(turkiye|turkey|tr)\b~u',$desc))$add('1192','TR','Açıklamada menşei Türkiye');
-        if(preg_match('~(?:mensei|uretim yeri)\s*[:=]\s*(cin|china|cn)\b~u',$desc))$add('1192','CN','Açıklamada menşei Çin');
+        $origins=[];
+        if(preg_match('~(?:mensei|uretim yeri|uretildigi ulke)\s*[:=]\s*(turkiye|turkey|tr)\b~u',$desc))$origins[]='TR';
+        if(preg_match('~(?:mensei|uretim yeri|uretildigi ulke)\s*[:=]\s*(cin|china|cn)\b~u',$desc))$origins[]='CN';
+        if(count($origins)===1)$add('1192',$origins[0],'Açıklamadaki tek ve açık menşei');
         if(preg_match('~ayarlanabilir|uzatma zinciri|tek beden|standart beden~u',$text))$add('338','Tek Ebat','Ürün metninde ayarlanabilir/tek beden');
         $power=[];
         if(preg_match('~\bpilli\b|pil ile calis|\b\d+\s*(?:adet)?\s*(?:aa|aaa)\s*pil~u',$text))$power[]='Pilli';
@@ -148,7 +153,8 @@ final class CatalogSourceEvidence
             $material=preg_replace('~(?:ahsap|metal|deri|karton|plastik) kutulu~u','kutulu',$name);$found=[];
             foreach($byId[14]['values']??[]as$o)if(!in_array(self::text($o['name']),['belirtilmemis','diger'],true)&&preg_match('~\b'.preg_quote(self::text($o['name']),'~').'\b~u',$material))$found[]=$o['name'];
             $specific=array_values(array_filter($found,static fn($v)=>!array_filter($found,static fn($other)=>$other!==$v&&str_contains(self::text($other),self::text($v)))));
-            if(count($specific)===1)$add('14',$specific[0],'Ürün adındaki materyal (ambalaj hariç)');
+            if(!$specific){foreach(self::labelled((string)($product['description']??''),'materyal|malzeme')as$label)foreach($byId[14]['values']??[]as$o)if(self::text($o['name'])===$label&&!in_array($label,['belirtilmemis','diger'],true))$specific[]=$o['name'];$specific=array_values(array_unique($specific));}
+            if(count($specific)===1)$add('14',$specific[0],'Ürün adı veya açık materyal alanı (ambalaj hariç)');
         }
         preg_match_all('~\b(\d+(?:[.,]\d+)?)\s*(ml|mililitre|lt|litre|liter)\b~u',$text,$vol,PREG_SET_ORDER);$volumes=[];
         foreach($vol as$v)$volumes[]=(float)str_replace(',','.',$v[1])*(in_array($v[2],['lt','litre','liter'],true)?1000:1);
@@ -163,6 +169,15 @@ final class CatalogSourceEvidence
     private static function number(string $value): string
     {
         return (string)(float)str_replace(',','.',$value);
+    }
+    private static function labelled(string $description,string $labels): array
+    {
+        $description=preg_replace('~<(?:br\b[^>]*|/p|/div|/li)>~iu',"\n",$description);$values=[];
+        foreach(preg_split('/\R/u',html_entity_decode(strip_tags($description),ENT_QUOTES|ENT_HTML5,'UTF-8'))as$line){
+            $line=self::text($line);
+            if(preg_match('~^(?:'.$labels.')\s*[:=]\s*(.{1,200})$~u',$line,$m))$values[]=$m[1];
+        }
+        return $values;
     }
     private static function productDimensions(string $description): ?array
     {

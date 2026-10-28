@@ -25,6 +25,18 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <?php if($run): ?><p>Son tur: <strong><?= $e(['preparing'=>'Kaynaklar okunuyor','running'=>'Kontrol sürüyor','complete'=>'Tamamlandı','failed'=>'Kaynak okuma hatası'][$run['status']]??$run['status']) ?></strong> · <?= number_format((int)$run['cursor_pos'],0,',','.') ?> / <?= number_format((int)$run['total'],0,',','.') ?> kayıt · <?= $e($run['updated_at']) ?></p><?php if($run['error_text']): ?><p class="catalog-error"><?= $e($run['error_text']) ?></p><?php endif; endif; ?>
 <p class="catalog-note">Aşağıdaki sayılar son kontrolü bulunan kayıtları gösterir. Devam eden turda bazı kayıtların kontrol tarihi daha eski olabilir. “Gönderim sonucu bekleniyor” ve “Trendyol onayında”, satışa açıldığı anlamına gelmez. Stok ve fiyat doğrulaması satırdaki kontrol zamanına aittir.</p>
 </div>
+<?php if(!empty($data['supplier']['profiles'])): $supplier=$data['supplier'];$supplierCounts=array_column($supplier['states'],'n','status'); ?>
+<div class="catalog-box">
+<h2>Ek ürün bilgisi kontrolü — Toptanarabul.com</h2>
+<p>Stok kodu ve adı eşleşen ürün sayfaları arka planda okunur. Bulunan ek özellikler ürün kaydında korunur; XML dosyasının tedarikçideki aslı değişmez.</p>
+<p><strong><?= number_format(array_sum($supplierCounts),0,',','.') ?></strong> stok kodu kontrol edildi ·
+<strong><?= number_format((int)($supplierCounts['extra']??0),0,',','.') ?></strong> üründe farklı/ek metin bulundu ·
+<strong><?= number_format($supplier['applied'],0,',','.') ?></strong> üründe ek kaynak bilgisi kullanıldı.</p>
+<p class="catalog-note">Aynı açıklamayı içeren sayfalar ek bilgi sayılmaz. Tedarikçinin istek sınırında kontroller bekler ve sonra yeniden denenir. Son ürün kontrolü: <?= $e($supplier['last']??'Henüz başlamadı') ?>.</p>
+<?php if(!empty($supplierCounts['error'])): ?><p class="catalog-note"><?= (int)$supplierCounts['error'] ?> ürünün sayfa kontrolü yeniden denenecek.</p><?php endif; ?>
+<?php foreach($supplier['profiles']as$sp): ?><a href="/xml-profilleri/<?= (int)$sp['id'] ?>/duzenle"><?= $e($sp['name']) ?> — kaynak ayarı</a> <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <div class="catalog-summary"><a href="/products/catalog-audit"><strong><?= number_format(array_sum($report['counts']),0,',','.') ?></strong>Tümü</a><?php foreach($report['counts'] as$key=>$count): ?><a href="?status=<?= urlencode($key) ?>"><strong><?= number_format((int)$count,0,',','.') ?></strong><?= $e($labels[$key]??$key) ?></a><?php endforeach; ?></div>
 <div class="catalog-box"><form method="get" class="catalog-controls"><input class="form-control" style="max-width:360px" name="q" value="<?= $e($search) ?>" placeholder="Ürün, stok kodu veya eksik bilgi"><select class="form-control" style="max-width:300px" name="status"><option value="">Tüm durumlar</option><?php foreach($labels as$key=>$label): ?><option value="<?= $e($key) ?>" <?= $status===$key?'selected':'' ?>><?= $e($label) ?></option><?php endforeach; ?></select><button class="ui-btn ui-btn-outline">Filtrele</button><a href="/products/catalog-audit">Yenile</a></form></div>
 <div class="catalog-box catalog-scroll"><table class="catalog-table"><thead><tr><th>Ürün / ilan</th><th>Durum</th><th>Beklenen / Trendyol</th><th>Kontrol ve eksikler</th></tr></thead><tbody>
@@ -37,6 +49,7 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <?php if($remote): ?><p>Trendyol satış durumu: <?= $remote['onSale']?'Satışta':'Satışta değil' ?></p><?php endif; ?>
 <p>İçerik doğrulaması: <?= !empty($checks['reviewed'])?'Kayıtlı doğrulama var':'İnceleme gerekli' ?></p>
 <?php if(!empty($checks['source_evidence'])): ?><p>Kaynak eşleştirme kanıtı: <?= $e($checks['source_evidence']['category']['evidence']??'') ?>. Ürün adı, açıklaması ve XML görselleri esas alındı.</p><?php endif; ?>
+<?php if(!empty($checks['source_evidence']['web_source']['url'])&&\App\Services\Catalog\SupplierPage::allowedUrl($checks['source_evidence']['web_source']['url'])): ?><p>Ek bilgi kaynağı: <a href="<?= $e($checks['source_evidence']['web_source']['url']) ?>" target="_blank" rel="noopener">Tedarikçi ürün sayfası</a> · <?= $e($checks['source_evidence']['web_source']['checked_at']) ?></p><?php endif; ?>
 <small>XML okuması: <?= $e($checks['xml_at']??'—') ?> · Trendyol okuması: <?= $e($checks['remote_at']??'—') ?></small>
 <?php if(isset($checks['stock_reason'])): ?><p><?= $e($checks['stock_reason']) ?></p><?php endif; ?>
 <ul><?php foreach(array_merge($checks['errors']??[],$checks['differences']??[])as$error): ?><li><?= $e($error) ?></li><?php endforeach; ?></ul>

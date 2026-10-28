@@ -239,6 +239,17 @@ $karTipi    = (string) ($ayar['kar_tipi'] ?? 'yuzde');
 
             <div class="xpf-row xpf-r2">
                 <div class="xpf-f">
+                    <label for="xpfSupplierInfo">Eksik Ürün Bilgilerini Tamamla</label>
+                    <select id="xpfSupplierInfo" name="tedarikci_bilgisi">
+                        <option value="" <?= empty($ayar['tedarikci_bilgisi'])?'selected':'' ?>>Yalnız XML bilgilerini kullan</option>
+                        <option value="toptanarabul" <?= ($ayar['tedarikci_bilgisi']??'')==='toptanarabul'?'selected':'' ?>>Toptanarabul.com ürün sayfalarını da kontrol et</option>
+                    </select>
+                    <span class="hint">Stok kodu ve adı eşleşen ürünlerin ek özellikleri arka planda kontrol edilir. Bulunan bilgiler XML güncellemelerinde korunur. Sonuçlar Ürünler → Katalog Kontrolü ekranında görünür.</span>
+                </div>
+            </div>
+
+            <div class="xpf-row xpf-r2">
+                <div class="xpf-f">
                     <label>Varsayılan Marka</label>
                     <select name="varsayilan_marka_id">
                         <option value="0">— Yok —</option>

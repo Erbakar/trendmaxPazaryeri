@@ -45,6 +45,7 @@ final class XmlProfileSettings
         $kargo = $oku('kargo_tutari');
 
         return [
+            'tedarikci_bilgisi'      => $oku('tedarikci_bilgisi') === 'toptanarabul' ? 'toptanarabul' : '',
             'kar_tipi'               => in_array($tip, self::PROFIT_TYPES, true) ? $tip : 'yuzde',
             'kar_degeri'             => (float) ($oku('kar_degeri') ?? 0),
             'kargo_tutari'           => $kargo === null || $kargo === '' ? null : max(0.0, round((float) $kargo, 2)),
@@ -70,6 +71,7 @@ final class XmlProfileSettings
         }
 
         $this->settingModel->setMany([
+            $this->key($profileId, 'tedarikci_bilgisi')     => ($ham['tedarikci_bilgisi'] ?? $this->forProfile($profileId)['tedarikci_bilgisi']) === 'toptanarabul' ? 'toptanarabul' : '',
             $this->key($profileId, 'kargo_tutari')          => $kargo === '' ? null : (string) round((float) $kargo, 2),
             $this->key($profileId, 'kar_tipi')               => in_array($tip, self::PROFIT_TYPES, true) ? $tip : 'yuzde',
             $this->key($profileId, 'kar_degeri')             => (string) max(0, (float) str_replace(',', '.', (string) ($ham['kar_degeri'] ?? 0))),
@@ -86,6 +88,7 @@ final class XmlProfileSettings
     public function deleteFor(int $profileId): void
     {
         $this->settingModel->setMany([
+            $this->key($profileId, 'tedarikci_bilgisi')     => null,
             $this->key($profileId, 'kargo_tutari')          => null,
             $this->key($profileId, 'kar_tipi')               => null,
             $this->key($profileId, 'kar_degeri')             => null,

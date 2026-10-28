@@ -187,12 +187,13 @@ final class CatalogAuditService
             $item['status']=CatalogAuditPolicy::outcome($item['checks'],$remote,false);return $item;
         }
         if(!$product||!$sourceProduct){$item['checks']['errors']=array_values(array_unique(array_merge($errors,['Panel ürün bağlantısı bulunamadı.'])));return $item;}
+        $supplierErrors=$this->get(SupplierCatalog::class)->errors($product);$errors=array_merge($errors,$supplierErrors);
         $mapping=$this->get(CategoryMarketplaceMapping::class)->forProduct($product,$mid)?:null;
         $item['fingerprint']=$this->contentFingerprint($product,$mapping);
         $item['checks']['images']=CatalogAuditPolicy::images($product);
         $item['checks']['category_id']=$mapping['marketplace_category_id']??null;
         $item['checks']['category_name']=$mapping['marketplace_category_name']??'';
-        $item['checks']['reviewed']=$this->repo->reviewed($mid,(int)$product['id'],$item['fingerprint']);
+        $item['checks']['reviewed']=!$supplierErrors&&$this->repo->reviewed($mid,(int)$product['id'],$item['fingerprint']);
         if($blocked=$this->repo->blockedReason($mid,$product))$errors[]='İçerik çelişkisi: '.$blocked;
         if($sourceKnown)$errors=array_merge($errors,CatalogAuditPolicy::sourceErrors($sourceProduct,$source));
         if(empty($product['is_active'])||!empty($product['is_archived'])||!empty($product['missing_stock']))$errors[]='Ürün panelde kapalı, arşivde veya XML stoğu kapalı.';
@@ -385,6 +386,11 @@ final class CatalogAuditService
         if(!$item||empty($item['product_id']))throw new \RuntimeException('Ürün inceleme kaydı bulunamadı.');
         $p=$this->get(Product::class)->find((int)$item['product_id']);$m=$this->get(CategoryMarketplaceMapping::class)->forProduct($p,$mid)?:null;
         if(!$m||!hash_equals($this->contentFingerprint($p,$m),$fingerprint))throw new \RuntimeException('Ürün veya kategori değişti; sayfayı yenileyip yeniden inceleyin.');
-        $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'panel_content_review','item_id'=>$itemId],$user);
+        $this->repo->db->beginTransaction();
+        try{
+            $this->get(SupplierCatalog::class)->acknowledge($p);
+            $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'panel_content_review','item_id'=>$itemId],$user);
+            $this->repo->db->commit();
+        }catch(\Throwable $e){$this->repo->db->rollBack();throw $e;}
     }
 }

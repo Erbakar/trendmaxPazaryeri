@@ -15,7 +15,7 @@ final class CatalogAuditController extends BaseController
             $mid=$service->marketplace();
             $status=(string)$request->query('status','');$search=trim((string)$request->query('q',''));
             $report=$this->container->get(CatalogAuditRepository::class)->report($mid,$status,max(1,$request->integer('page',1)),$search);
-            $this->view('products/catalog_audit',['pageTitle'=>'Katalog Kontrolü','report'=>$report,'config'=>$service->configuration(),'status'=>$status,'search'=>$search]);
+            $this->view('products/catalog_audit',['pageTitle'=>'Katalog Kontrolü','report'=>$report,'config'=>$service->configuration(),'supplier'=>$this->container->get(\App\Services\Catalog\SupplierCatalog::class)->summary(),'status'=>$status,'search'=>$search]);
         }catch(\Throwable $e){$this->view('products/catalog_audit',['pageTitle'=>'Katalog Kontrolü','error'=>$e->getMessage()]);}
     }
     public function configure(Request $request): void

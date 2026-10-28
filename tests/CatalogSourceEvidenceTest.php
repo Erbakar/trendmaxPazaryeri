@@ -36,4 +36,28 @@ final class CatalogSourceEvidenceTest extends TestCase
         $r=Evidence::attributes(['name'=>'Zincir','description'=>'<p>Uzunluk: 50 cm</p><p>Micro gümüş kaplama</p><p>Menşei: TR</p>'],$this->attributes(),[]);
         self::assertSame('30',$r['values'][338]);self::assertSame('Gümüş',$r['values'][47]);self::assertSame('3',$r['values'][348]);self::assertSame('90',$r['values'][1192]);
     }
+    public function testProductMeasurementsUseExactOptionsWithoutGuessingOrUsingPackaging(): void
+    {
+        $attributes=[['id'=>'92','allowCustom'=>false,'required'=>true,'values'=>[
+            ['id'=>'1','name'=>'60 x 42'],['id'=>'2','name'=>'8,5 x 6'],['id'=>'3','name'=>'25 x 15'],
+        ]]];
+        foreach(['<p>Ürün Ölçüleri;60*42 Cm</p>'=>'1','Boyut: 8,50 cm × 6 cm'=>'2','Ürünün ebatları: 25 x 15 cm'=>'3']as$description=>$value){
+            $r=Evidence::attributes(['name'=>'Duvar Saati','description'=>$description],$attributes,[]);
+            self::assertSame($value,$r['values'][92]);self::assertArrayHasKey(92,$r['evidence']);
+        }
+        foreach([
+            'Ürün ölçüleri: 60 x 42 x 3 cm', 'Ürün ölçüleri: 60 x 42 cm x 3 cm',
+            'Ürün ölçüleri: 60 x 42 mm', 'Ürün ölçüleri: 60 x 42',
+            'Kutu ölçüleri: 60 x 42 cm', 'Paket boyutu: 60 x 42 cm',
+            'Ambalajın ebatları: 60 x 42 cm', 'Kutusunun dış ölçüleri: 60 x 42 cm', 'Model 60x42 cm',
+            'Ürün ölçüleri: 60 x 42 cm. Boyut: 25 x 15 cm',
+            'Ürün ölçüleri: 60 x 42 cm. Boyut: 60 x 42 x 3 cm',
+            'Ürün ölçüleri: 60.1 x 42 cm', 'Ürün ölçüleri: 42 x 60 cm',
+        ]as$description){
+            $r=Evidence::attributes(['name'=>'Duvar Saati','description'=>$description],$attributes,[]);
+            self::assertArrayNotHasKey(92,$r['values'],$description);
+        }
+        $r=Evidence::attributes(['name'=>'Duvar Saati','description'=>'Ürün ölçüleri: 60 x 42 cm'],$attributes,['92'=>'3']);
+        self::assertSame('3',$r['values'][92]);self::assertArrayNotHasKey(92,$r['evidence']);
+    }
 }

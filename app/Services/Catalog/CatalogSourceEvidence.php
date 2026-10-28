@@ -5,7 +5,7 @@ namespace App\Services\Catalog;
 /** Conservative facts from supplier text. Unknown facts remain unknown. */
 final class CatalogSourceEvidence
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
     public static function text(string $text): string
     {
         $text=preg_replace('~<(?:br\b[^>]*|/p|/div|/li)>~iu',' ',$text);
@@ -129,6 +129,15 @@ final class CatalogSourceEvidence
             $lengths=array_values(array_unique(array_map(static fn($v)=>(string)(float)str_replace(',','.',$v),$lengths[1])));
             if(count($lengths)===1)$add('338',$lengths[0].' cm','Açıklamada açık zincir uzunluğu');
         }
+        // A labelled, two-dimensional product measurement must match an offered option exactly.
+        // Do not drop the third dimension, infer units, round sizes or use packaging measurements.
+        $dimensions=self::productDimensions((string)($product['description']??''));
+        if($dimensions!==null)foreach($byId[92]['values']??[]as$option){
+            if(preg_match('~^(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)(?:\s*cm)?$~u',self::text($option['name']),$match)
+                &&self::number($match[1])===$dimensions[0]&&self::number($match[2])===$dimensions[1]){
+                $add('92',$option['name'],'Açıklamadaki etiketli ürün ölçüsü (cm), Trendyol seçeneğiyle tam eşleşme');break;
+            }
+        }
         if(preg_match('~\bdijital\b|\bdigital\b~u',$name))$add('1104','Digital','Ürün adında dijital');
         if(preg_match('~\banalog\b~u',$name))$add('1104','Analog','Ürün adında analog');
         foreach(['A3','A4','A5','A6','A7','B4','B5','B6']as$size)if(preg_match('~\b'.strtolower($size).'\b~u',$name))$add('174',$size,'Ürün adındaki kağıt boyutu');
@@ -150,5 +159,24 @@ final class CatalogSourceEvidence
         // an invented measurement, or "single size". Existing user choices are never replaced.
         foreach($attributes as$a)if(!empty($a['required'])&&empty($a['allowCustom']))foreach($a['values']??[]as$o)if(self::text($o['name'])==='belirtilmemis')$add((string)$a['id'],$o['name'],'Trendyol’un resmi Belirtilmemiş seçeneği');
         return ['values'=>$values,'evidence'=>$evidence];
+    }
+    private static function number(string $value): string
+    {
+        return (string)(float)str_replace(',','.',$value);
+    }
+    private static function productDimensions(string $description): ?array
+    {
+        $text=self::text($description);$found=[];
+        preg_match_all('~\b(urun(?:un)?\s+)?(?:boyut(?:u|lari|lar)?|olcu(?:su|leri|ler)?|ebat(?:i|lari)?)\s*[:;=]\s*~u',$text,$matches,PREG_SET_ORDER|PREG_OFFSET_CAPTURE);
+        foreach($matches as$match){
+            $before=substr($text,max(0,$match[0][1]-40),min(40,$match[0][1]));
+            if(($match[1][0]??'')===''&&preg_match('~\b(?:kutu|koli|paket|ambalaj)\p{L}*\b~u',$before))continue;
+            $remaining=substr($text,$match[0][1]+strlen($match[0][0]));
+            if(!preg_match('~^(\d+(?:[.,]\d+)?)\s*(?:cm)?\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*cm\b(?!\s*[x×*])~u',$remaining,$sizeMatch))return null;
+            $size=[self::number($sizeMatch[1]),self::number($sizeMatch[2])];
+            if((float)$size[0]<=0||(float)$size[1]<=0)continue;
+            $found[implode('x',$size)]=$size;
+        }
+        return count($found)===1?array_values($found)[0]:null;
     }
 }

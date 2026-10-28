@@ -151,6 +151,9 @@ resmi “Belirtilmemiş” seçeneği dışındaki değerler varsayılan olarak 
 Kullanıcının alan kaynağı eşleştirmeleri korunur; onaylı ilanın farklı bir kategoriye
 taşınması veya mevcut görselinin değiştirilmesi otomatik yapılmaz. Değişikliklerin
 önceki/sonraki hali ve dayanağı `catalog_enrichment_events` tablosunda tutulur.
+Etiketli iki boyutlu ürün ölçüleri (örneğin `Ürün Ölçüleri; 60*42 Cm`) yalnız
+Trendyol'un aynı ölçü seçeneğine eşlenir. Ambalaj ölçüleri, üç boyutlu, birimsiz,
+çelişkili veya mevcut seçeneklerden farklı ölçüler tahmin edilerek tamamlanmaz.
 
 Kategori, gerekli özellikler, güncel stok/fiyat ve görsel erişim kontrolleri geçen
 ürünler, otomatik gönderim de açıksa gönderilir. Kayıtlı içerik çelişkisi otomatik

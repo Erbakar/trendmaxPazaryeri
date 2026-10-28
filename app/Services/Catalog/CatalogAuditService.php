@@ -344,6 +344,10 @@ final class CatalogAuditService
             $this->repo->actionResult($id,$state,$result);
             $item['status']=$state==='rejected'?'rejected':($state==='not_submitted'?($item['remote']?'rejected':'needs_review'):'awaiting_result');
             if(!empty($result['errors']))$item['checks']['errors'][]='Gönderim yanıtı: '.self::responseErrors($result['errors']);
+        }catch(\App\Services\PublishBusyException $e){
+            // No request was sent. Do not turn a local lock conflict into an indefinite pending publish.
+            $this->repo->actionResult($id,'retryable',['error'=>$e->getMessage()]);$item['status']='ready';
+            $item['checks']['errors'][]='Gönderim sırası dolu; sonraki otomatik kontrolde yeniden denenecek.';
         }catch(\Throwable $e){$this->repo->actionResult($id,'unknown',['error'=>$e->getMessage()]);$item['status']='awaiting_result';$item['checks']['errors'][]='İstek sonucu belirsiz: '.$e->getMessage();}
         return $item;
     }

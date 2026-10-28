@@ -67,14 +67,24 @@ final class ProductPublishService
      *
      * @return array{checked:int, approved:int, rejected:int, pending:int, errors:array<int,string>}
      */
-    public function resolvePendingBatches(int $marketplaceId = 0, int $limit = 500): array
+    public function resolvePendingBatches(int $marketplaceId = 0, int $limit = 500, int $minimumIntervalSeconds = 0): array
     {
         $store=$this->container->get(\App\Core\TenantContext::class)->currentStoreId();
         $key='publish_batches_'.$store;
         if ((int)($this->db->fetchOne('SELECT GET_LOCK(?,0) acquired',[$key])['acquired']??0)!==1) {
             return ['checked'=>0,'approved'=>0,'rejected'=>0,'pending'=>0,'errors'=>[],'skipped_running'=>true];
         }
-        try { return $this->resolvePendingBatchesUnlocked($marketplaceId,$limit); }
+        try {
+            $settings=$this->container->get(\App\Models\StoreSetting::class);
+            if($minimumIntervalSeconds>0&&$settings->getValue('catalog_audit_enabled','0')==='1'&&$settings->getValue('catalog_auto_publish','0')==='1'){
+                // A full receipt/catalog scan can take most of a minute. Leave room for new submissions.
+                // Manual checks keep the default zero interval and remain immediate.
+                $stamp='publish_receipts_checked_'.$marketplaceId;
+                if((int)$settings->getValue($stamp,'0')>time()-$minimumIntervalSeconds)return ['checked'=>0,'approved'=>0,'rejected'=>0,'pending'=>0,'errors'=>[],'skipped_throttled'=>true];
+                $settings->setValue($stamp,(string)time());
+            }
+            return $this->resolvePendingBatchesUnlocked($marketplaceId,$limit);
+        }
         finally { $this->db->query('SELECT RELEASE_LOCK(?)',[$key]); }
     }
 
@@ -218,7 +228,7 @@ final class ProductPublishService
         }
         $key = 'publish_batches_' . $this->container->get(\App\Core\TenantContext::class)->currentStoreId();
         if ((int)($this->db->fetchOne('SELECT GET_LOCK(?,15) acquired', [$key])['acquired'] ?? 0) !== 1) {
-            throw new RuntimeException('Başka bir Trendyol gönderimi veya sonuç kontrolü sürüyor; tekrar deneyin.');
+            throw new PublishBusyException('Başka bir Trendyol gönderimi veya sonuç kontrolü sürüyor; tekrar deneyin.');
         }
         try { return $this->publishProductsUnlocked($productIds, $marketplaceId); }
         finally { $this->db->query('SELECT RELEASE_LOCK(?)', [$key]); }

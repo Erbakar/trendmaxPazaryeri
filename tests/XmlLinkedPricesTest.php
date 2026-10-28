@@ -30,6 +30,18 @@ final class XmlLinkedPricesTest extends TestCase
             $guarded=$prices->guard($payload,1);self::assertSame(166.0,$guarded[0]['salePrice']);self::assertSame(166.0,$guarded[0]['listPrice']);self::assertSame($payload[1],$guarded[1]);self::assertSame($payload[2],$guarded[2]);self::assertArrayNotHasKey('quantity',$guarded[0]);
             $result=$c->get(PriceSyncService::class)->syncMarketplace(1,'trendyol');self::assertSame(1,$result['sent'],json_encode($result));self::assertSame(0,$result['failed']);self::assertSame(5,(int)$product->find($pid)['stock_qty']);self::assertSame(40.0,(float)$product->find($pid)['cost_price']);
             $product->update($pid,['missing_stock'=>1]);self::assertSame([],$prices->all(1));$product->update($pid,['missing_stock'=>0]);
+            $other=(new ReflectionMethod(Database::class,'createConnection'))->invoke($db);$key='publish_batches_'.$sid;$q=$other->prepare('SELECT GET_LOCK(?,0)');$q->execute([$key]);
+            try{
+                $c->get(App\Services\ProductPublishService::class)->publishProducts([$pid],1);self::fail('A concurrent publisher was not blocked');
+            }catch(App\Services\PublishBusyException $e){self::assertStringContainsString('sonuç kontrolü',$e->getMessage());}
+            finally{$q=$other->prepare('SELECT RELEASE_LOCK(?)');$q->execute([$key]);}
+            $publisher=$c->get(App\Services\ProductPublishService::class);
+            $settings=$c->get(App\Models\StoreSetting::class);
+            self::assertArrayNotHasKey('skipped_throttled',$publisher->resolvePendingBatches(0,500,300));
+            $settings->setMany(['catalog_audit_enabled'=>'1','catalog_auto_publish'=>'1']);
+            self::assertArrayNotHasKey('skipped_throttled',$publisher->resolvePendingBatches(0,500,300));
+            self::assertTrue($publisher->resolvePendingBatches(0,500,300)['skipped_throttled']);
+            self::assertArrayNotHasKey('skipped_throttled',$publisher->resolvePendingBatches(0,500),'Manual checks remain immediate');
             $tenant->setStoreId(2147483647);self::assertSame([],$prices->all(1));self::assertSame($payload,$prices->guard($payload,1));
         }finally{$db->rollBack();$_ENV=$env;}
     }

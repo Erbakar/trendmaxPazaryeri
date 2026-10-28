@@ -37,7 +37,7 @@ echo '[' . date('Y-m-d H:i:s') . "] Gönderim sonuçları kontrol ediliyor...\n"
 
 $sonuclar = $runner->runForActiveStores(
     static function (int $storeId) use ($publish): array {
-        $r = $publish->resolvePendingBatches(0, 500);
+        $r = $publish->resolvePendingBatches(0, 500, 300);
         if ($r['checked'] > 0 || $r['errors'] !== []) {
             echo sprintf(
                 "  mağaza #%d — sorulan: %d · onaylandı: %d · reddedildi: %d · hâlâ işleniyor: %d · süresi dolmuş: %d\n",

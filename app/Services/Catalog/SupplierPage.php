@@ -39,7 +39,7 @@ final class SupplierPage
     public static function product(string $html,string $url): array
     {
         if(!self::allowedUrl($url)||!str_starts_with(parse_url($url,PHP_URL_PATH),'/urun/'))throw new \InvalidArgumentException('Geçersiz tedarikçi ürün adresi.');
-        $x=self::xpath($html);$h=$x->query('//h1');$details=$x->query('//*['.self::cls('product-detail').']');
+        $x=self::xpath($html);$h=$x->query('//h1[not(ancestor::*['.self::cls('product-detail').'])]');$details=$x->query('//*['.self::cls('product-detail').']');
         if($h->length!==1||$details->length!==1)throw new \RuntimeException('Tedarikçi ürün bilgisi tam okunamadı.');
         $fields=[];
         foreach($x->query('//*['.self::cls('product-list-row').']')as$row){

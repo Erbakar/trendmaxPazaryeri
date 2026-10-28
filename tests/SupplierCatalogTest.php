@@ -23,6 +23,8 @@ final class SupplierCatalogTest extends TestCase
         self::assertNull(SupplierPage::supplement(['sku'=>'SUP-2','name'=>'Plastik Tarak','description'=>'Tarak'],$page));
         self::assertNull(SupplierPage::supplement(['sku'=>'SUP-1','name'=>'Mavi Plastik Tarak','description'=>'Tarak'],$page));
         self::assertSame('',SupplierPage::supplement(['sku'=>'SUP-1','name'=>'Plastik Tarak','description'=>'<p>Renk: Siyah</p><p>Menşei: Türkiye</p>'],$page));
+        $withDescriptionTitle=str_replace('<div class="product-detail">','<div class="product-detail"><h1>Açıklamadaki farklı başlık</h1>',self::page());
+        self::assertSame('Plastik Tarak',SupplierPage::product($withDescriptionTitle,self::URL)['name'],'A heading inside the description is not the product identity');
     }
     public function testSupplierRequestsCannotEscapeKnownPublicProductPaths(): void
     {

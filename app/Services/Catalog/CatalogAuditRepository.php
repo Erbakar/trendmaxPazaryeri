@@ -47,7 +47,18 @@ final class CatalogAuditRepository
     }
     public function reviewed(int $mid,int $pid,string $fingerprint): bool
     {
-        return (bool)$this->db->fetchOne('SELECT id FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=? AND fingerprint=?',[$this->store(),$mid,$pid,$fingerprint]);
+        $row=$this->db->fetchOne('SELECT evidence_json FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=? AND fingerprint=?',[$this->store(),$mid,$pid,$fingerprint]);
+        return $row&&empty((json_decode($row['evidence_json'],true)?:[])['blocked_reason']);
+    }
+    public static function imageContentHash(array $product): string
+    {
+        return hash('sha256',self::json([$product['name'],CatalogAuditPolicy::images($product)]));
+    }
+    public function blockedReason(int $mid,array $product): ?string
+    {
+        $row=$this->db->fetchOne('SELECT evidence_json FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->store(),$mid,$product['id']]);
+        $proof=json_decode($row['evidence_json']??'{}',true)?:[];
+        return !empty($proof['blocked_reason'])&&($proof['image_content_hash']??'')===self::imageContentHash($product)?(string)$proof['blocked_reason']:null;
     }
     public function review(int $mid,int $pid,string $fingerprint,array $evidence,?int $user): void
     {

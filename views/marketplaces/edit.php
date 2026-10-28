@@ -844,6 +844,11 @@ $absValue = abs($savedPct);
         </div>
 
         <?php if ($slug === 'trendyol'): ?>
+        <div class="mp-card"><div class="mp-card-body">
+            <input type="hidden" name="xml_linked_prices_present" value="1">
+            <label><input type="checkbox" name="xml_linked_prices" value="1" <?= !empty($extraConfig['xml_linked_prices'])?'checked':'' ?>> XML’e bağlı eski ilanların fiyatını da XML kaynağından hesapla</label>
+            <small class="form-help">Kanıtlı XML bağlantısı bulunan ilanlarda profilin kâr ve kargo ayarlarını uygular. Ürünün stok, marka, kategori ve görsellerini değiştirmez. Kaynağı bulunamayan ilanların fiyatını korur.</small>
+        </div></div>
         <!-- Kargo Ayarları: Otomatik olarak yönetiliyor, ayar gizli -->
         <input type="hidden" name="ty_cargo_payment" value="1">
         <input type="hidden" name="ty_auto_label" value="1">

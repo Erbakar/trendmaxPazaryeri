@@ -14,10 +14,12 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <input type="hidden" name="_csrf_token" value="<?= $e($data['_csrf']) ?>">
 <label><input type="checkbox" name="enabled" value="1" <?= !empty($config['enabled'])?'checked':'' ?>> Tüm kataloğu otomatik kontrol et</label>
 <label><input type="checkbox" name="publish" value="1" <?= !empty($config['publish'])?'checked':'' ?>> Doğrulananları otomatik gönder / eşitle</label>
+<input type="hidden" name="enrich_present" value="1">
+<label><input type="checkbox" name="enrich" value="1" <?= !empty($config['enrich'])?'checked':'' ?>> Kaynak bilgileriyle eksik eşleştirmeleri tamamla</label>
 <button class="ui-btn ui-btn-primary" type="submit">Kaydet ve kontrol et</button>
 </form>
 <?php endif; ?>
-<p class="catalog-note">Kontrol sunucuda devam eder; bu sayfayı açık tutmanız gerekmez. Her tam turdan 15 dakika sonra yeni kontrol başlar. Fiyatlar mağaza ve XML profilinizde kayıtlı kâr ve kargo kurallarından hesaplanır. Kategori veya görsel için tahmini bilgi kullanılmaz. İçerik değişirse önceki inceleme onayı geçersiz olur.</p>
+<p class="catalog-note">Kontrol sunucuda devam eder; bu sayfayı açık tutmanız gerekmez. Her tam turdan 15 dakika sonra yeni kontrol başlar. Fiyatlar mağaza ve XML profilinizde kayıtlı kâr ve kargo kurallarından hesaplanır. Kaynak tamamlama açıkken ürün adı ve açıklamasındaki açık bilgiler kullanılır; yalnız Trendyol’un sunduğu alanlarda “Belirtilmemiş” seçilebilir. Ülke, ölçü veya renk tahmin edilmez. İçerik değişirse önceki inceleme onayı geçersiz olur.</p>
 <p>Son sunucu çalışması: <strong><?= $e($config['heartbeat']??'Henüz çalışmadı') ?></strong>
 <?php if(!empty($config['enabled'])&&(!$config['heartbeat']||strtotime($config['heartbeat'])<time()-180)): ?><span class="catalog-error"> · Zamanlanmış işin çalışması henüz doğrulanmadı.</span><?php endif; ?></p>
 <?php if($run): ?><p>Son tur: <strong><?= $e(['preparing'=>'Kaynaklar okunuyor','running'=>'Kontrol sürüyor','complete'=>'Tamamlandı','failed'=>'Kaynak okuma hatası'][$run['status']]??$run['status']) ?></strong> · <?= number_format((int)$run['cursor_pos'],0,',','.') ?> / <?= number_format((int)$run['total'],0,',','.') ?> kayıt · <?= $e($run['updated_at']) ?></p><?php if($run['error_text']): ?><p class="catalog-error"><?= $e($run['error_text']) ?></p><?php endif; endif; ?>
@@ -33,7 +35,8 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <td><details><summary><?= count($checks['errors']??[]) ?> eksik / uyarı · Ayrıntıları göster</summary>
 <p>Kategori: <?= $e($checks['category_name']??'') ?> (<?= $e($checks['category_id']??'Eşleşme yok') ?>)</p>
 <?php if($remote): ?><p>Trendyol satış durumu: <?= $remote['onSale']?'Satışta':'Satışta değil' ?></p><?php endif; ?>
-<p>İçerik incelemesi: <?= !empty($checks['reviewed'])?'Kayıtlı onay var':'Onay gerekli' ?></p>
+<p>İçerik doğrulaması: <?= !empty($checks['reviewed'])?'Kayıtlı doğrulama var':'İnceleme gerekli' ?></p>
+<?php if(!empty($checks['source_evidence'])): ?><p>Kaynak eşleştirme kanıtı: <?= $e($checks['source_evidence']['category']['evidence']??'') ?>. Ürün adı, açıklaması ve XML görselleri esas alındı.</p><?php endif; ?>
 <small>XML okuması: <?= $e($checks['xml_at']??'—') ?> · Trendyol okuması: <?= $e($checks['remote_at']??'—') ?></small>
 <?php if(isset($checks['stock_reason'])): ?><p><?= $e($checks['stock_reason']) ?></p><?php endif; ?>
 <ul><?php foreach(array_merge($checks['errors']??[],$checks['differences']??[])as$error): ?><li><?= $e($error) ?></li><?php endforeach; ?></ul>

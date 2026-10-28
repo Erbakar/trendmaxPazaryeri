@@ -23,7 +23,7 @@ final class CatalogAuditController extends BaseController
         $this->requireModule('products');
         try {
             $service=$this->container->get(CatalogAuditService::class);$enabled=$request->post('enabled','0')==='1';
-            $service->configure($enabled,$request->post('publish','0')==='1');
+            $service->configure($enabled,$request->post('publish','0')==='1',$request->post('enrich_present')!==null?$request->post('enrich','0')==='1':null);
             if($enabled)$service->request();
             $this->redirectWithSuccess('/products/catalog-audit',$enabled?'Katalog kontrolü sunucuda sıraya alındı. Sayfayı kapatabilirsiniz.':'Otomatik katalog kontrolü duraklatıldı.');
         }catch(\Throwable $e){$this->redirectWithError('/products/catalog-audit',$e->getMessage());}

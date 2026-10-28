@@ -28,7 +28,8 @@ final class TrendyolTransportTest extends TestCase
         $tenant=new TenantContext();$tenant->setStoreId(1);
         $model=new Marketplace($db,$tenant);$crypto=new CryptoService();
         $model->saveStoreConfig(1,['is_enabled'=>1,'api_key_encrypted'=>$crypto->encrypt('local-test-key'),'api_secret_encrypted'=>$crypto->encrypt('local-test-secret'),'extra_config_json'=>'{"supplier_id":"999"}']);
-        $this->service=new TrendyolService(new Logger(),$crypto,$model,new \App\Services\XmlStockLinks($db,$tenant));
+        $c=new App\Core\Container([]);$c->instance(Database::class,$db);$c->instance(TenantContext::class,$tenant);$c->instance(Marketplace::class,$model);
+        $this->service=$c->get(TrendyolService::class);
         (new ReflectionProperty(App\Services\Marketplace\AbstractMarketplace::class,'baseUrl'))->setValue($this->service,'http://127.0.0.1:8091/integration');
     }
     protected function tearDown(): void

@@ -56,6 +56,7 @@ final class PriceSyncService
         private readonly Logger $logger,
         private readonly \App\Core\TenantContext $tenant,
         private readonly \App\Services\TrendyolListingReconciler $listingReconciler,
+        private readonly \App\Services\XmlLinkedPrices $linkedPrices,
     ) {}
 
     /**
@@ -137,8 +138,11 @@ final class PriceSyncService
             // Newly approved listings must be matched before selecting sync targets.
             // This also reads the real remote price so rejected or externally changed
             // prices are retried rather than skipped using an HTTP acceptance stamp.
+            $linkedPrices=[];$approved=[];
             if ($slug === 'trendyol') {
-                $this->listingReconciler->run(true);
+                $observed=$this->listingReconciler->run(true,true);
+                $approved=array_column($observed['approved_inventory'],null,'barcode');
+                $linkedPrices=$this->linkedPrices->all($marketplaceId);
             }
             $mpProducts = $this->mpProductModel->getActiveForMarketplace($marketplaceId);
 
@@ -153,6 +157,8 @@ final class PriceSyncService
                 }
 
                 $price = $this->priceEngine->calculatePrice($product, $marketplaceId);
+                $linkedBarcode=(string)($mp['marketplace_barcode']??$product['barcode']??'');
+                if(isset($linkedPrices[$linkedBarcode])){$price['sale_price']=$linkedPrices[$linkedBarcode]['salePrice'];$price['list_price']=$linkedPrices[$linkedBarcode]['listPrice'];}
                 $lastSent = (float) ($mp['last_price_sent'] ?? 0);
 
                 // Fiyat değişmemişse atla
@@ -193,8 +199,17 @@ final class PriceSyncService
                 ];
             }
 
+            // Old approved barcodes may have only an XML stock link, with no local listing row.
+            // Reuse their verified source for prices only when this store explicitly opted in.
+            $queued=array_fill_keys(array_column($batchItems,'barcode'),true);
+            foreach($linkedPrices as$barcode=>$price){
+                $remote=$approved[$barcode]??null;
+                if(!$remote||isset($queued[$barcode])||isset($observed['blocked_barcodes'][$barcode]))continue;
+                if(abs((float)$remote['price']-$price['salePrice'])<.011)continue;
+                $batchItems[]=$price;$queued[$barcode]=true;
+            }
             if (!empty($batchItems)) {
-                if ($this->isSuspiciousMassZeroStock($batchItems)) {
+                if ($slug !== 'trendyol' && $this->isSuspiciousMassZeroStock($batchItems)) {
                     $message = 'Fiyat sync engellendi: payload icinde cok sayida urun 0 stok tasiyor. Once yerel stoklari kontrol edin.';
                     $result['failed'] = count($batchItems);
                     $result['errors'][] = ['error' => $message];

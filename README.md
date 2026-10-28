@@ -40,7 +40,7 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
 5. Önce `php database/migrate.php --dry-run` ile bekleyen güncellemeleri inceleyin.
    Yedekten sonra `php database/migrate.php --allow-live` ile uygulayın; tekrar dry-run'da
    bekleyen işlem kalmamalı. Mevcut bilinmeyen bir şemaya gelişigüzel `--baseline` uygulamayın.
-   Bu sürümün phase14 güncellemeleri 059 ve 060'ı da içerir; katalog kontrolü ve görsel önbelleği için beş yeni tablo gerekir.
+   Bu sürümün phase14 güncellemeleri 059, 060 ve 061'i de içerir; katalog kontrolü, görsel önbelleği ve eşleştirme değişiklik geçmişi için altı yeni tablo gerekir.
 6. Uygulamayı yeni sürüme yönlendirin; kullanıcı girişi, kendi mağaza görünürlüğü, XML analizi,
    kategori/özellik seçimleri, fiyat önizlemesi ve sınırlı gerçek ürünün batch sonucunu doğrulayın.
    Batch kabulü, içerik onayı ve satışa açılma ayrı aşamalardır.
@@ -139,3 +139,26 @@ Canlı sunucuya bu düzeltme ayrıca dağıtılmalıdır.
 ### Fiyata kargo bedeli ekleme
 
 Pazaryerleri → Ayarlar → Fiyat Ayarları bölümündeki “Fiyata eklenecek kargo bedeli (TL)” mağazaya ve pazaryerine özeldir. Kâr kuralı ve mevcut yuvarlama uygulandıktan sonra satış fiyatına bir kez eklenir; liste fiyatı satış fiyatının altında kalmaz. Örnek: 168,75 TL maliyet, %115 artış ile 363 TL; 50 TL kargo bedeliyle 413 TL. XML maliyeti değiştirilmez. Ayar mevcut ilanların fiyat senkronunda, yeni ürün yayınında ve önizlemede kullanılır. 0 girilmesi ek bedeli kaldırır.
+
+## Kaynak bilgileriyle katalog tamamlama
+
+Ürünler → Katalog Kontrolü ekranındaki “Kaynak bilgileriyle eksik eşleştirmeleri tamamla”
+ayarı mağaza bazında açılır; diğer mağazalarda varsayılan olarak kapalıdır. Güncel XML
+ile panelin adı, açıklaması, stok, fiyat tabanı ve görselleri uyuşuyorsa açık ürün
+adından alt kategori ve metindeki belirli özellikler çıkarılır. Belirsiz ürün
+türleri, çelişkili bilgiler ve kaynaksız zorunlu alanlar raporda bekler. Trendyol'un
+resmi “Belirtilmemiş” seçeneği dışındaki değerler varsayılan olarak uydurulmaz.
+Kullanıcının alan kaynağı eşleştirmeleri korunur; onaylı ilanın farklı bir kategoriye
+taşınması veya mevcut görselinin değiştirilmesi otomatik yapılmaz. Değişikliklerin
+önceki/sonraki hali ve dayanağı `catalog_enrichment_events` tablosunda tutulur.
+
+Kategori, gerekli özellikler, güncel stok/fiyat ve görsel erişim kontrolleri geçen
+ürünler, otomatik gönderim de açıksa gönderilir. Kayıtlı içerik çelişkisi otomatik
+onayla aşılamaz. Bu doğrulama tedarikçinin verdiği fiziksel ürün bilgilerinin
+bağımsız teyidi değildir; Trendyol kabulü ve satışa açılma ayrıca izlenir.
+
+Trendyol bağlantı ayarlarındaki “XML’e bağlı eski ilanların fiyatını da XML
+kaynağından hesapla” seçeneği, kanıtlanmış stok bağlantılarını fiyat kaynağı
+olarak kullanmayı ayrıca açar. XML profilinin kâr/kargo ayarı uygulanır; bu fiyat
+işlemi stok miktarı veya ürün içeriği göndermez. Ayar kapalıyken eski fiyat
+sahipliği korunur.

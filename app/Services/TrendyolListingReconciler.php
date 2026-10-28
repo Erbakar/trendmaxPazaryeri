@@ -26,7 +26,7 @@ final class TrendyolListingReconciler
         return $byBarcode[0] ?? $bySku[0] ?? null;
     }
 
-    public function run(bool $apply = false): array
+    public function run(bool $apply = false, bool $includeCatalog = false): array
     {
         $store = $this->tenant->currentStoreId();
         $mp = $this->marketplace->findBySlug('trendyol');
@@ -85,7 +85,7 @@ final class TrendyolListingReconciler
                 $this->db->commit();
             } catch (\Throwable $e) { $this->db->rollBack(); throw $e; }
         }
-        return ['store'=>$store,'mode'=>$apply?'applied':'dry_run','approved_variants'=>count($remote),
+        return ($includeCatalog?['approved_inventory'=>$remote]:[])+['store'=>$store,'mode'=>$apply?'applied':'dry_run','approved_variants'=>count($remote),
             'blocked_barcodes'=>$blocked,'matched'=>count($plan),'unmatched'=>$unmatched,'conflicting_products'=>count($conflicts),
             'samples'=>array_slice(array_map(static fn($r)=>['sku'=>$r['marketplace_sku'],'barcode'=>$r['barcode'],'remote_price'=>$r['price'],'remote_stock'=>$r['stock']??null],array_values($plan)),0,5)];
     }

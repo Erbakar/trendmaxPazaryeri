@@ -37,6 +37,7 @@ final class TrendyolService extends AbstractMarketplace
         private readonly CryptoService $crypto,
         private readonly Marketplace $marketplaceModel,
         private readonly \App\Services\XmlStockLinks $stockLinks,
+        private readonly \App\Services\XmlLinkedPrices $linkedPrices,
     ) {
         parent::__construct($logger);
 
@@ -283,6 +284,7 @@ final class TrendyolService extends AbstractMarketplace
         $this->loadCredentials();
         $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
         $items = $this->stockLinks->guardPayload($items, $mid);
+        $items = $this->linkedPrices->guard($items, $mid);
 
         $batchLimit = $this->config['api']['batch_limit'] ?? 1000;
         $chunks = array_chunk($items, $batchLimit);
@@ -1226,6 +1228,7 @@ final class TrendyolService extends AbstractMarketplace
         $this->loadCredentials();
         $mid = (int)$this->marketplaceModel->findBySlug(self::SLUG)['id'];
         $items = $this->stockLinks->guardPayload($items, $mid);
+        $items = $this->linkedPrices->guard($items, $mid);
         $payload = [];
         foreach ($items as $item) {
             $row = ['barcode'=>(string)$item['barcode']];

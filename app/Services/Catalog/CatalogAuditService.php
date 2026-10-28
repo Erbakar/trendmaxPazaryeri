@@ -20,15 +20,17 @@ final class CatalogAuditService
         if(!$mp||empty($mp['is_active'])||!$this->get(EntitlementService::class)->canAccessMarketplace((int)$mp['id'])||!$this->get(EntitlementService::class)->canAccessModule('products'))throw new \RuntimeException('Aktif ve yetkili Trendyol bağlantısı gerekli.');
         return (int)$mp['id'];
     }
-    public function configure(bool $enabled,bool $publish): void
+    public function configure(bool $enabled,bool $publish,?bool $enrich=null): void
     {
         $this->marketplace();
+        if($enrich!==null)$this->settings->setValue('catalog_source_enrichment',$enrich?'1':'0');
         $this->settings->setMany(['catalog_audit_enabled'=>$enabled?'1':'0','catalog_auto_publish'=>$publish?'1':'0']);
     }
     public function configuration(): array
     {
         return ['enabled'=>$this->settings->getValue('catalog_audit_enabled','0')==='1',
             'publish'=>$this->settings->getValue('catalog_auto_publish','0')==='1',
+            'enrich'=>$this->settings->getValue('catalog_source_enrichment','0')==='1',
             'heartbeat'=>$this->settings->getValue('catalog_audit_heartbeat')];
     }
     public function request(): array
@@ -77,7 +79,18 @@ final class CatalogAuditService
                 }
                 $entity=$snapshot['entities'][$cursor];
                 try {
+                    $proof=$this->configuration()['enrich']?$this->get(CatalogEvidenceEnricher::class)->complete($mid,$entity,$snapshot):null;
                     $item=$this->inspect($mid,$entity,$snapshot);
+                    if($proof&&!empty($proof['category'])&&(string)$proof['category']['id']===(string)($item['checks']['category_id']??'')){
+                        $remaining=array_values(array_diff($item['checks']['errors'],['Kategori, özellik ve görsel içerik onayı gerekli.']));
+                        // Matching supplier facts plus all technical/image checks are evidence; API acceptance alone is not.
+                        if(!$remaining&&empty($item['checks']['reviewed'])&&!empty($item['fingerprint'])){
+                            $proof['images']='XML/panel image identity and fetched image checks passed';
+                            $this->repo->review($mid,(int)$item['product_id'],$item['fingerprint'],$proof,null);
+                            $item=$this->inspect($mid,$entity,$snapshot);
+                        }
+                        $item['checks']['source_evidence']=$proof;
+                    }
                     if($this->configuration()['publish'])$item=$this->dispatch($mid,(int)$run['id'],$item,$snapshot);
                 }catch(\Throwable $e){
                     $item=['key'=>$entity['key'],'product_id'=>$entity['product_id']??null,'source_product_id'=>$entity['source_product_id']??null,
@@ -110,7 +123,7 @@ final class CatalogAuditService
             try {
                 $s=$this->get(XmlProfileImportService::class)->snapshotForAudit((int)$p['id']);
                 // Credentials/source URLs are deliberately excluded from audit files and reports.
-                foreach($s['rows']as&$row)$row=array_intersect_key($row,array_flip(['sku','name','stock_qty','cost_price','base_price','images']));unset($row);
+                foreach($s['rows']as&$row)$row=array_intersect_key($row,array_flip(['sku','name','description','stock_qty','cost_price','base_price','images']));unset($row);
                 $sources[$p['id']]=['checked_at'=>$s['checked_at'],'sha256'=>$s['sha256'],'rows'=>$s['rows']];
             }catch(\Throwable){
                 // An unavailable supplier blocks only its own products, and never means an empty feed.
@@ -149,6 +162,11 @@ final class CatalogAuditService
             'product_id'=>null,'source_product_id'=>null,'profile_id'=>$profile,'sku'=>(string)$sku,'remote'=>null,'identity_error'=>'XML ürünü henüz panele alınmamış.','linked'=>false];
         return ['source_at'=>time(),'remote_at'=>date(DATE_ATOM),'sources'=>$sources,'entities'=>$entities];
     }
+    private function linkedPricesEnabled(int $mid): bool
+    {
+        $config=json_decode($this->get(\App\Models\Marketplace::class)->find($mid)['extra_config_json']??'{}',true)?:[];
+        return !empty($config['xml_linked_prices']);
+    }
     private function inspect(int $mid,array $entity,array $snapshot): array
     {
         $product=$entity['product_id']?$this->get(Product::class)->find((int)$entity['product_id']):null;
@@ -174,6 +192,7 @@ final class CatalogAuditService
         $item['checks']['category_id']=$mapping['marketplace_category_id']??null;
         $item['checks']['category_name']=$mapping['marketplace_category_name']??'';
         $item['checks']['reviewed']=$this->repo->reviewed($mid,(int)$product['id'],$item['fingerprint']);
+        if($blocked=$this->repo->blockedReason($mid,$product))$errors[]='İçerik çelişkisi: '.$blocked;
         if($sourceKnown)$errors=array_merge($errors,CatalogAuditPolicy::sourceErrors($sourceProduct,$source));
         if(empty($product['is_active'])||!empty($product['is_archived'])||!empty($product['missing_stock']))$errors[]='Ürün panelde kapalı, arşivde veya XML stoğu kapalı.';
         if(!$mapping)$errors[]='Trendyol kategori eşleştirmesi eksik.';
@@ -187,13 +206,14 @@ final class CatalogAuditService
             if(empty($probe['ok']))$errors[]='Görsel erişim hatası ('.basename((string)parse_url($url,PHP_URL_PATH)).'): '.($probe['error']??'Okunamadı');
         }
         $item['checks']['images_checked_at']=date(DATE_ATOM,$oldestImageAt);
-        $price=$this->get(PriceRuleEngine::class)->calculatePrice($product,$mid);
+        $xmlPrice=$entity['linked']&&$this->linkedPricesEnabled($mid);
+        $price=$this->get(PriceRuleEngine::class)->calculatePrice($xmlPrice?$sourceProduct:$product,$mid);
         $listing=$this->repo->db->fetchOne('SELECT * FROM marketplace_products WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,$product['id']])?:[];
         if(isset($listing['is_active'])&&!(int)$listing['is_active'])$errors[]='Pazaryeri ilanı panelde kapalı.';
         $quantity=TrendyolProductRules::quantity(max(0,StockAvailability::quantity($sourceProduct)-max(0,(int)($listing['stock_offset']??0))));
         $item['expected']=['barcode'=>$item['barcode'],'quantity'=>$quantity,'salePrice'=>(float)$price['sale_price'],'listPrice'=>(float)$price['list_price']];
         if((float)$price['sale_price']<=0)$errors[]='Hesaplanan fiyat sıfır veya geçersiz.';
-        if($entity['linked']&&$sourceProduct['id']!==$product['id']){
+        if($entity['linked']&&!$xmlPrice&&$sourceProduct['id']!==$product['id']){
             // A stock alias is not permission to replace the legacy price owner or content.
             if(abs((float)$product['cost_price']-(float)$sourceProduct['cost_price'])>.011||abs((float)$product['base_price']-(float)$sourceProduct['base_price'])>.011)$errors[]='Eski ilanın fiyat tabanı XML ile farklı; fiyat kaynağı incelemesi gerekli.';
         }
@@ -301,7 +321,8 @@ final class CatalogAuditService
             $sourceRow=$snapshot['sources'][(int)($item['source_profile_id']??0)]['rows'][(string)$item['sku']]??null;
             if(!$sourceNow||CatalogAuditPolicy::sourceErrors($sourceNow,$sourceRow))throw new \RuntimeException('Gönderim öncesi XML/panel stok veya fiyatı değişti; tekrar incelenecek.');
             if(!$publish){
-                $priceNow=$this->get(PriceRuleEngine::class)->calculatePrice($current,$mid);
+                $xmlPrice=$this->linkedPricesEnabled($mid)&&!empty($this->get(XmlStockLinks::class)->productForListing($mid,(string)$payload['barcode']));
+                $priceNow=$this->get(PriceRuleEngine::class)->calculatePrice($xmlPrice?$sourceNow:$current,$mid);
                 $listingNow=$this->repo->db->fetchOne('SELECT is_active,stock_offset FROM marketplace_products WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,$current['id']])?:[];
                 $quantityNow=TrendyolProductRules::quantity(max(0,StockAvailability::quantity($sourceNow)-max(0,(int)($listingNow['stock_offset']??0))));
                 if(empty($current['is_active'])||!empty($current['is_archived'])||(isset($listingNow['is_active'])&&!$listingNow['is_active'])||$quantityNow!==(int)$payload['quantity']||abs($priceNow['sale_price']-$payload['salePrice'])>.011||abs($priceNow['list_price']-$payload['listPrice'])>.011)throw new \RuntimeException('Stok/fiyat kuralı kontrol sırasında değişti; eski değer gönderilmedi.');

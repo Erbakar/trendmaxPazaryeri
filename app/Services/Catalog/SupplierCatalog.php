@@ -61,7 +61,7 @@ final class SupplierCatalog
         if((int)$p['store_id']!==$this->tenant->currentStoreId()||!$this->products->find((int)$p['id']))throw new \RuntimeException('Ürün mağazanızda bulunamadı.');
         if($page){if(!SupplierPage::allowedUrl($page['url']))throw new \InvalidArgumentException('Geçersiz tedarikçi adresi.');$extra=SupplierPage::supplement($p,$page);$status=$extra===null?'identity_conflict':($extra===''?'no_extra':'extra');}
         $json=$page?CatalogAuditRepository::json($page):null;$hash=$page?hash('sha256',CatalogAuditRepository::json([$page['sku'],$page['name'],$page['description'],$page['fields']])):null;
-        $delay=$status==='error'?900:86400;
+        $delay=$status==='deferred'?60:($status==='error'?900:86400);
         $at=max(0,min(time(),$observedAt??time()));
         $this->db->query('INSERT INTO catalog_supplier_pages(store_id,profile_id,product_id,source_hash,status,page_json,facts_hash,error_text,product_seen_at,checked_at,next_check_at) VALUES(?,?,?,?,?,?,?,?,?,FROM_UNIXTIME(?),FROM_UNIXTIME(?)) ON DUPLICATE KEY UPDATE profile_id=VALUES(profile_id),source_hash=VALUES(source_hash),status=VALUES(status),page_json=VALUES(page_json),facts_hash=VALUES(facts_hash),error_text=VALUES(error_text),product_seen_at=VALUES(product_seen_at),checked_at=VALUES(checked_at),next_check_at=VALUES(next_check_at)',
             [$this->tenant->currentStoreId(),$p['xml_profile_id'],$p['id'],self::fingerprint($p),$status,$json,$hash,$error,$p['updated_at']??$p['created_at']??null,$at,$at+$delay]);
@@ -73,7 +73,7 @@ final class SupplierCatalog
         $deadline=microtime(true)+max(5,$seconds);$count=0;$seen=0;
         try{
             while($count<4&&$seen<200&&microtime(true)<$deadline-12){
-                $p=$this->db->fetchOne("SELECT p.*,cache.source_hash cached_hash,cache.next_check_at FROM products p JOIN xml_profiles xp ON xp.id=p.xml_profile_id AND xp.store_id=p.store_id JOIN store_settings opt ON opt.store_id=p.store_id AND opt.skey=CONCAT('xmlprofil_',xp.id,'_tedarikci_bilgisi') AND opt.svalue='toptanarabul' LEFT JOIN catalog_supplier_pages cache ON cache.product_id=p.id AND cache.store_id=p.store_id WHERE p.store_id=? AND xp.is_active=1 AND xp.direction='import' AND p.is_active=1 AND p.is_archived=0 AND COALESCE(p.missing_stock,0)=0 AND EXISTS(SELECT 1 FROM catalog_audit_items a WHERE a.store_id=p.store_id AND a.product_id=p.id AND a.status='needs_review') AND (cache.id IS NULL OR cache.next_check_at<=NOW() OR COALESCE(p.updated_at,p.created_at)>COALESCE(cache.product_seen_at,'1970-01-01')) ORDER BY CASE WHEN cache.applied_source_hash IS NOT NULL AND cache.next_check_at<=NOW() THEN 0 WHEN cache.status='error' AND cache.next_check_at<=NOW() THEN 1 ELSE 2 END,COALESCE(cache.checked_at,'1970-01-01'),p.id LIMIT 1",[$sid]);
+                $p=$this->db->fetchOne("SELECT p.*,cache.source_hash cached_hash,cache.next_check_at FROM products p JOIN xml_profiles xp ON xp.id=p.xml_profile_id AND xp.store_id=p.store_id JOIN store_settings opt ON opt.store_id=p.store_id AND opt.skey=CONCAT('xmlprofil_',xp.id,'_tedarikci_bilgisi') AND opt.svalue='toptanarabul' LEFT JOIN catalog_supplier_pages cache ON cache.product_id=p.id AND cache.store_id=p.store_id WHERE p.store_id=? AND xp.is_active=1 AND xp.direction='import' AND p.is_active=1 AND p.is_archived=0 AND COALESCE(p.missing_stock,0)=0 AND EXISTS(SELECT 1 FROM catalog_audit_items a WHERE a.store_id=p.store_id AND a.product_id=p.id AND a.status='needs_review') AND (cache.id IS NULL OR cache.next_check_at<=NOW() OR COALESCE(p.updated_at,p.created_at)>COALESCE(cache.product_seen_at,'1970-01-01')) ORDER BY CASE WHEN cache.applied_source_hash IS NOT NULL AND cache.next_check_at<=NOW() THEN 0 WHEN cache.status IN ('error','deferred') AND cache.next_check_at<=NOW() THEN 1 ELSE 2 END,COALESCE(cache.checked_at,'1970-01-01'),p.id LIMIT 1",[$sid]);
                 if(!$p)break;$seen++;unset($p['cached_hash'],$p['next_check_at']);$r=$this->row((int)$p['id']);
                 if($r&&$r['source_hash']===self::fingerprint($p)&&(int)$r['next_epoch']>time()){
                     $this->db->query('UPDATE catalog_supplier_pages SET product_seen_at=? WHERE store_id=? AND product_id=?',[$p['updated_at']??$p['created_at'],$sid,$p['id']]);continue;
@@ -82,9 +82,9 @@ final class SupplierCatalog
                     $html=$this->http->get('https://'.SupplierPage::HOST.'/arama/'.rawurlencode($p['sku']));$links=SupplierPage::searchLinks($html);
                     if(count($links)>3){$this->record($p,null,'ambiguous');$count++;continue;}
                     $matches=[];
-                    foreach($links as$url){if(microtime(true)>$deadline-12)throw new \RuntimeException('Tedarikçi araması sonraki turda tamamlanacak.');$page=SupplierPage::product($this->http->get($url),$url);if($page['sku']===$p['sku'])$matches[]=$page;}
+                    foreach($links as$url){if(microtime(true)>$deadline-12)throw new SupplierDeferred('Tedarikçi araması sonraki turda tamamlanacak.');$page=SupplierPage::product($this->http->get($url),$url);if($page['sku']===$p['sku'])$matches[]=$page;}
                     $this->record($p,count($matches)===1?$matches[0]:null,count($matches)>1?'ambiguous':'not_found');$count++;
-                }catch(\Throwable $e){$this->record($p,null,'error',mb_substr($e->getMessage(),0,1000));$count++;break;}
+                }catch(\Throwable $e){$this->record($p,null,$e instanceof SupplierDeferred?'deferred':'error',mb_substr($e->getMessage(),0,1000));$count++;break;}
             }
             return ['checked'=>$count];
         }finally{$this->db->query('SELECT RELEASE_LOCK(?)',[$lock]);}

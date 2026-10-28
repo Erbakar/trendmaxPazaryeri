@@ -80,6 +80,10 @@ final class SupplierCatalogTest extends TestCase
             self::assertSame(0,$limitedWorker->tick(40)['checked'],'An XML-disabled product is not used for supplier enrichment');
             $db->query('UPDATE products SET stock_qty=2,is_active=1,missing_stock=0 WHERE store_id=? AND id=?',[$sid,$p['id']]);
             self::assertSame(1,$limitedWorker->tick(40)['checked']);self::assertSame(0,$limitedWorker->tick(40)['checked']);self::assertSame(1,$limited->calls,'Rate-limit errors back off instead of requesting the same item every minute');
+            $db->query('UPDATE catalog_supplier_pages SET next_check_at=DATE_SUB(NOW(),INTERVAL 1 SECOND) WHERE store_id=?',[$sid]);
+            $yielded=new class extends SupplierPageClient {public function get(string $url):string{throw new App\Services\Catalog\SupplierDeferred('Sonraki turda devam edilecek.');}};
+            $yieldedWorker=new SupplierCatalog($db,$c->get(TenantContext::class),$c->get(Product::class),$settings,$yielded);self::assertSame(1,$yieldedWorker->tick(40)['checked']);
+            $pending=$db->fetchOne('SELECT status,UNIX_TIMESTAMP(next_check_at) due FROM catalog_supplier_pages WHERE store_id=?',[$sid]);self::assertSame('deferred',$pending['status']);self::assertLessThanOrEqual(time()+60,(int)$pending['due']);
             $settings->save($pid,['kar_degeri'=>115,'kargo_tutari'=>80]);self::assertSame('toptanarabul',$settings->forProfile($pid)['tedarikci_bilgisi'],'A pre-existing form submission cannot silently disable source completion');
             $c->get(TenantContext::class)->setStoreId(2147483647);self::assertNull($supplier->evidence($p));self::assertSame([],$supplier->summary());
         }finally{$db->rollBack();$db->query('SET time_zone=?',[$sqlTimezone]);date_default_timezone_set($timezone);@unlink($file);$_ENV=$env;}

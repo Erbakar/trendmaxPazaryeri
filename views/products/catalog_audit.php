@@ -29,11 +29,11 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <div class="catalog-box">
 <h2>Ek ürün bilgisi kontrolü — Toptanarabul.com</h2>
 <p>Stok kodu ve adı eşleşen ürün sayfaları arka planda okunur. Bulunan ek özellikler ürün kaydında korunur; XML dosyasının tedarikçideki aslı değişmez.</p>
-<p><strong><?= number_format(array_sum($supplierCounts),0,',','.') ?></strong> stok kodu kontrol edildi ·
+<p><strong><?= number_format(array_sum(array_intersect_key($supplierCounts,array_flip(['no_extra','extra','not_found','ambiguous','identity_conflict']))),0,',','.') ?></strong> stok kodunun kontrolü tamamlandı ·
 <strong><?= number_format((int)($supplierCounts['extra']??0),0,',','.') ?></strong> üründe farklı/ek metin bulundu ·
 <strong><?= number_format($supplier['applied'],0,',','.') ?></strong> üründe ek kaynak bilgisi kullanıldı.</p>
 <p class="catalog-note">Aynı açıklamayı içeren sayfalar ek bilgi sayılmaz. Tedarikçinin istek sınırında kontroller bekler ve sonra yeniden denenir. Son ürün kontrolü: <?= $e($supplier['last']??'Henüz başlamadı') ?>.</p>
-<?php if(!empty($supplierCounts['error'])): ?><p class="catalog-note"><?= (int)$supplierCounts['error'] ?> ürünün sayfa kontrolü yeniden denenecek.</p><?php endif; ?>
+<?php if(!empty($supplierCounts['error'])||!empty($supplierCounts['deferred'])): ?><p class="catalog-note"><?= (int)($supplierCounts['error']??0)+(int)($supplierCounts['deferred']??0) ?> ürünün sayfa kontrolü sırada veya yeniden denenecek; tamamlanan sayıya dahil değildir.</p><?php endif; ?>
 <?php foreach($supplier['profiles']as$sp): ?><a href="/xml-profilleri/<?= (int)$sp['id'] ?>/duzenle"><?= $e($sp['name']) ?> — kaynak ayarı</a> <?php endforeach; ?>
 </div>
 <?php endif; ?>

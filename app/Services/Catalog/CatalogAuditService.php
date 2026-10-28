@@ -66,6 +66,7 @@ final class CatalogAuditService
             if(($snapshot['source_at']??0)<time()-900){
                 $snapshot['sources']=$this->sources();$snapshot['source_at']=time();$this->repo->saveSnapshot((int)$run['id'],$snapshot);
             }
+            if($this->configuration()['publish'])$this->retryUnsubmitted($mid,(int)$run['id'],$snapshot,$deadline);
             $cursor=(int)$run['cursor_pos'];$processed=0;
             while($cursor<count($snapshot['entities'])&&microtime(true)<$deadline){
                 if(!$this->configuration()['enabled'])break;
@@ -286,6 +287,23 @@ final class CatalogAuditService
                 if($row){$checks=json_decode($row['checks_json'],true)?:[];$checks['errors']=array_values(array_unique(array_merge($checks['errors']??[],['Trendyol reddetti: '.$reason])));
                     $db->query("UPDATE catalog_audit_items SET status='rejected',checks_json=? WHERE store_id=? AND marketplace_id=? AND entity_key=? AND status='awaiting_result'",[CatalogAuditRepository::json($checks),$sid,$mid,$action['entity_key']]);}
             }else $this->repo->actionResult((int)$action['id'],$action['status'],$result);
+        }
+    }
+    private function retryUnsubmitted(int $mid,int $run,array $snapshot,float $deadline): void
+    {
+        // Retry only a proven pre-request lock failure. Unknown HTTP outcomes stay pending.
+        $rows=$this->repo->db->fetchAll("SELECT a.* FROM catalog_audit_actions a WHERE a.store_id=? AND a.marketplace_id=? AND a.operation='publish' AND a.status='retryable' AND a.updated_at<DATE_SUB(NOW(),INTERVAL 60 SECOND) AND NOT EXISTS(SELECT 1 FROM catalog_audit_actions newer WHERE newer.store_id=a.store_id AND newer.marketplace_id=a.marketplace_id AND newer.entity_key=a.entity_key AND newer.id>a.id) ORDER BY a.id LIMIT 10",[$this->repo->store(),$mid]);
+        if(!$rows)return;
+        $entities=array_column($snapshot['entities'],null,'key');
+        foreach($rows as$row){
+            if(microtime(true)>$deadline-10||!$this->configuration()['enabled']||!$this->configuration()['publish'])break;
+            $entity=$entities[$row['entity_key']]??null;if(!$entity)continue;
+            try{
+                $item=$this->inspect($mid,$entity,$snapshot);
+                if($item['status']==='ready')$item=$this->dispatch($mid,$run,$item,$snapshot);
+            }catch(\Throwable $e){$this->repo->actionResult((int)$row['id'],'retryable',['error'=>$e->getMessage()]);continue;}
+            $this->repo->actionResult((int)$row['id'],'superseded',['reason'=>'Fresh source, identity and publish checks repeated before retry']);
+            $this->repo->put($mid,$run,$item);
         }
     }
     private function dispatch(int $mid,int $run,array $item,array $snapshot): array

@@ -129,6 +129,15 @@ final class CatalogAuditTest extends TestCase
             self::assertNull($repo->latest(1));self::assertNull($repo->pending(1,$item['key']));self::assertFalse($repo->reviewed(1,$pid,str_repeat('a',64)));
             self::assertSame(0,(int)$db->fetchOne('SELECT COUNT(*) n FROM catalog_image_checks WHERE store_id=?',[$other])['n']);
             $repo->actionResult($action,'confirmed',[]);$tenant->setStoreId($sid);self::assertSame('submitting',$repo->pending(1,$item['key'])['status']);
+            $c->get(App\Models\StoreSetting::class)->setMany(['catalog_audit_enabled'=>'1','catalog_auto_publish'=>'1']);
+            $retryItem=['key'=>'retry-test','product_id'=>$pid,'status'=>'ready','checks'=>['errors'=>[]]];
+            $retryId=$repo->intent(1,(int)$run['id'],$retryItem,'publish',['barcode'=>'RETRY']);$repo->actionResult($retryId,'retryable',[]);
+            $db->query('UPDATE catalog_audit_actions SET updated_at=DATE_SUB(NOW(),INTERVAL 61 SECOND) WHERE id=?',[$retryId]);
+            $retrySnapshot=['source_at'=>time(),'remote_at'=>date(DATE_ATOM),'sources'=>[],'entities'=>[['key'=>'retry-test','product_id'=>null,'source_product_id'=>null,'profile_id'=>999,'sku'=>'RETRY','remote'=>null,'identity_error'=>null,'linked'=>false]]];
+            (new ReflectionMethod($audit,'retryUnsubmitted'))->invoke($audit,1,(int)$run['id'],$retrySnapshot,microtime(true)+20);
+            self::assertSame('superseded',$db->fetchOne('SELECT status FROM catalog_audit_actions WHERE id=?',[$retryId])['status']);
+            self::assertSame('needs_review',$db->fetchOne('SELECT status FROM catalog_audit_items WHERE store_id=? AND entity_key=?',[$sid,'retry-test'])['status'],'Changed source blocks retry before transport');
+            self::assertSame('submitting',$repo->pending(1,$item['key'])['status'],'Uncertain prior requests are not retried');
             $dir=BASE_PATH.'/storage/xmlprofiles';if(!is_dir($dir))mkdir($dir,0700,true);$file=tempnam($dir,'audit-test-');
             $profile=$c->get(XmlProfile::class)->create(['name'=>'Audit file','direction'=>'import','source_type'=>'file','source_url'=>basename($file),'format'=>'generic','is_active'=>1,'field_mapping_json'=>json_encode(['item_tag'=>'Product','sku'=>'Code','name'=>'Name','stock'=>'Stock','price'=>'Price','cost'=>'Price'])]);
             $service=$c->get(XmlProfileImportService::class);

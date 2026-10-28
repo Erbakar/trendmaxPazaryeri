@@ -49,6 +49,13 @@ final class CatalogAuditTest extends TestCase
         foreach(['TPTCml-NO:53','TPTCml-DSAYANG NO:7','A/B','A&B',str_repeat('A',41),'']as$barcode)self::assertFalse(Policy::validPublishBarcode($barcode));
         foreach(['SMR-D263-SİYAH','ÜRÜN_1.2',str_repeat('A',40)]as$barcode)self::assertTrue(Policy::validPublishBarcode($barcode));
     }
+    public function testSkippedExistingListingIsNotAProductSubmission(): void
+    {
+        self::assertSame('not_submitted',Policy::submissionState(['success'=>0,'failed'=>0,'skipped'=>1,'processing'=>0,'batch_ids'=>[]]));
+        self::assertSame('accepted',Policy::submissionState(['success'=>0,'failed'=>0,'skipped'=>0,'processing'=>1,'batch_ids'=>['batch']]));
+        self::assertSame('rejected',Policy::submissionState(['success'=>0,'failed'=>1,'batch_ids'=>[]]));
+        self::assertSame('unknown',Policy::submissionState([]));
+    }
     public function testIncompleteBarcodeLookupNeverAuthorizesANewListing(): void
     {
         self::assertTrue(Policy::barcodeAbsent(['approved'=>['totalElements'=>0,'content'=>[]],'unapproved'=>['totalElements'=>0,'content'=>[]]]));

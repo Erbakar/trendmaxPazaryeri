@@ -65,6 +65,13 @@ final class CatalogAuditPolicy
         // Do not silently normalize spaces: stock updates must retain the exact remote identity.
         return mb_strlen($barcode)<=40&&preg_match('/^[\p{L}\p{N}._-]+$/u',$barcode)===1;
     }
+    public static function submissionState(array $result): string
+    {
+        if(!empty($result['batch_ids'])||!empty($result['processing'])||!empty($result['success']))return 'accepted';
+        if(!empty($result['skipped']))return 'not_submitted';
+        if(!empty($result['failed']))return 'rejected';
+        return 'unknown';
+    }
     public static function barcodeAbsent(array $lookup): bool
     {
         $absent=true;

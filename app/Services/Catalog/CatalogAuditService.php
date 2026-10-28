@@ -244,9 +244,9 @@ final class CatalogAuditService
         // and do not automatically resend identical content simply because the barcode is absent.
         if(!$remote&&!empty($item['payload'])){
             $last=$this->repo->db->fetchOne("SELECT status,payload_hash,result_json FROM catalog_audit_actions WHERE store_id=? AND marketplace_id=? AND entity_key=? AND operation='publish' ORDER BY id DESC LIMIT 1",[$this->repo->store(),$mid,$item['key']]);
-            if($last&&$last['status']==='rejected'&&hash('sha256',CatalogAuditRepository::json($item['payload']))===$last['payload_hash']){
+            if($last&&in_array($last['status'],['rejected','not_submitted'],true)&&hash('sha256',CatalogAuditRepository::json($item['payload']))===$last['payload_hash']){
                 $result=json_decode($last['result_json'],true)?:[];
-                $item['status']='rejected';$item['checks']['errors'][]='Trendyol reddetti: '.($result['rejection']??'Aynı içerik yeniden gönderilmedi.');
+                $item['status']=$last['status']==='not_submitted'?'needs_review':'rejected';$item['checks']['errors'][]='Gönderim engeli: '.($result['rejection']??'Aynı içerik yeniden gönderilmedi.');
             }
         }
         return $item;
@@ -339,9 +339,10 @@ final class CatalogAuditService
         try {
             $result=$publish?$this->get(ProductPublishService::class)->publishProducts([(int)$item['product_id']],$mid):$this->get(TrendyolService::class)->updateStock([$payload]);
             // A transport response is only a submission. Remote observation confirms completion on the next pass.
-            $failed=$publish&&!empty($result['failed'])&&empty($result['processing'])&&empty($result['batch_ids']);
-            if($failed)$result['rejection']=self::responseErrors($result['errors']??[])?:'Gönderim doğrulaması başarısız.';
-            $this->repo->actionResult($id,$failed?'rejected':'accepted',$result);$item['status']=$failed?'rejected':'awaiting_result';
+            $state=$publish?CatalogAuditPolicy::submissionState($result):'accepted';
+            if(in_array($state,['rejected','not_submitted'],true))$result['rejection']=self::responseErrors($result['errors']??[])?:'Gönderim doğrulaması başarısız.';
+            $this->repo->actionResult($id,$state,$result);
+            $item['status']=$state==='rejected'?'rejected':($state==='not_submitted'?($item['remote']?'rejected':'needs_review'):'awaiting_result');
             if(!empty($result['errors']))$item['checks']['errors'][]='Gönderim yanıtı: '.self::responseErrors($result['errors']);
         }catch(\Throwable $e){$this->repo->actionResult($id,'unknown',['error'=>$e->getMessage()]);$item['status']='awaiting_result';$item['checks']['errors'][]='İstek sonucu belirsiz: '.$e->getMessage();}
         return $item;

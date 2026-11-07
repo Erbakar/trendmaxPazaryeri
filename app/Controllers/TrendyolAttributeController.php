@@ -60,10 +60,12 @@ final class TrendyolAttributeController extends BaseController
                 'defaults'=>(object)CategoryMarketplaceMapping::attributeDefaults($mapping),
                 'sources'=>(object)($config['sources'] ?? []),
                 'product_values'=>(object)($productId>0 ? CategoryMarketplaceMapping::productAttributeValues($mapping,'id:'.$productId) : []),
-                'value_map'=>(object)TrendyolAttributeResolver::valueMap($config),
+                // Inner tables as objects: keys like "0","1" must not turn into a JSON list in the browser.
+                'value_map'=>(object)array_map(static fn(array $pairs)=>(object)$pairs, TrendyolAttributeResolver::valueMap($config)),
+                'mapping_version'=>self::mappingVersion($mapping),
                 'local_values'=>$this->localValues($mapping),
                 'issues'=>$this->issues((string)$id),
-                'can_review'=>empty($mapping['_override_id']) && $this->authorization()->hasPermission('products.edit'),
+                'can_review'=>empty($mapping['_override_id']) && $this->authorization()->hasPermission('products.edit') && $this->authorization()->hasPermission('categories.edit'),
                 'local_attributes'=>$this->container->get(ProductAttribute::class)->all([], 'name ASC'),
                 'products'=>$products,'more_products'=>$more,'can_edit'=>$this->authorization()->hasPermission('categories.edit')]);
         } catch (\Throwable $e) { $this->error('Trendyol özellikleri alınamadı: '.$e->getMessage(),502); }
@@ -88,11 +90,11 @@ final class TrendyolAttributeController extends BaseController
                 TrendyolAttributeResolver::value($definitions[$aid],$value);
                 $validValues[$aid]=trim($value);
             }
-            $valueMap = null;
+            $valueMap = null; $valueWarnings = [];
             if ($request->post('value_map') !== null) {
                 $decoded = json_decode((string)$request->post('value_map','{}'),true,64,JSON_THROW_ON_ERROR);
                 if (!is_array($decoded)) throw new \InvalidArgumentException('Geçersiz değer eşleştirmesi.');
-                $valueMap = self::validValueMap($definitions,$decoded);
+                [$valueMap, $valueWarnings] = self::validValueMap($definitions,$decoded);
             }
             $locals = array_column($this->container->get(ProductAttribute::class)->all(),'id');
             foreach ($sources as $aid=>$source) {
@@ -118,7 +120,7 @@ final class TrendyolAttributeController extends BaseController
                 // The report is advisory; a failed recount never undoes a saved mapping.
                 $issues = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class)->refreshMapping((string)$id);
             } catch (\Throwable) {}
-            $this->success(['issues'=>$issues],'Özellik eşleştirmeleri kaydedildi.');
+            $this->success(['issues'=>$issues,'warnings'=>$valueWarnings,'mapping_version'=>self::mappingVersion($this->mapping($id))],'Özellik eşleştirmeleri kaydedildi.'.($valueWarnings?' '.implode(' ',$valueWarnings):''));
         } catch (\InvalidArgumentException|\JsonException $e) { $this->error($e->getMessage(),422); }
         catch (\Throwable $e) { $this->error('Kaydedilemedi: '.$e->getMessage(),502); }
     }
@@ -131,7 +133,7 @@ final class TrendyolAttributeController extends BaseController
     public function refreshIssues(Request $request): void
     {
         $report = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class);
-        if ($report->marketplace() === null) $this->redirectWithError('/categories/mapping','Trendyol bağlantısı aktif değil.');
+        if ($report->marketplace() === null || !$this->authorization()->canAccessMarketplace((int)$report->marketplace())) $this->redirectWithError('/categories/mapping','Trendyol bağlantısı aktif değil veya erişiminiz yok.');
         $report->request();
         $this->redirectWithSuccess('/categories/mapping?marketplace_id='.(int)$report->marketplace(),'Zorunlu özellik raporu yenileme için sıraya alındı. Sunucu birkaç dakika içinde güncelleyecek.');
     }
@@ -143,6 +145,7 @@ final class TrendyolAttributeController extends BaseController
         // The route map accepts any listed permission; approving content needs both.
         if (!$this->authorization()->hasPermission('categories.edit') || !$this->authorization()->hasPermission('products.edit')) $this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
         if ($request->post('confirm','') !== '1') $this->error('Onay kutusunu işaretleyin.',422);
+        if (!hash_equals(self::mappingVersion($mapping), (string)$request->post('mapping_version',''))) $this->error('Kategori eşleştirmesi siz incelerken değişti; ekranı yenileyip tekrar inceleyin.',409);
         try {
             $result = $this->container->get(\App\Services\Catalog\CatalogAuditService::class)->approveMapping((int)$id,(int)$this->session->userId());
             $parts = [$result['reviewed'].' ürün onaylandı'];
@@ -153,45 +156,75 @@ final class TrendyolAttributeController extends BaseController
             $this->success($result, implode(' · ', $parts).'.');
         } catch (\Throwable $e) { $this->error('Toplu onay yapılamadı: '.$e->getMessage(),422); }
     }
-    /** @return array<string,array<string,string>> */
+    /** Changes whenever the category's Trendyol target or attribute choices change. */
+    public static function mappingVersion(array $mapping): string
+    {
+        return hash('sha256', (string)($mapping['marketplace_category_id'] ?? '').'|'.(string)($mapping['attribute_mapping_json'] ?? ''));
+    }
+    /**
+     * Keeps valid XML value → option choices. Choices that became invalid (attribute removed from the
+     * category, option no longer offered) are dropped with a warning instead of blocking every save.
+     * A value the user explicitly maps to a foreign option of a live attribute is still an error.
+     * @return array{0:array<string,array<string,string>>,1:list<string>}
+     */
     public static function validValueMap(array $definitions, array $decoded): array
     {
-        $out = [];
+        $out = []; $warnings = [];
         foreach ($decoded as $aid => $pairs) {
             $aid = (string)$aid;
-            if (!isset($definitions[$aid]) || !is_array($pairs)) throw new \InvalidArgumentException('Geçersiz değer eşleştirmesi.');
+            if (!is_array($pairs)) throw new \InvalidArgumentException('Geçersiz değer eşleştirmesi.');
+            if (!isset($definitions[$aid])) { if ($pairs) $warnings[] = 'Kategoride artık bulunmayan bir özelliğin '.count($pairs).' değer eşleştirmesi kaldırıldı.'; continue; }
             if (!empty($definitions[$aid]['allowCustom'])) continue; // free text is sent as written
             if (count($pairs) > TrendyolAttributeResolver::VALUE_MAP_LIMIT) throw new \InvalidArgumentException($definitions[$aid]['name'].': en fazla '.TrendyolAttributeResolver::VALUE_MAP_LIMIT.' değer eşleştirilebilir.');
             $options = array_map('strval', array_column($definitions[$aid]['values'] ?? [], 'id'));
+            $dropped = 0;
             foreach ($pairs as $raw => $option) {
-                $key = TrendyolAttributeResolver::normalize((string)$raw);
+                $key = TrendyolAttributeResolver::mapKey((string)$raw);
                 if ($option === '' || $option === null) continue;
-                if ($key === '' || mb_strlen((string)$raw) > 300 || !is_scalar($option) || !in_array((string)$option, $options, true)) throw new \InvalidArgumentException($definitions[$aid]['name'].': XML değeri için Trendyol’un geçerli seçeneklerinden birini seçin.');
+                if ($key === '' || mb_strlen((string)$raw) > 300 || !is_scalar($option)) throw new \InvalidArgumentException($definitions[$aid]['name'].': geçersiz değer eşleştirmesi.');
+                if (!in_array((string)$option, $options, true)) { $dropped++; continue; }
                 $out[$aid][$key] = (string)$option;
             }
+            if ($dropped) $warnings[] = $definitions[$aid]['name'].': Trendyol listesinde artık olmayan '.$dropped.' seçenek eşleştirmesi kaldırıldı; ilgili XML değerlerini yeniden eşleştirin.';
         }
-        return $out;
+        return [$out, $warnings];
     }
-    /** Distinct XML/product values in this category, so unmatched ones can be mapped once for every product. */
+    /**
+     * Distinct XML/product values in this category, merged by value-map key (as the resolver reads them),
+     * so unmatched ones can be mapped once for every product.
+     */
     private function localValues(array $mapping): array
     {
         $db = $this->container->get(Database::class);
         $sid = $this->container->get(TenantContext::class)->currentStoreId();
-        $params = ['sid'=>$sid,'mid'=>(int)$mapping['marketplace_id']];
+        $params = ['sid'=>$sid];
         if (!empty($mapping['_override_id'])) { $scope = 'p.id = :pid'; $params['pid'] = (int)$mapping['product_id']; }
         else {
             $scope = 'p.category_id = :cid AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=:mid)';
-            $params['cid'] = (int)$mapping['category_id'];
+            $params['cid'] = (int)$mapping['category_id']; $params['mid'] = (int)$mapping['marketplace_id'];
         }
-        if (!isset($params['cid'])) unset($params['mid']);
-        $rows = $db->fetchAll("SELECT v.attribute_id, v.value, COUNT(*) AS products FROM (
-                SELECT pav.attribute_id, TRIM(COALESCE(NULLIF(pav.custom_value,''), av.value)) AS value
+        $rows = $db->fetchAll("SELECT v.attribute_id, v.value, COUNT(DISTINCT v.product_id) AS products FROM (
+                SELECT pav.attribute_id, pav.product_id, TRIM(COALESCE(NULLIF(TRIM(pav.custom_value),''), av.value)) AS value
                 FROM products p JOIN product_attribute_values pav ON pav.store_id=p.store_id AND pav.product_id=p.id
                 LEFT JOIN attribute_values av ON av.id=pav.attribute_value_id
                 WHERE p.store_id=:sid AND $scope) v
-            WHERE v.value IS NOT NULL AND v.value<>'' GROUP BY v.attribute_id, v.value ORDER BY products DESC, v.value LIMIT 5000", $params);
+            WHERE v.value IS NOT NULL AND v.value<>'' GROUP BY v.attribute_id, v.value ORDER BY v.attribute_id, products DESC LIMIT 50000", $params);
+        $merged = [];
+        foreach ($rows as $row) {
+            $key = TrendyolAttributeResolver::mapKey((string)$row['value']);
+            if ($key === '') continue;
+            $slot = &$merged[(string)$row['attribute_id']][$key];
+            $slot['value'] ??= (string)$row['value'];
+            $slot['key'] = $key;
+            $slot['products'] = ($slot['products'] ?? 0) + (int)$row['products'];
+            if (!in_array((string)$row['value'], $slot['variants'] ?? [], true)) $slot['variants'][] = (string)$row['value'];
+            unset($slot);
+        }
         $out = [];
-        foreach ($rows as $row) $out[(string)$row['attribute_id']][] = ['value'=>(string)$row['value'],'products'=>(int)$row['products']];
+        foreach ($merged as $aid => $values) {
+            usort($values, static fn($a, $b) => $b['products'] <=> $a['products'] ?: strcmp($a['value'], $b['value']));
+            $out[$aid] = array_slice($values, 0, TrendyolAttributeResolver::VALUE_MAP_LIMIT);
+        }
         return $out;
     }
     public function preview(Request $request, string $id): void

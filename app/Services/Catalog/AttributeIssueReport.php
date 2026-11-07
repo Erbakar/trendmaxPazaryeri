@@ -15,6 +15,9 @@ use App\Services\Marketplace\{TrendyolAttributeCatalog,TrendyolAttributeResolver
 final class AttributeIssueReport
 {
     public const STATE_KEY = 'attribute_issues_state';
+    /** Own key: a request made while a pass is running must survive that pass's state writes. */
+    public const REQUEST_KEY = 'attribute_issues_requested';
+    public const TICK_KEY = 'attribute_issues_tick_at';
     private const SAMPLE = 5;
 
     public function __construct(private readonly Container $container, private readonly Database $db,
@@ -47,16 +50,20 @@ final class AttributeIssueReport
 
     public function request(): void
     {
-        $state = $this->state();
-        $state['requested_at'] = date('Y-m-d H:i:s');
-        $this->saveState($state);
+        $this->settings->setValue(self::REQUEST_KEY, sprintf('%.6F', microtime(true)));
+    }
+
+    private function requestedAt(): float
+    {
+        return (float)($this->settings->getValue(self::REQUEST_KEY, '0') ?? '0');
     }
 
     public function due(): bool
     {
         $state = $this->state();
         if (!empty($state['cursor_active'])) return true;
-        if (!empty($state['requested_at']) && strtotime((string)$state['requested_at']) > strtotime((string)($state['started_at'] ?? '1970-01-01'))) return true;
+        // A request counts when it arrived after the last pass started (that pass may have missed it).
+        if ($this->requestedAt() > (float)($state['request_seen'] ?? 0)) return true;
         return strtotime((string)($state['refreshed_at'] ?? '1970-01-01')) < time() - self::interval();
     }
 
@@ -94,8 +101,10 @@ final class AttributeIssueReport
         $mid = $this->marketplace();
         if ($mid === null) return ['skipped' => 'Trendyol aktif değil'];
         $state = $this->state();
+        $this->settings->setValue(self::TICK_KEY, date('Y-m-d H:i:s'));
         if (empty($state['cursor_active'])) {
-            $state = ['cursor_active' => true, 'started_at' => date('Y-m-d H:i:s'), 'seen' => []] + $state;
+            // Requests up to this instant are covered by the pass starting now; later ones start another.
+            $state = ['cursor_active' => true, 'started_at' => date('Y-m-d H:i:s'), 'seen' => [], 'request_seen' => microtime(true)] + $state;
             unset($state['error']);
         }
         $processed = 0;
@@ -104,7 +113,7 @@ final class AttributeIssueReport
             if (in_array($entry['key'], $state['seen'] ?? [], true)) continue;
             if (microtime(true) > $deadline) { $this->saveState($state); return ['partial' => true, 'processed' => $processed]; }
             try { $this->refreshEntry($entry, $mid); }
-            catch (\Throwable $e) { $state['error'] = $e->getMessage(); }
+            catch (\Throwable $e) { $state['error'] = self::publicError($e); error_log('[attribute_issues] store '.$this->store().' mapping '.$entry['key'].': '.$e->getMessage()); }
             $state['seen'][] = $entry['key']; $processed++;
             if ($processed % 5 === 0) $this->saveState($state);
         }
@@ -113,7 +122,7 @@ final class AttributeIssueReport
         if ($keys === []) $this->db->query('DELETE FROM trendyol_attribute_issues WHERE store_id=? AND marketplace_id=?', [$this->store(), $mid]);
         else $this->db->query('DELETE FROM trendyol_attribute_issues WHERE store_id=? AND marketplace_id=? AND mapping_key NOT IN ('.implode(',', array_fill(0, count($keys), '?')).')', [$this->store(), $mid, ...$keys]);
         $summary = $this->summary();
-        $state = ['refreshed_at' => date('Y-m-d H:i:s'), 'started_at' => $state['started_at'], 'requested_at' => $state['requested_at'] ?? null,
+        $state = ['refreshed_at' => date('Y-m-d H:i:s'), 'started_at' => $state['started_at'], 'request_seen' => (float)($state['request_seen'] ?? 0),
             'error' => $state['error'] ?? null, 'products_blocked' => $summary['products_blocked'], 'categories_blocked' => $summary['categories_blocked']];
         $this->saveState($state);
         return ['complete' => true, 'processed' => $processed, 'products_blocked' => $summary['products_blocked']];
@@ -145,7 +154,7 @@ final class AttributeIssueReport
                     $rows = self::aggregate($mapping, $catalog['attributes'], $products, $this->localAttributes(array_column($products, 'id')));
                 } catch (\Throwable $e) {
                     $rows = [['issue_type' => 'catalog_error', 'product_count' => count($products), 'checked_count' => count($products),
-                        'message' => mb_substr('Trendyol kategori özellikleri alınamadı: '.$e->getMessage(), 0, 1000),
+                        'message' => mb_substr('Trendyol kategori özellikleri alınamadı: '.self::publicError($e), 0, 1000),
                         'sample_skus' => array_slice(array_column($products, 'sku'), 0, self::SAMPLE)]];
                 }
             } else $rows = [['issue_type' => 'summary', 'product_count' => 0, 'checked_count' => 0]];
@@ -203,10 +212,16 @@ final class AttributeIssueReport
     public static function aggregate(array $mapping, array $attributes, array $products, array $locals): array
     {
         $byId = array_column($attributes, null, 'id');
-        $missing = []; $unmatched = []; $blocked = 0;
+        $missing = []; $unmatched = []; $other = []; $blocked = 0;
         foreach ($products as $product) {
             $result = TrendyolAttributeResolver::resolve(['id' => (int)$product['id']], $mapping, $attributes, $locals[(int)$product['id']] ?? []);
-            if ($result['missing'] || $result['unmatched']) $blocked++;
+            if ($result['errors']) $blocked++;
+            foreach ($result['other'] ?? [] as $o) {
+                $slot = &$other[(string)$o['id']];
+                $slot['count'] = ($slot['count'] ?? 0) + 1; $slot['name'] = $o['name']; $slot['error'] = $o['error'];
+                if (count($slot['skus'] ?? []) < self::SAMPLE) $slot['skus'][] = (string)$product['sku'];
+                unset($slot);
+            }
             foreach ($result['missing'] as $m) {
                 $slot = &$missing[(string)$m['id']];
                 $slot['count'] = ($slot['count'] ?? 0) + 1; $slot['name'] = $m['name'];
@@ -226,7 +241,18 @@ final class AttributeIssueReport
         foreach ($unmatched as $aid => $values) foreach ($values as $u) $rows[] = ['issue_type' => 'unmatched', 'attribute_id' => (string)$aid, 'attribute_name' => $u['name'],
             'value_text' => $u['value'], 'is_varianter' => !empty($byId[$aid]['varianter']) || !empty($byId[$aid]['slicer']) ? 1 : 0,
             'product_count' => $u['count'], 'sample_skus' => $u['skus'], 'message' => $u['required'] ? 'required' : 'optional'];
+        foreach ($other as $aid => $o) $rows[] = ['issue_type' => 'invalid', 'attribute_id' => (string)$aid, 'attribute_name' => $o['name'],
+            'is_varianter' => !empty($byId[$aid]['varianter']) || !empty($byId[$aid]['slicer']) ? 1 : 0, 'product_count' => $o['count'], 'sample_skus' => $o['skus'],
+            'message' => mb_substr((string)$o['error'], 0, 1000)];
         return $rows;
+    }
+
+    /** Error text safe to show in the panel and to the support API (no SQL or file paths). */
+    public static function publicError(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+        if ($e instanceof \PDOException || str_contains($message, 'SQLSTATE')) return 'Veritabanı hatası; ayrıntı sunucu günlüğünde.';
+        return mb_substr((string)preg_replace('#(/[\w.\-]+){2,}#', '…', $message), 0, 300);
     }
 
     private static function decodeRow(array $row): array
@@ -241,12 +267,13 @@ final class AttributeIssueReport
     {
         $mid = $this->marketplace();
         $rows = $mid === null ? [] : array_map([self::class, 'decodeRow'], $this->db->fetchAll('SELECT * FROM trendyol_attribute_issues WHERE store_id=? AND marketplace_id=? AND mapping_key=? ORDER BY issue_type, product_count DESC, attribute_name, value_text', [$this->store(), $mid, $key]));
-        $out = ['refreshed_at' => null, 'blocked' => 0, 'checked' => 0, 'missing' => [], 'unmatched' => [], 'errors' => []];
+        $out = ['refreshed_at' => null, 'blocked' => 0, 'checked' => 0, 'missing' => [], 'unmatched' => [], 'invalid' => [], 'errors' => []];
         foreach ($rows as $row) {
             $out['refreshed_at'] = $row['refreshed_at'];
             if ($row['issue_type'] === 'summary') { $out['blocked'] = $row['product_count']; $out['checked'] = $row['checked_count']; }
             elseif ($row['issue_type'] === 'missing') $out['missing'][] = $row;
             elseif ($row['issue_type'] === 'unmatched') $out['unmatched'][] = $row;
+            elseif ($row['issue_type'] === 'invalid') $out['invalid'][] = $row;
             else { $out['errors'][] = $row; $out['blocked'] += $row['product_count']; $out['checked'] += $row['checked_count']; }
         }
         return $out;

@@ -29,7 +29,7 @@ final class AttributeValueMapTest extends TestCase
     }
     public function testValueMapTurnsXmlValueIntoChosenTrendyolOption(): void
     {
-        $mapping=['attribute_mapping_json'=>json_encode(['value_map'=>['348'=>['lacivertbeyaz'=>'1002'],'1192'=>['turkiye'=>'10617344']]])];
+        $mapping=['attribute_mapping_json'=>json_encode(['value_map'=>['348'=>['lacivert beyaz'=>'1002'],'1192'=>['turkiye'=>'10617344']]])];
         $r=Resolver::resolve(['id'=>7],$mapping,$this->definitions(),[$this->local('Renk','Lacivert-Beyaz',47),$this->local('Menşei','Türkiye',90)]);
         self::assertSame([],$r['errors']);
         self::assertSame(['attributeId'=>348,'attributeValueId'=>1002],$r['attributes'][0]);
@@ -37,7 +37,7 @@ final class AttributeValueMapTest extends TestCase
     }
     public function testValueMapCannotSmuggleForeignOptionId(): void
     {
-        $mapping=['attribute_mapping_json'=>json_encode(['value_map'=>['348'=>['lacivertbeyaz'=>'999999']]])];
+        $mapping=['attribute_mapping_json'=>json_encode(['value_map'=>['348'=>['lacivert beyaz'=>'999999']]])];
         $r=Resolver::resolve(['id'=>7],$mapping,[$this->definitions()[0]],[$this->local('Renk','Lacivert-Beyaz',47)]);
         self::assertSame([],$r['attributes']);self::assertCount(1,$r['errors']);
     }
@@ -59,11 +59,33 @@ final class AttributeValueMapTest extends TestCase
         self::assertSame('1192',$by['missing'][0]['attribute_id']);self::assertSame(['A1'],$by['missing'][0]['sample_skus']);
         self::assertCount(1,$by['unmatched']);self::assertSame(2,$by['unmatched'][0]['product_count']);self::assertSame(1,$by['unmatched'][0]['is_varianter']);
     }
-    public function testValueMapValidationAcceptsOnlyOptionsOfThatAttribute(): void
+    public function testValueMapValidationKeepsValidChoicesAndDropsStaleOnes(): void
     {
         $defs=array_column($this->definitions(),null,'id');
-        self::assertSame(['348'=>['lacivertbeyaz'=>'1002']],TrendyolAttributeController::validValueMap($defs,['348'=>['Lacivert-Beyaz'=>'1002','Mavi'=>'']]));
+        self::assertSame([['348'=>['lacivert beyaz'=>'1002']],[]],TrendyolAttributeController::validValueMap($defs,['348'=>['Lacivert-Beyaz'=>'1002','Mavi'=>'']]));
+        [$map,$warnings]=TrendyolAttributeController::validValueMap($defs,['348'=>['Lacivert-Beyaz'=>'10617344','Lacivert'=>'1001'],'777'=>['x'=>'1']]);
+        self::assertSame(['348'=>['lacivert'=>'1001']],$map);self::assertCount(2,$warnings);
         $this->expectException(\InvalidArgumentException::class);
-        TrendyolAttributeController::validValueMap($defs,['348'=>['Lacivert-Beyaz'=>'10617344']]);
+        TrendyolAttributeController::validValueMap($defs,['348'=>'not-a-table']);
+    }
+    public function testMapKeyKeepsNumberBoundariesAndValueMapNeverRedirectsMatchingNames(): void
+    {
+        self::assertNotSame(Resolver::mapKey('1-2 Yaş'),Resolver::mapKey('12 Yaş'));
+        self::assertSame(Resolver::mapKey('Lacivert-Beyaz'),Resolver::mapKey('lacivert  beyaz'));
+        // A value that matches a Trendyol option by name keeps that option even if a map entry exists for it.
+        $mapping=['attribute_mapping_json'=>json_encode(['value_map'=>['348'=>['lacivert'=>'1002']],'defaults'=>['1192'=>'10617344']])];
+        $r=Resolver::resolve(['id'=>1],$mapping,$this->definitions(),[$this->local('Renk','Lacivert',47)]);
+        self::assertSame(['attributeId'=>348,'attributeValueId'=>1001],$r['attributes'][0]);
+    }
+    public function testAmbiguousOptionNamesAndOptionalVariantValuesAreNotGuessed(): void
+    {
+        $size=['id'=>293,'name'=>'Yaş','required'=>true,'allowCustom'=>false,'values'=>[['id'=>1,'name'=>'1-2 Yaş'],['id'=>2,'name'=>'12 Yaş']]];
+        $r=Resolver::resolve(['id'=>1],[],[$size],[$this->local('Yaş','12 yaş',5)]);
+        self::assertSame([],$r['attributes']);self::assertCount(1,$r['unmatched']);
+        $r=Resolver::resolve(['id'=>1],['attribute_mapping_json'=>json_encode(['value_map'=>['293'=>['12 yas'=>'2']]])],[$size],[$this->local('Yaş','12 yaş',5)]);
+        self::assertSame(['attributeId'=>293,'attributeValueId'=>2],$r['attributes'][0]);
+        $variant=['id'=>9,'name'=>'Beden','required'=>false,'varianter'=>true,'allowCustom'=>false,'values'=>[['id'=>3,'name'=>'S']]];
+        $r=Resolver::resolve(['id'=>1],[],[$variant],[$this->local('Beden','XXS',6)]);
+        self::assertCount(1,$r['errors']);self::assertSame([],$r['warnings']);
     }
 }

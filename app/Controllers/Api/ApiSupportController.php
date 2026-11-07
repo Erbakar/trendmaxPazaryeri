@@ -5,7 +5,9 @@
  * Mağazaya bağlı API anahtarıyla (X-API-Key + X-API-Secret) çalışır. Destek paneli müşteri
  * sitesinin veritabanı bilgisini hiç tutmaz; yalnız bu uçların döndürdüğü özetleri görür.
  *   support:read      → durum, hata ve zorunlu özellik özeti, eşleştirme şablonu dışa aktarımı
- *   support:mappings  → eşleştirme şablonunu bu siteye uygulama (yalnız açıkça verilirse)
+ *   support:mappings  → eşleştirme şablonunu bu siteye uygulama (yalnız açıkça verilirse; "*" yetmez)
+ * Yenileme isteği (attribute-issues/refresh) support:read ile çalışır: veri değiştirmez, yalnız
+ * sitenin kendi cron'unun raporu erken hesaplamasını ister.
  */
 declare(strict_types=1);
 
@@ -35,7 +37,7 @@ final class ApiSupportController extends ApiBaseController
             $this->apiSuccess(['summary' => $summary + ['refreshed_at' => $state['refreshed_at'] ?? null, 'refreshing' => !empty($state['cursor_active'])],
                 'items' => $report->rows(max(1, min(2000, $request->integer('limit', 500))))]);
         } catch (\Throwable $e) {
-            $this->apiError('Zorunlu özellik raporu okunamadı: '.$e->getMessage(), 'REPORT_UNAVAILABLE', 503);
+            $this->apiError('Zorunlu özellik raporu okunamadı: '.AttributeIssueReport::publicError($e), 'REPORT_UNAVAILABLE', 503);
         }
     }
 
@@ -64,11 +66,15 @@ final class ApiSupportController extends ApiBaseController
      */
     public function importMappings(Request $request): void
     {
-        $this->requirePermission('support:mappings');
+        // Writing another site's choices needs an explicit grant; a legacy "*" or "support:*" token is not enough.
+        $granted = json_decode((string)($this->apiToken()['permissions'] ?? '[]'), true);
+        if (!is_array($granted) || !in_array('support:mappings', $granted, true)) $this->apiError('Bu işlem için anahtara açıkça support:mappings izni verilmeli.', 'FORBIDDEN', 403);
         $body = $this->jsonBody($request);
         if (($body['format'] ?? '') !== AttributeTemplateService::FORMAT) $this->apiValidationError(['format' => AttributeTemplateService::FORMAT.' bekleniyor']);
         if (!isset($body['templates']) || !is_array($body['templates']) || !array_is_list($body['templates'])) $this->apiValidationError(['templates' => 'templates dizisi zorunlu']);
-        $dryRun = filter_var($body['dry_run'] ?? true, FILTER_VALIDATE_BOOL); // safe default: preview
+        // Safe default: preview. Only a real boolean (or "true"/"false"/1/0) is accepted.
+        $dryRun = array_key_exists('dry_run', $body) ? filter_var($body['dry_run'], FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) : true;
+        if ($dryRun === null) $this->apiValidationError(['dry_run' => 'true veya false olmalı']);
         try {
             $result = $this->container->get(AttributeTemplateService::class)->import($body['templates'], (string)($body['mode'] ?? 'fill'), $dryRun);
         } catch (\InvalidArgumentException $e) { $this->apiValidationError(['body' => $e->getMessage()]); }

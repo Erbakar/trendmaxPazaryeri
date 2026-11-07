@@ -21,7 +21,7 @@
     <div class="tya-body tya-table-wrap"><table class="tya-table"><thead><tr><th>Trendyol özelliği</th><th>Üründeki kaynak alan</th><th>Sabit / varsayılan değer</th></tr></thead><tbody id="tyaRows"></tbody></table></div>
     <details id="tyaPreviewBox" hidden><summary style="padding:12px 20px">Gönderilecek değerler ve kontrol sonucu</summary><pre id="tyaPreview" class="tya-preview"></pre></details>
     <div class="tya-footer"><button type="button" class="btn btn-primary" id="tyaSave">Eşleştirmeleri Kaydet</button><button type="button" class="btn btn-secondary" id="tyaCheck">Gönderimi Kontrol Et</button><small>Kontrol işlemi Trendyol’a ürün göndermez.</small>
-        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini ve kaydedilen özellik değerlerini inceledim; kategorideki ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><small>Otomatik katalog kontrolü açıksa özellikleri tamamlanan ürünler bir sonraki turda gönderilir. Görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
+        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini, kaydedilen özellik değerlerini ve kategorideki ürünlerin ad/görsellerini inceledim; ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><small>Yalnız özellikleri eksiksiz çözülen ürünler onaylanır; daha önce onaylanıp adı, açıklaması veya görseli değişen ürünler tek tek incelenir. Tek seferde en çok 1000 ürün işlenir. Otomatik katalog kontrolü açıksa onaylanan ürünler bir sonraki turda gönderilir; görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
     </div>
 </dialog>
 <script>
@@ -32,16 +32,28 @@
     let mappingId=0, data=null, generation=0, busy=false, dirty=false;
     const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const norm=v=>String(v==null?'':v).trim().toLowerCase().replace(/i̇/g,'i').replace(/[ıöüşçğ]/g,c=>({'ı':'i','ö':'o','ü':'u','ş':'s','ç':'c','ğ':'g'}[c])).replace(/[^a-z0-9]/g,'');
-    function localFor(a){const chosen=rows.querySelector('[data-tya-source="'+a.id+'"]');const id=chosen&&chosen.value?chosen.value:String(data.sources[a.id]||'');if(id)return id;const same=data.local_attributes.find(p=>norm(p.name)===norm(a.name));return same?String(same.id):'';}
+    // Same keys as PHP TrendyolAttributeResolver::mapKey (word/digit boundaries kept).
+    const mapKey=v=>String(v==null?'':v).trim().toLowerCase().replace(/i̇/g,'i').replace(/[ıöüşçğ]/g,c=>({'ı':'i','ö':'o','ü':'u','ş':'s','ç':'c','ğ':'g'}[c])).replace(/[^a-z0-9]+/g,' ').trim();
+    const asObject=v=>(v&&typeof v==='object'&&!Array.isArray(v))?v:Object.assign({},v||{});
+    function localFor(a){
+        const chosen=rows.querySelector('[data-tya-source="'+a.id+'"]');
+        // A rendered select is the truth (empty = same-name field); before rendering use the saved source.
+        const id=chosen?chosen.value:String(data.sources[a.id]||'');if(id)return {id,explicit:true};
+        const same=data.local_attributes.find(p=>norm(p.name)===norm(a.name));return {id:same?String(same.id):'',explicit:false};
+    }
+    // Mirrors PHP matchesOption(): exactly one Trendyol option with this normalized name.
+    function matchesOption(a,value){const k=norm(value);return new Set((a.values||[]).filter(o=>norm(o.name)===k).map(o=>String(o.id))).size===1;}
     function valuesHtml(a){
         if(a.allowCustom||scope.value==='product')return '';
-        const local=localFor(a);const list=(data.local_values||{})[local]||[];if(!list.length)return '';
-        const options=(a.values||[]).map(v=>({id:String(v.id),name:v.name}));const names=new Set(options.map(v=>norm(v.name)));
-        const map=(data.value_map||{})[a.id]||{};
-        const rowsHtml=list.filter(v=>!names.has(norm(v.value))||map[norm(v.value)]).map(v=>{const key=norm(v.value),sel=map[key]||'';return '<tr><td>'+esc(v.value)+'</td><td>'+v.products+' ürün</td><td><select data-tya-map="'+a.id+'" data-tya-raw="'+esc(v.value)+'" aria-label="'+esc(v.value)+' için Trendyol seçeneği"><option value="">— Eşleştirilmedi —</option>'+options.map(o=>'<option value="'+esc(o.id)+'" '+(o.id===String(sel)?'selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></td></tr>';}).join('');
+        const local=localFor(a);const list=(data.local_values||{})[local.id]||[];if(!list.length)return '';
+        if(!local.explicit&&data.defaults[a.id])return '<small class="tya-sub">Kategori sabit değeri kullanılıyor; ürünlerdeki değerler okunmaz.</small>';
+        const options=(a.values||[]).map(v=>({id:String(v.id),name:v.name}));
+        const map=asObject((data.value_map||{})[a.id]);
+        const shown=list.filter(v=>!matchesOption(a,v.value)||map[v.key]);
+        const rowsHtml=shown.map(v=>{const sel=map[v.key]||'';const variants=(v.variants||[]).length>1?' <small class="tya-sub">('+esc(v.variants.join(' / '))+')</small>':'';return '<tr><td>'+esc(v.value)+variants+'</td><td>'+v.products+' ürün</td><td><select data-tya-map="'+a.id+'" data-tya-key="'+esc(v.key)+'" aria-label="'+esc(v.value)+' için Trendyol seçeneği"><option value="">— Eşleştirilmedi —</option>'+options.map(o=>'<option value="'+esc(o.id)+'" '+(o.id===String(sel)?'selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></td></tr>';}).join('');
         if(!rowsHtml)return '<small class="tya-sub">Ürünlerdeki '+list.length+' farklı değerin tamamı Trendyol seçenekleriyle eşleşiyor.</small>';
-        const open=list.some(v=>!names.has(norm(v.value))&&!map[norm(v.value)]);
-        return '<details class="tya-values" '+(open?'open':'')+'><summary>XML değerlerini eşleştir ('+list.filter(v=>!names.has(norm(v.value))&&!map[norm(v.value)]).length+' eşleşmedi)</summary><table>'+rowsHtml+'</table></details>';
+        const open=shown.filter(v=>!map[v.key]).length;
+        return '<details class="tya-values" '+(open?'open':'')+'><summary>XML değerlerini eşleştir ('+open+' eşleşmedi)</summary><table>'+rowsHtml+'</table></details>';
     }
     function issuesHtml(){
         const box=document.getElementById('tyaIssues'),i=data.issues;
@@ -53,7 +65,8 @@
         box.innerHTML='<b>'+i.blocked+' / '+i.checked+' ürün</b> zorunlu özellik nedeniyle gönderilemiyor. <small>('+esc(i.refreshed_at)+')</small><ul>'
             +i.errors.map(e=>'<li>'+esc(e.message)+'</li>').join('')
             +i.missing.map(m=>'<li>'+esc(m.attribute_name)+': '+m.product_count+' üründe değer yok'+(m.is_varianter?' · varyant özelliği':'')+'</li>').join('')
-            +i.unmatched.map(u=>'<li>'+esc(u.attribute_name)+' = “'+esc(u.value_text)+'”: '+u.product_count+' üründe Trendyol seçeneği eşleşmedi</li>').join('')+'</ul>';
+            +i.unmatched.map(u=>'<li>'+esc(u.attribute_name)+' = “'+esc(u.value_text)+'”: '+u.product_count+' üründe Trendyol seçeneği eşleşmedi</li>').join('')
+            +(i.invalid||[]).map(u=>'<li>'+esc(u.attribute_name)+': '+u.product_count+' üründe geçersiz değer — '+esc(u.message)+'</li>').join('')+'</ul>';
     }
     function message(text,error=false){status.textContent=text;status.className='tya-status '+(error?'is-error':'is-ok');}
     async function request(url,options={}){const response=await fetch(url,{...options,headers:{'X-Requested-With':'XMLHttpRequest',...(options.headers||{})}});const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'İşlem tamamlanamadı.');return result.data;}
@@ -73,7 +86,7 @@
                 if(selected && !a.allowMultipleAttributeValues && !options.some(v=>v.id===String(selected))) field+='<small class="tya-required">Kayıtlı değer güncel listede yok; yeniden seçin.</small>';
             }
             const source='<select data-tya-source="'+a.id+'" aria-label="'+esc(a.name)+' kaynak alanı" '+(productMode&&!own?'disabled':'')+'><option value="">Sabit değer / aynı adlı ürün özelliği</option>'+data.local_attributes.map(p=>'<option value="'+p.id+'" '+(String(data.sources[a.id]||'')===String(p.id)?'selected':'')+'>'+esc(p.name)+'</option>').join('')+'</select>';
-            const issue=(data.issues&&!productMode)?((data.issues.missing||[]).filter(m=>String(m.attribute_id)===String(a.id)).reduce((n,m)=>n+m.product_count,0)+(data.issues.unmatched||[]).filter(u=>String(u.attribute_id)===String(a.id)).reduce((n,u)=>n+u.product_count,0)):0;
+            const issue=(data.issues&&!productMode)?((data.issues.missing||[]).filter(m=>String(m.attribute_id)===String(a.id)).reduce((n,m)=>n+m.product_count,0)+(data.issues.unmatched||[]).filter(u=>String(u.attribute_id)===String(a.id)).reduce((n,u)=>n+u.product_count,0)+(data.issues.invalid||[]).filter(u=>String(u.attribute_id)===String(a.id)).reduce((n,u)=>n+u.product_count,0)):0;
             const variant=(a.varianter||a.slicer)&&!productMode?'<span class="tya-variant">Varyant özelliği: sabit değer kategorideki tüm ürünlere aynı '+esc(a.name)+' yazar. Ürün alanından eşleştirmeniz önerilir.</span>':'';
             return '<tr class="tya-row" data-required="'+(a.required?'1':'0')+'"><td><b>'+esc(a.name)+'</b>'+(issue?'<span class="tya-badge">'+issue+' ürün</span>':'')+(a.required?'<span class="tya-required">Zorunlu</span>':'<small>İsteğe bağlı</small>')+variant+'</td><td>'+source+'<div data-tya-values="'+a.id+'">'+valuesHtml(a)+'</div></td><td>'+field+'</td></tr>';
         }).join('');
@@ -115,11 +128,12 @@
         rows.querySelectorAll('[data-tya-value]').forEach(field=>{let value=field.multiple?JSON.stringify(Array.from(field.selectedOptions).map(o=>o.value).filter(Boolean)):field.value.trim();if(value && value!=='[]')values[field.dataset.tyaValue]=value;});
         rows.querySelectorAll('[data-tya-source]').forEach(field=>{if(field.value)sources[field.dataset.tyaSource]=field.value;});
         // Keep mappings for values not shown now (e.g. another source field) and replace the visible ones.
-        const valueMap=JSON.parse(JSON.stringify(data.value_map||{}));
-        rows.querySelectorAll('[data-tya-map]').forEach(field=>{const aid=field.dataset.tyaMap,key=norm(field.dataset.tyaRaw);valueMap[aid]=valueMap[aid]||{};if(field.value)valueMap[aid][key]=field.value;else delete valueMap[aid][key];});
+        const live=new Set(data.attributes.filter(a=>!a.allowCustom).map(a=>String(a.id)));const valueMap={};
+        Object.entries(data.value_map||{}).forEach(([aid,pairs])=>{if(live.has(String(aid)))valueMap[aid]=Object.assign({},asObject(pairs));});
+        rows.querySelectorAll('[data-tya-map]').forEach(field=>{const aid=field.dataset.tyaMap,key=field.dataset.tyaKey;valueMap[aid]=valueMap[aid]||{};if(field.value)valueMap[aid][key]=field.value;else delete valueMap[aid][key];});
         Object.keys(valueMap).forEach(aid=>{if(!Object.keys(valueMap[aid]).length)delete valueMap[aid];});
         const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('category_target',data.mapping.target);body.append('values',JSON.stringify(values));body.append('sources',JSON.stringify(sources));if(scope.value!=='product')body.append('value_map',JSON.stringify(valueMap));body.append('product_id',scope.value==='product'?products.value:'0');
-        try{const saved=await request('/categories/mapping/'+mappingId+'/trendyol-attributes',{method:'POST',body});dirty=false;data.value_map=scope.value!=='product'?valueMap:data.value_map;if(saved&&saved.issues){data.issues=saved.issues;issuesHtml();}message('Eşleştirmeler kaydedildi. Şimdi seçili ürünün gönderimini kontrol edebilirsiniz.');}
+        try{const saved=await request('/categories/mapping/'+mappingId+'/trendyol-attributes',{method:'POST',body});dirty=false;data.value_map=scope.value!=='product'?valueMap:data.value_map;if(saved&&saved.mapping_version)data.mapping_version=saved.mapping_version;if(saved&&saved.issues){data.issues=saved.issues;issuesHtml();}message('Eşleştirmeler kaydedildi.'+((saved&&saved.warnings&&saved.warnings.length)?' '+saved.warnings.join(' '):'')+' Şimdi seçili ürünün gönderimini kontrol edebilirsiniz.');}
         catch(error){message(error.message,true);}finally{busy=false;save.disabled=false;check.disabled=!products.value;}
     });
     check.addEventListener('click',async()=>{
@@ -136,8 +150,8 @@
         if(busy||!data)return;if(dirty){message('Onaylamadan önce eşleştirmeleri kaydedin.',true);return;}
         if(!document.getElementById('tyaReviewConfirm').checked){message('Onay kutusunu işaretleyin.',true);return;}
         busy=true;const button=document.getElementById('tyaReview');button.disabled=true;message('Kategorideki ürünler kontrol ediliyor…');
-        const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('confirm','1');
-        try{const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');message(result.message);}
+        const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('confirm','1');body.append('mapping_version',data.mapping_version||'');
+        try{const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});let result=null;try{result=await response.json();}catch{throw new Error('Sunucu yanıtı okunamadı (HTTP '+response.status+'). Çok sayıda ürün varsa işlem zaman aşımına uğramış olabilir; birkaç dakika sonra tekrar deneyin.');}if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');message(result.message);}
         catch(error){message(error.message,true);}finally{busy=false;button.disabled=false;document.getElementById('tyaReviewConfirm').checked=false;}
     });
 })();

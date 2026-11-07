@@ -469,28 +469,7 @@ final class CategoryMarketplaceMapping extends BaseModel
         foreach ($rows as $row) {
             $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
             $apply = static function (array $config) use ($defaults, $sources, $valueMap, $mode, &$changed): array {
-                $current = self::stringMap($config['defaults'] ?? []);
-                foreach ($defaults as $aid => $value) {
-                    if ($mode === 'fill' && isset($current[$aid]) && $current[$aid] !== '') continue;
-                    if (($current[$aid] ?? null) !== $value) { $current[$aid] = $value; $changed['defaults']++; }
-                }
-                $config['defaults'] = $current;
-                $currentSources = self::stringMap($config['sources'] ?? []);
-                foreach ($sources as $aid => $value) {
-                    if ($mode === 'fill' && isset($currentSources[$aid]) && $currentSources[$aid] !== '') continue;
-                    if (($currentSources[$aid] ?? null) !== $value) { $currentSources[$aid] = $value; $changed['sources']++; }
-                }
-                $config['sources'] = $currentSources;
-                $currentMap = is_array($config['value_map'] ?? null) ? $config['value_map'] : [];
-                foreach ($valueMap as $aid => $pairs) {
-                    $existing = is_array($currentMap[$aid] ?? null) ? $currentMap[$aid] : [];
-                    foreach ($pairs as $key => $option) {
-                        if ($mode === 'fill' && isset($existing[$key])) continue;
-                        if (($existing[$key] ?? null) !== $option) { $existing[$key] = $option; $changed['value_map']++; }
-                    }
-                    if ($existing !== []) $currentMap[$aid] = $existing;
-                }
-                $config['value_map'] = $currentMap;
+                [$config, $changed] = self::mergeAttributeTemplate($config, $defaults, $sources, $valueMap, $mode);
                 return $config;
             };
             $config = self::decodeAttributeMapping($this->find((int) $row['id']));
@@ -502,9 +481,47 @@ final class CategoryMarketplaceMapping extends BaseModel
                 $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
                 if (!$this->mutateAttributeMapping((int) $row['id'], $apply, true)) continue;
             }
-            $report[] = ['mapping_id' => (int) $row['id'], 'category_id' => (int) $row['category_id'], 'changed' => $changed];
+            // A changed mapping voids the content approval of every product in the category.
+            $products = (int) ($this->rawQueryOne('SELECT COUNT(*) n FROM products WHERE store_id = :sid AND category_id = :cid', ['sid' => $this->tenantId(), 'cid' => (int) $row['category_id']])['n'] ?? 0);
+            $report[] = ['mapping_id' => (int) $row['id'], 'category_id' => (int) $row['category_id'], 'changed' => $changed, 'products_in_category' => $products];
         }
         return $report;
+    }
+
+    /**
+     * Pure merge of a support-panel template into one stored mapping config (unit tested).
+     * 'fill' leaves every attribute the user already decided (fixed value OR source field) untouched;
+     * value-map entries are only added for XML values without a choice.
+     * @return array{0:array,1:array{defaults:int,sources:int,value_map:int}}
+     */
+    public static function mergeAttributeTemplate(array $config, array $defaults, array $sources, array $valueMap, string $mode): array
+    {
+        $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+        $current = self::stringMap($config['defaults'] ?? []);
+        $currentSources = self::stringMap($config['sources'] ?? []);
+        // A source plus fallback default, or vice versa, would change what products send.
+        $decided = array_map('strval', array_keys($current + $currentSources));
+        foreach ($defaults as $aid => $value) {
+            if ($mode === 'fill' && in_array((string) $aid, $decided, true)) continue;
+            if (($current[$aid] ?? null) !== $value) { $current[$aid] = $value; $changed['defaults']++; }
+        }
+        foreach ($sources as $aid => $value) {
+            if ($mode === 'fill' && in_array((string) $aid, $decided, true)) continue;
+            if (($currentSources[$aid] ?? null) !== $value) { $currentSources[$aid] = $value; $changed['sources']++; }
+        }
+        $config['defaults'] = $current;
+        $config['sources'] = $currentSources;
+        $currentMap = is_array($config['value_map'] ?? null) ? $config['value_map'] : [];
+        foreach ($valueMap as $aid => $pairs) {
+            $existing = is_array($currentMap[$aid] ?? null) ? $currentMap[$aid] : [];
+            foreach ($pairs as $key => $option) {
+                if ($mode === 'fill' && isset($existing[$key])) continue;
+                if (($existing[$key] ?? null) !== $option) { $existing[$key] = $option; $changed['value_map']++; }
+            }
+            if ($existing !== []) $currentMap[$aid] = $existing;
+        }
+        $config['value_map'] = $currentMap;
+        return [$config, $changed];
     }
 
     private function mutateAttributeMapping(int $mappingId, callable $mutator, bool $convertLegacy = false): bool

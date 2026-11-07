@@ -76,6 +76,10 @@ final class AttributeTemplateService
             $target = is_array($template) ? (string)($template['trendyol_category_id'] ?? '') : '';
             try {
                 if (!ctype_digit($target)) throw new \InvalidArgumentException('trendyol_category_id geçersiz.');
+                // Check locally first: no Trendyol request for categories this site does not use.
+                if (!$this->db->fetchOne('SELECT id FROM category_marketplace_mapping WHERE store_id=? AND marketplace_id=? AND marketplace_category_id=? LIMIT 1', [$this->tenant->currentStoreId(), $mid, $target])) {
+                    $skipped[] = ['index' => $i, 'trendyol_category_id' => $target, 'reason' => 'Bu sitede bu Trendyol kategorisine eşlenmiş kategori yok.']; continue;
+                }
                 $definitions = array_column($catalog->get($target)['attributes'], null, 'id');
                 $clean = self::validate($template, $definitions, $locals);
                 $changes = $model->applyAttributeTemplate($mid, $target, $clean['defaults'], $clean['sources'], $clean['value_map'], $mode, $dryRun);
@@ -97,12 +101,23 @@ final class AttributeTemplateService
     public static function validate(array $template, array $definitions, array $locals): array
     {
         $defaults = []; $sources = []; $valueMap = []; $warnings = [];
+        $templateSources = array_map('strval', array_keys((array)($template['sources'] ?? [])));
         foreach ((array)($template['defaults'] ?? []) as $aid => $value) {
             $aid = (string)$aid;
             if (!isset($definitions[$aid]) || !is_scalar($value)) throw new \InvalidArgumentException("Özellik $aid bu Trendyol kategorisinde yok.");
             $value = trim((string)$value);
             if ($value === '') continue;
             TrendyolAttributeResolver::value($definitions[$aid], $value); // throws on a foreign option id
+            $name = (string)($definitions[$aid]['name'] ?? $aid);
+            if (!empty($definitions[$aid]['varianter']) || !empty($definitions[$aid]['slicer'])) {
+                // One fixed colour/size for a whole category on another site would mislabel its variants.
+                $warnings[] = "$name varyant özelliği; sabit değeri aktarılmadı."; continue;
+            }
+            if (!in_array($aid, $templateSources, true) && isset($locals[TrendyolAttributeResolver::normalize($name)])) {
+                // The receiving site reads this attribute from its own same-name product field; a fixed
+                // value would override every product's own value.
+                $warnings[] = "$name bu sitede aynı adlı ürün alanından okunuyor; sabit değeri aktarılmadı."; continue;
+            }
             $defaults[$aid] = $value;
         }
         foreach ((array)($template['sources'] ?? []) as $aid => $name) {
@@ -119,7 +134,7 @@ final class AttributeTemplateService
             if (count($pairs) > TrendyolAttributeResolver::VALUE_MAP_LIMIT) throw new \InvalidArgumentException("Özellik $aid için çok fazla değer eşleştirmesi var.");
             $options = array_map('strval', array_column($definitions[$aid]['values'] ?? [], 'id'));
             foreach ($pairs as $raw => $option) {
-                $key = TrendyolAttributeResolver::normalize((string)$raw);
+                $key = TrendyolAttributeResolver::mapKey((string)$raw);
                 if ($key === '' || !is_scalar($option) || !in_array((string)$option, $options, true)) throw new \InvalidArgumentException("Özellik $aid için geçersiz Trendyol seçeneği.");
                 $valueMap[$aid][$key] = (string)$option;
             }

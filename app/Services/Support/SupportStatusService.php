@@ -39,7 +39,7 @@ final class SupportStatusService
     /** One failing section (e.g. a table not migrated yet) must not hide the others. */
     private function section(callable $read): array
     {
-        try { return $read(); } catch (\Throwable $e) { return ['error' => 'Okunamadı: '.mb_substr($e->getMessage(), 0, 200)]; }
+        try { return $read(); } catch (\Throwable $e) { return ['error' => 'Okunamadı: '.AttributeIssueReport::publicError($e)]; }
     }
 
     private function subscription(int $sid): array

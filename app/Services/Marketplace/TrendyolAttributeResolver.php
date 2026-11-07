@@ -13,6 +13,15 @@ final class TrendyolAttributeResolver
     {
         return preg_replace('/[^a-z0-9]/', '', strtr(mb_strtolower(trim($text)), ['ı'=>'i','ö'=>'o','ü'=>'u','ş'=>'s','ç'=>'c','ğ'=>'g','i̇'=>'i']));
     }
+    /**
+     * Key of an XML value in the value map. Unlike normalize() it keeps word/digit boundaries, so
+     * "1-2 Yaş" and "12 Yaş" stay different while "Lacivert-Beyaz" and "lacivert beyaz" are one value.
+     */
+    public static function mapKey(string $text): string
+    {
+        $text = strtr(mb_strtolower(trim($text)), ['ı'=>'i','ö'=>'o','ü'=>'u','ş'=>'s','ç'=>'c','ğ'=>'g','i̇'=>'i']);
+        return trim((string)preg_replace('/[^a-z0-9]+/', ' ', $text));
+    }
     public static function value(array $attribute, string $raw, bool $local = false): array
     {
         $raw = trim($raw);
@@ -34,7 +43,10 @@ final class TrendyolAttributeResolver
             foreach ($attribute['values'] ?? [] as $option) {
                 if ((!$local && (string)$option['id'] === (string)$value)
                     || ($local && self::normalize((string)$option['name']) === self::normalize((string)$value))) {
-                    $found = (int)$option['id']; break;
+                    // Two options that look the same after normalization ("1-2 Yaş"/"12 Yaş") are not guessed.
+                    if ($local && $found !== null && $found !== (int)$option['id']) throw new \InvalidArgumentException('XML değeri birden çok Trendyol seçeneğine benziyor; değer eşleştirmesinden seçin.');
+                    $found = (int)$option['id'];
+                    if (!$local) break;
                 }
             }
             if ($found === null) throw new \InvalidArgumentException('Trendyol’un geçerli seçeneklerinden birini seçin.');
@@ -55,11 +67,19 @@ final class TrendyolAttributeResolver
         foreach ((array)($config['value_map'] ?? []) as $aid => $pairs) {
             if (!is_array($pairs)) continue;
             foreach ($pairs as $key => $option) {
-                $key = self::normalize((string)$key);
+                $key = self::mapKey((string)$key);
                 if ($key !== '' && is_scalar($option) && ctype_digit((string)$option)) $out[(string)$aid][$key] = (string)$option;
             }
         }
         return $out;
+    }
+
+    public static function matchesOption(array $attribute, string $raw): bool
+    {
+        // Exactly one option: an ambiguous name is not a match, so the user's value map decides.
+        $ids = [];
+        foreach ($attribute['values'] ?? [] as $option) if (self::normalize((string)$option['name']) === self::normalize($raw)) $ids[(int)$option['id']] = true;
+        return count($ids) === 1;
     }
 
     /** Raw local value of one product attribute, exactly as the resolver reads it. */
@@ -76,7 +96,7 @@ final class TrendyolAttributeResolver
         $defaults = CategoryMarketplaceMapping::attributeDefaults($mapping);
         $sources = (array)($config['sources'] ?? []);
         $valueMap = self::valueMap($config);
-        $payload = []; $errors = []; $details = []; $missing = []; $unmatched = []; $warnings = [];
+        $payload = []; $errors = []; $details = []; $missing = []; $unmatched = []; $warnings = []; $other = [];
         foreach ($attributes as $a) {
             $id = (string)$a['id'];
             $raw = ''; $source = ''; $local = false; $explicit = false; $localAttributeId = null;
@@ -93,9 +113,10 @@ final class TrendyolAttributeResolver
                     $raw = self::localValue($p); $source=(string)$p['attribute_name']; $local=true; $localAttributeId=(int)$p['attribute_id']; break;
                 }
             }
-            if ($local && $raw !== '' && empty($a['allowCustom']) && isset($valueMap[$id][self::normalize($raw)])) {
-                // An explicit user choice for this XML value; the Trendyol option id is re-validated below.
-                $raw = $valueMap[$id][self::normalize($raw)]; $local = false; $source .= ' (değer eşleştirmesi)';
+            if ($local && $raw !== '' && empty($a['allowCustom']) && isset($valueMap[$id][self::mapKey($raw)]) && !self::matchesOption($a, $raw)) {
+                // An explicit user choice for an XML value that has no Trendyol option of its own;
+                // a value that already matches an option by name is never redirected. Re-validated below.
+                $raw = $valueMap[$id][self::mapKey($raw)]; $local = false; $source .= ' (değer eşleştirmesi)';
             }
             try {
                 $item = self::value($a, $raw, $local);
@@ -106,7 +127,7 @@ final class TrendyolAttributeResolver
                 }
                 $details[]=['id'=>$id,'name'=>$a['name'],'value'=>$raw,'source'=>$source,'payload'=>$item];
             } catch (\InvalidArgumentException $e) {
-                if ($local && !$explicit && empty($a['required'])) {
+                if ($local && !$explicit && empty($a['required']) && empty($a['varianter']) && empty($a['slicer'])) {
                     // A same-name optional field is only a guess; an unknown value is left out instead of blocking the product.
                     $warnings[]=$a['name'].': "'.$raw.'" Trendyol seçeneklerinde yok; isteğe bağlı olduğu için gönderilmedi.';
                     $details[]=['id'=>$id,'name'=>$a['name'],'value'=>$raw,'source'=>$source,'payload'=>[],'skipped'=>true];
@@ -115,8 +136,9 @@ final class TrendyolAttributeResolver
                 $errors[]=$a['name'].': '.$e->getMessage().($local?' (Ürün değeri: "'.$raw.'". Özellikler ekranındaki “XML değerlerini eşleştir” bölümünden Trendyol seçeneğini seçin.)':'');
                 if ($local) $unmatched[]=['id'=>$id,'name'=>(string)$a['name'],'value'=>$raw,'local_attribute_id'=>$localAttributeId,'required'=>!empty($a['required'])];
                 elseif (!empty($a['required'])) $missing[]=['id'=>$id,'name'=>(string)$a['name'],'invalid'=>true];
+                else $other[]=['id'=>$id,'name'=>(string)$a['name'],'error'=>$e->getMessage()];
             }
         }
-        return ['attributes'=>$payload,'details'=>$details,'errors'=>$errors,'missing'=>$missing,'unmatched'=>$unmatched,'warnings'=>$warnings];
+        return ['attributes'=>$payload,'details'=>$details,'errors'=>$errors,'missing'=>$missing,'unmatched'=>$unmatched,'other'=>$other,'warnings'=>$warnings];
     }
 }

@@ -17,7 +17,7 @@ final class SupportBridgeTest extends TestCase
     public function testExportCarriesSourceNamesNotLocalIds(): void
     {
         $row=['marketplace_category_id'=>'2386','marketplace_category_name'=>'Oyuncak','category_name'=>'Bebek Oyuncakları',
-            'attribute_mapping_json'=>json_encode(['defaults'=>['1192'=>'10617344'],'sources'=>['348'=>'9'],'value_map'=>['348'=>['lacivertbeyaz'=>'1001']],'products'=>['id:5'=>['348'=>'1001']]])];
+            'attribute_mapping_json'=>json_encode(['defaults'=>['1192'=>'10617344'],'sources'=>['348'=>'9'],'value_map'=>['348'=>['lacivert beyaz'=>'1001']],'products'=>['id:5'=>['348'=>'1001']]])];
         $t=AttributeTemplateService::toTemplate($row,[9=>'Renk']);
         self::assertSame(['348'=>'Renk'],(array)$t['sources']);
         self::assertSame(['1192'=>'10617344'],(array)$t['defaults']);
@@ -28,10 +28,29 @@ final class SupportBridgeTest extends TestCase
     {
         $clean=AttributeTemplateService::validate(['defaults'=>['1192'=>'10617344','47'=>'X-1'],'sources'=>['348'=>'renk','1192'=>'Ülke'],'value_map'=>['348'=>['Lacivert-Beyaz'=>'1001']]],$this->definitions(),['renk'=>'12']);
         self::assertSame(['348'=>'12'],$clean['sources']);
-        self::assertSame(['348'=>['lacivertbeyaz'=>'1001']],$clean['value_map']);
+        self::assertSame(['348'=>['lacivert beyaz'=>'1001']],$clean['value_map']);
         self::assertCount(1,$clean['warnings']);
         $this->expectException(\InvalidArgumentException::class);
         AttributeTemplateService::validate(['defaults'=>['1192'=>'1001']],$this->definitions(),[]);
+    }
+    public function testFillNeverOverridesADecidedAttributeAndReplaceDoes(): void
+    {
+        $config=['defaults'=>['1192'=>'10617345'],'sources'=>['348'=>'12'],'value_map'=>['348'=>['lacivert beyaz'=>'1001']]];
+        [$merged,$changed]=\App\Models\CategoryMarketplaceMapping::mergeAttributeTemplate($config,['348'=>'1001','1192'=>'10617344','47'=>'X'],['1192'=>'30'],['348'=>['lacivert beyaz'=>'9','mavi'=>'1001']],'fill');
+        self::assertSame(['1192'=>'10617345','47'=>'X'],$merged['defaults']);   // Renk has a source → no fixed value added
+        self::assertSame(['348'=>'12'],$merged['sources']);                     // Menşei has a default → no source added
+        self::assertSame(['lacivert beyaz'=>'1001','mavi'=>'1001'],$merged['value_map']['348']);
+        self::assertSame(['defaults'=>1,'sources'=>0,'value_map'=>1],$changed);
+        [$merged]=\App\Models\CategoryMarketplaceMapping::mergeAttributeTemplate($config,['1192'=>'10617344'],[],[],'replace');
+        self::assertSame('10617344',$merged['defaults']['1192']);
+    }
+    public function testTemplateDoesNotCarryFixedValuesOverSameNameFieldsOrVariants(): void
+    {
+        $defs=$this->definitions();$defs['348']['varianter']=true;
+        $clean=AttributeTemplateService::validate(['defaults'=>['348'=>'1001','1192'=>'10617344']],$defs,['mensei'=>'40']);
+        self::assertSame([],$clean['defaults']);self::assertCount(2,$clean['warnings']);
+        $clean=AttributeTemplateService::validate(['defaults'=>['1192'=>'10617344'],'sources'=>['1192'=>'Menşei']],$defs,['mensei'=>'40']);
+        self::assertSame(['1192'=>'10617344'],$clean['defaults']);self::assertSame(['1192'=>'40'],$clean['sources']);
     }
     public function testUnknownAttributeRejectsTemplate(): void
     {

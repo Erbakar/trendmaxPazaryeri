@@ -156,7 +156,15 @@ $unsellableLabels = [
     <?php endif; ?>
     <?php if (!empty($aiState['refreshed_at'])): ?><span class="cmap-sub">Son hesaplama: <?= $esc($aiState['refreshed_at']) ?><?= !empty($aiState['cursor_active']) ? ' · yeniden hesaplanıyor' : '' ?><?= !empty($aiState['error']) ? ' · Son hata: ' . $esc($aiState['error']) : '' ?></span><?php endif; ?>
     </div>
+    <div class="cmap-actions">
     <form method="POST" action="/categories/attribute-issues/refresh"><input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><button type="submit" class="cmap-btn"><i data-lucide="refresh-cw" aria-hidden="true"></i> Raporu yenile</button></form>
+    <?php if ($canEdit): $libOn = !empty($attributeIssues['library_enabled']); ?>
+    <form method="POST" action="/categories/attribute-library/toggle" title="Bir mağazada kaydedilen Trendyol kategori özellik seçimleri, aynı Trendyol kategorisini kullanan diğer mağazalara uygulanır. Mağazanın kendi seçimleri değiştirilmez.">
+        <input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><input type="hidden" name="marketplace_id" value="<?= $marketplaceId ?>"><input type="hidden" name="enabled" value="<?= $libOn ? '0' : '1' ?>">
+        <button type="submit" class="cmap-btn"><i data-lucide="share-2" aria-hidden="true"></i> Ortak kütüphane: <?= $libOn ? 'açık' : 'kapalı' ?></button>
+    </form>
+    <?php endif; ?>
+    </div>
 </div>
 <?php endif; ?>
 

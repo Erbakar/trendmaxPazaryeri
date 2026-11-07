@@ -110,6 +110,7 @@ final class CategoryMappingController extends BaseController
             try {
                 $report = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class);
                 $attributeIssues = $report->summary();
+                $attributeIssues['library_enabled'] = $this->container->get(\App\Services\Catalog\AttributeLibrary::class)->enabled();
                 $blockedByMapping = $report->blockedByMapping();
             } catch (\Throwable) { $attributeIssues = null; } // report table not migrated yet
         }
@@ -176,6 +177,12 @@ final class CategoryMappingController extends BaseController
                     $this->failStore($request, $backUrl, 'Kategori eşleştirildi ancak özellikler kaydedilemedi: ' . $this->publicError($e, 'Kategori özellikleri'));
                 }
             }
+        }
+
+        if (($marketplace['slug'] ?? '') === 'trendyol') {
+            // Shared library: choices other stores already made for this Trendyol category apply at once
+            // (only where this store has not decided). Advisory: a failure never undoes the mapping.
+            try { $this->container->get(\App\Services\Catalog\AttributeLibrary::class)->applyNow($mpCategoryId); } catch (\Throwable) {}
         }
 
         if ($request->isAjax()) {

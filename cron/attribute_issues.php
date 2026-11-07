@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-// Every 10 minutes. Recounts each store's missing/unmatched Trendyol attributes when the
+// Every 10 minutes. Applies the shared attribute library ("tek kaynak") to each store, then recounts its missing/unmatched Trendyol attributes when the
 // report is older than ATTRIBUTE_ISSUES_INTERVAL_SECONDS (default 6 h) or a refresh was requested.
 // Read-only towards Trendyol (category attribute lists only); sending stays with catalog_audit.php.
 if(PHP_SAPI!=='cli'){http_response_code(403);exit;}
@@ -16,9 +16,12 @@ foreach($stores as$store){
     if(microtime(true)>$deadline-5)break;
     $tenant->setStoreId((int)$store['id']);
     try{
+        // "Tek kaynak" first: other stores' category fixes reach this store before it is recounted.
+        $library=$container->get(App\Services\Catalog\AttributeLibrary::class)->sync(min($deadline-5,microtime(true)+20));
         $report=$container->get(App\Services\Catalog\AttributeIssueReport::class);
         $result=$report->due()?['ok'=>true,'result'=>$report->tick($deadline-3)]:['ok'=>true,'result'=>'not_due'];
+        if($library['applied']||$library['errors'])$result['library']=$library;
     }catch(Throwable $e){$result=['ok'=>false,'error'=>$e->getMessage()];}
     finally{$tenant->clear();}
-    if(($result['result']??'')!=='not_due')echo json_encode(['at'=>date(DATE_ATOM),'store'=>$store['id'],'result'=>$result],JSON_UNESCAPED_UNICODE).PHP_EOL;
+    if(($result['result']??'')!=='not_due'||isset($result['library']))echo json_encode(['at'=>date(DATE_ATOM),'store'=>$store['id'],'result'=>$result],JSON_UNESCAPED_UNICODE).PHP_EOL;
 }

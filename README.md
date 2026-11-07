@@ -41,7 +41,8 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
    Yedekten sonra `php database/migrate.php --allow-live` ile uygulayın; tekrar dry-run'da
    bekleyen işlem kalmamalı. Mevcut bilinmeyen bir şemaya gelişigüzel `--baseline` uygulamayın.
    Bu sürümün phase14 güncellemeleri 059–062'yi de içerir; katalog kontrolü, görsel önbelleği, eşleştirme geçmişi ve tedarikçi sayfa kontrolleri için yedi yeni tablo gerekir.
-   Phase15/063 zorunlu Trendyol özelliği raporu için `trendyol_attribute_issues` tablosunu ekler (silinip yeniden hesaplanabilir önbellek).
+   Phase15/063 zorunlu Trendyol özelliği raporu için `trendyol_attribute_issues` tablosunu, 064 mağazalar arası ortak
+   özellik kütüphanesi için `trendyol_attribute_library` tablosunu ekler.
 6. Uygulamayı yeni sürüme yönlendirin; kullanıcı girişi, kendi mağaza görünürlüğü, XML analizi,
    kategori/özellik seçimleri, fiyat önizlemesi ve sınırlı gerçek ürünün batch sonucunu doğrulayın.
    Batch kabulü, içerik onayı ve satışa açılma ayrı aşamalardır.
@@ -97,6 +98,18 @@ andaki eşleştirmeyi doğrular. Daha önce onaylanıp adı, açıklaması, gör
 içerik çelişkisi, tedarikçi farkı veya ürüne özel kategori seçimi olan ürünler tek tek incelenir. Hiç incelenmemiş
 ürünler ikinci adımda adları ve görselleriyle listelenir, ayrıca onaylanmadan gönderime alınmaz.
 Reddedilen bir ürünün içeriği değişince sonraki katalog turunda yeniden gönderilir; aynı içerik tekrar gönderilmez.
+
+### Ortak özellik kütüphanesi ("tek kaynak")
+
+Tüm mağazalar aynı veritabanında olduğu için bir mağazada kaydedilen kategori özellik seçimleri
+(sabit değer, ürün alanı, XML değer eşleştirmesi) Trendyol kategori kimliğiyle `trendyol_attribute_library`
+tablosuna yazılır. `cron/attribute_issues.php` aynı Trendyol kategorisini kullanan diğer mağazalara
+bunları uygular: yalnız mağazanın karar vermediği alanlar doldurulur, kütüphaneden gelen değerler
+sonraki düzeltmelerle güncellenir/geri çekilir, mağazanın kendi seçimine dokunulmaz. Varyant
+özelliklerinin (renk/beden) sabit değerleri ve mağazanın ürünlerinin kendi alanından okunan özelliklerin
+sabit değerleri taşınmaz. Her mağaza Kategori Eşleştirme ekranındaki **Ortak kütüphane** düğmesiyle
+katılımı kapatabilir (varsayılan açık). Değişen kategorilerde içerik onayı yine gerekir; Katalog
+Kontrolü'nde kaynak bilgisiyle tamamlama açık mağazalarda bu onay doğrulanan ürünler için otomatik verilir.
 
 ## Destek paneli köprüsü (trendmaxdestek.com)
 

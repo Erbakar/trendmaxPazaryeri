@@ -64,6 +64,7 @@ final class TrendyolAttributeController extends BaseController
                 // Inner tables as objects: keys like "0","1" must not turn into a JSON list in the browser.
                 'value_map'=>(object)array_map(static fn(array $pairs)=>(object)$pairs, TrendyolAttributeResolver::valueMap($config)),
                 'mapping_version'=>self::mappingVersion($mapping),
+                'library'=>CategoryMarketplaceMapping::libraryMarks(array_is_list($config)?[]:$config),
                 'local_values'=>$this->localValues($mapping, self::valueSourceIds($catalog['attributes'], (array)($config['sources'] ?? []), $locals)),
                 'issues'=>$this->issues((string)$id),
                 'can_review'=>empty($mapping['_override_id']) && $this->authorization()->hasPermission('products.edit') && $this->authorization()->hasPermission('categories.edit'),
@@ -91,7 +92,7 @@ final class TrendyolAttributeController extends BaseController
                 TrendyolAttributeResolver::value($definitions[$aid],$value);
                 $validValues[$aid]=trim($value);
             }
-            $valueMap = null; $valueWarnings = [];
+            $valueMap = null; $valueWarnings = []; $removed = [];
             if ($request->post('value_map') !== null) {
                 $decoded = json_decode((string)$request->post('value_map','{}'),true,64,JSON_THROW_ON_ERROR);
                 if (!is_array($decoded)) throw new \InvalidArgumentException('Geçersiz değer eşleştirmesi.');
@@ -109,12 +110,17 @@ final class TrendyolAttributeController extends BaseController
                 if ($expected!==$mapping['marketplace_category_id']) throw new \InvalidArgumentException('Kategori değişti; ekranı yeniden açın.');
                 $this->container->get(\App\Models\ProductCategoryOverride::class)->saveAttributes((int)$mapping['_override_id'],$expected,$validValues,$validSources,$productId);
             } else {
-            $db->transaction(function() use ($db,$id,$mapping,$validValues,$validSources,$productId) {
+            $removed = $productId>0 ? [] : \App\Services\Catalog\AttributeLibrary::removedLibraryEntries(CategoryMarketplaceMapping::decodeAttributeMapping($mapping),$validValues,$validSources,$valueMap);
+            $db->transaction(function() use ($db,$id,$mapping,$validValues,$validSources,$productId,$valueMap) {
                 $sid=$this->container->get(TenantContext::class)->currentStoreId();
                 $current=$db->fetchOne('SELECT marketplace_category_id FROM category_marketplace_mapping WHERE id=:id AND store_id=:sid FOR UPDATE',['id'=>(int)$id,'sid'=>$sid]);
                 if (!$current || $current['marketplace_category_id']!==$mapping['marketplace_category_id']) throw new \RuntimeException('Kategori değişti; ekranı yenileyin.');
                 $this->container->get(CategoryMarketplaceMapping::class)->saveTrendyolAttributes((int)$id,$validValues,$validSources,$productId>0?$productId:null,$productId>0?null:$valueMap);
             });
+            }
+            if (empty($mapping['_override_id']) && $productId===0) {
+                // "Tek kaynak": the saved category choices become the shared choice for this Trendyol category.
+                try { $this->container->get(\App\Services\Catalog\AttributeLibrary::class)->publish((int)$id, $removed); } catch (\Throwable) {}
             }
             $issues = null;
             try {
@@ -137,6 +143,15 @@ final class TrendyolAttributeController extends BaseController
         if ($report->marketplace() === null || !$this->authorization()->canAccessMarketplace((int)$report->marketplace())) $this->redirectWithError('/categories/mapping','Trendyol bağlantısı aktif değil veya erişiminiz yok.');
         $report->request();
         $this->redirectWithSuccess('/categories/mapping?marketplace_id='.(int)$report->marketplace(),'Zorunlu özellik raporu yenileme için sıraya alındı. Sunucu birkaç dakika içinde güncelleyecek.');
+    }
+    /** Store opt-out for the shared ("tek kaynak") attribute library; on by default. */
+    public function toggleLibrary(Request $request): void
+    {
+        $on = $request->post('enabled','0') === '1';
+        $library = $this->container->get(\App\Services\Catalog\AttributeLibrary::class);
+        $library->setEnabled($on);
+        $this->redirectWithSuccess('/categories/mapping'.($request->integer('marketplace_id')>0?'?marketplace_id='.$request->integer('marketplace_id'):''),
+            $on ? 'Ortak özellik kütüphanesi açıldı: diğer mağazalarda yapılan kategori düzeltmeleri bu mağazaya da uygulanır, sizin seçimleriniz korunur.' : 'Ortak özellik kütüphanesi kapatıldı: bu mağaza ne yayınlar ne de alır.');
     }
     /** Category-wide content approval so the automatic catalog check can send the corrected products. */
     public function review(Request $request, string $id): void

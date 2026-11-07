@@ -240,7 +240,7 @@ final class AuthorizationService
         ],
         \App\Controllers\TrendyolAttributeController::class => [
             'show' => ['categories.view'], 'save' => ['categories.edit'], 'preview' => ['categories.view','products.view'],
-            'review' => ['categories.edit','products.edit'], 'refreshIssues' => ['categories.view'], 'toggleLibrary' => ['categories.edit'],
+            'review' => ['categories.edit','products.edit'], 'refreshIssues' => ['categories.view'], 'toggleLibrary' => ['categories.edit'], 'attributeProducts' => ['categories.view'],
         ],
         // Akıllı Eşleştirme sihirbazı kategori VE marka için çalışır (?kind=category|brand)
         AutoMappingController::class => [

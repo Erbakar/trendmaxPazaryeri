@@ -9,7 +9,7 @@ $lock=fopen(sys_get_temp_dir().'/trendmax-attribute-issues-'.sha1(dirname(__DIR_
 if(!$lock||!flock($lock,LOCK_EX|LOCK_NB))exit;
 define('BASE_PATH',dirname(__DIR__));require BASE_PATH.'/public/index.php';
 $container=$GLOBALS['container'];
-$db=$container->get(App\Core\Database::class);$tenant=$container->get(App\Core\TenantContext::class);$deadline=microtime(true)+50;
+$db=$container->get(App\Core\Database::class);$tenant=$container->get(App\Core\TenantContext::class);$deadline=microtime(true)+max(30,min(540,(int)(function_exists("env")?env("ATTRIBUTE_ISSUES_CRON_SECONDS",240):240)));
 // Least recently ticked store first, so one large store cannot take every run's time window.
 $stores=$db->fetchAll("SELECT s.id FROM stores s JOIN store_marketplaces sm ON sm.store_id=s.id AND sm.status='active' AND (sm.expires_at IS NULL OR sm.expires_at>NOW()) JOIN marketplaces m ON m.id=sm.marketplace_id AND m.slug='trendyol' AND m.is_active=1 LEFT JOIN store_settings beat ON beat.store_id=s.id AND beat.skey='attribute_issues_tick_at' WHERE s.status='active' GROUP BY s.id, beat.svalue ORDER BY COALESCE(beat.svalue,''), s.id");
 foreach($stores as$store){

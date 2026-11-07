@@ -136,6 +136,19 @@ final class TrendyolAttributeController extends BaseController
         try { return $this->container->get(\App\Services\Catalog\AttributeIssueReport::class)->forMapping($key); }
         catch (\Throwable) { return null; } // advisory report; missing migration must not hide the mapping screen
     }
+    /** Products one attribute blocks in this category, with their XML values (for per-product decisions). */
+    public function attributeProducts(Request $request, string $id): void
+    {
+        $this->mapping($id); // tenant/permission check
+        $aid = (string)$request->input('attribute', '');
+        if (!ctype_digit($aid)) $this->error('Özellik seçilmedi.', 422);
+        try {
+            $this->success($this->container->get(\App\Services\Catalog\AttributeIssueReport::class)->affectedProducts((string)$id, $aid));
+        } catch (\Throwable $e) {
+            $this->error('Ürünler alınamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
+        }
+    }
+
     /** Queues a full recount; the attribute-issues cron picks it up within minutes. */
     public function refreshIssues(Request $request): void
     {

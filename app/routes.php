@@ -248,6 +248,7 @@ $router->post('/categories/mapping/{id}/hb-attribute',      [CategoryMappingCont
 $router->get('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'show'], $authMiddleware);
 $router->post('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'save'], $authCsrf);
 $router->get('/categories/mapping/{id}/trendyol-preview', [\App\Controllers\TrendyolAttributeController::class, 'preview'], $authMiddleware);
+$router->get('/categories/mapping/{id}/trendyol-attribute-products', [\App\Controllers\TrendyolAttributeController::class, 'attributeProducts'], $authMiddleware);
 $router->post('/categories/mapping/{id}/trendyol-review', [\App\Controllers\TrendyolAttributeController::class, 'review'], $authCsrf);
 $router->post('/categories/attribute-issues/refresh', [\App\Controllers\TrendyolAttributeController::class, 'refreshIssues'], $authCsrf);
 $router->post('/categories/attribute-library/toggle', [\App\Controllers\TrendyolAttributeController::class, 'toggleLibrary'], $authCsrf);

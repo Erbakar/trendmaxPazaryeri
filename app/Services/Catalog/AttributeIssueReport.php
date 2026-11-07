@@ -128,6 +128,45 @@ final class AttributeIssueReport
         return ['complete' => true, 'processed' => $processed, 'products_blocked' => $summary['products_blocked']];
     }
 
+    /**
+     * Products of one mapping that one Trendyol attribute blocks, with what their XML carries, so the
+     * user can decide a value per product (e.g. Renk, which differs per product).
+     * @return array{total:int,items:list<array>}
+     */
+    public function affectedProducts(string $key, string $aid, int $limit = 60): array
+    {
+        $mid = $this->marketplace();
+        if ($mid === null) return ['total' => 0, 'items' => []];
+        $entry = null;
+        foreach ($this->mappings($mid) as $e) if ($e['key'] === $key) { $entry = $e; break; }
+        $mapping = $entry ? $this->resolveMapping($entry, $mid) : null;
+        if ($mapping === null) return ['total' => 0, 'items' => []];
+        $products = $this->pendingProducts($mapping, $mid, $entry['mapping'] === null);
+        if ($products === []) return ['total' => 0, 'items' => []];
+        $attributes = $this->container->get(TrendyolAttributeCatalog::class)->get((string)$mapping['marketplace_category_id'])['attributes'];
+        $locals = $this->localAttributes(array_column($products, 'id'));
+        $total = 0; $items = [];
+        foreach ($products as $p) {
+            $r = TrendyolAttributeResolver::resolve(['id' => (int)$p['id']], $mapping, $attributes, $locals[(int)$p['id']] ?? []);
+            $problem = null; $value = '';
+            foreach ($r['missing'] as $m) if ((string)$m['id'] === $aid) $problem = 'missing';
+            foreach ($r['unmatched'] as $u) if ((string)$u['id'] === $aid) { $problem = 'unmatched'; $value = (string)$u['value']; }
+            foreach ($r['other'] ?? [] as $o) if ((string)$o['id'] === $aid) { $problem = 'invalid'; $value = (string)$o['error']; }
+            if ($problem === null) continue;
+            $total++;
+            if (count($items) >= $limit) continue;
+            $xml = [];
+            foreach ($locals[(int)$p['id']] ?? [] as $l) {
+                $v = TrendyolAttributeResolver::localValue($l);
+                if ($v !== '') $xml[] = ['name' => (string)$l['attribute_name'], 'value' => mb_substr($v, 0, 120)];
+            }
+            $row = $this->container->get(Product::class)->find((int)$p['id']) ?: [];
+            $items[] = ['id' => (int)$p['id'], 'sku' => (string)$p['sku'], 'name' => (string)$p['name'], 'problem' => $problem, 'value' => $value,
+                'image' => CatalogAuditPolicy::images($row)[0] ?? null, 'xml' => array_slice($xml, 0, 30)];
+        }
+        return ['total' => $total, 'items' => $items];
+    }
+
     /** Recount one mapping right after the user saves it. @return array<string,mixed>|null */
     public function refreshMapping(string $key): ?array
     {

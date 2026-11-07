@@ -4,6 +4,7 @@
 .tya-table select:not([multiple]),#tyaScope,#tyaProducts{appearance:none;-webkit-appearance:none;box-sizing:border-box;padding-right:44px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px 16px}
 #tyaIssues{margin:0 20px;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.6;background:var(--warning-bg,#fffbeb);border:1px solid rgba(245,158,11,.3)}#tyaIssues[hidden]{display:none}#tyaIssues.is-ok{background:#f0fdf4;border-color:#bbf7d0}#tyaIssues ul{margin:6px 0 0 18px;padding:0}
 .tya-values{margin-top:8px}.tya-values summary{cursor:pointer;font-size:12px;color:var(--primary)}.tya-values table{width:100%;margin-top:6px;border-collapse:collapse;font-size:12px}.tya-values td{padding:4px 6px;border-bottom:1px dashed var(--border)}.tya-values td:nth-child(2){width:70px;color:var(--text-muted)}.tya-values select{min-width:0!important;padding:4px 8px!important}.tya-badge{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:10.5px;line-height:18px;background:#fee2e2;color:#991b1b}.tya-variant{display:block;margin-top:4px;font-size:11px;color:#92400e}
+.tya-badge{border:0;cursor:pointer}.tya-affected td{background:var(--bg-soft,#f8fafc);padding:10px 12px!important}.tya-aff-list{display:grid;gap:8px;max-height:360px;overflow:auto}.tya-aff{display:flex;gap:10px;align-items:flex-start;padding:8px;border:1px solid var(--border);border-radius:8px;background:#fff}.tya-aff img{width:56px;height:56px;object-fit:cover;border-radius:6px;flex:none}.tya-aff-body{flex:1;min-width:0;font-size:12.5px}.tya-aff-body b{display:block}.tya-aff-xml{color:var(--text-muted);margin-top:4px;line-height:1.5}.tya-aff-actions{display:flex;flex-direction:column;gap:6px;flex:none}
 .tya-review{display:flex;flex-wrap:wrap;align-items:center;gap:10px;width:100%;padding-top:10px;border-top:1px dashed var(--border);font-size:12.5px}.tya-review[hidden]{display:none}
 </style>
 <dialog id="tyaDialog" aria-labelledby="tyaTitle">
@@ -71,7 +72,7 @@
     }
     function message(text,error=false){status.textContent=text;status.className='tya-status '+(error?'is-error':'is-ok');}
     async function request(url,options={}){const response=await fetch(url,{...options,headers:{'X-Requested-With':'XMLHttpRequest',...(options.headers||{})}});const result=await response.json();if(!response.ok||!result.success)throw new Error(result.message||'İşlem tamamlanamadı.');return result.data;}
-    function applyFilter(){rows.querySelectorAll('tr').forEach(row=>row.hidden=document.getElementById('tyaRequired').checked && row.dataset.required!=='1');}
+    function applyFilter(){rows.querySelectorAll('tr.tya-row').forEach(row=>row.hidden=document.getElementById('tyaRequired').checked && row.dataset.required!=='1');}
     function render(){
         const productMode=scope.value==='product', own=String(mappingId).startsWith('product-');
         const values=productMode ? data.product_values : data.defaults;
@@ -90,7 +91,7 @@
             const issue=(data.issues&&!productMode)?((data.issues.missing||[]).filter(m=>String(m.attribute_id)===String(a.id)).reduce((n,m)=>n+m.product_count,0)+(data.issues.unmatched||[]).filter(u=>String(u.attribute_id)===String(a.id)).reduce((n,u)=>n+u.product_count,0)+(data.issues.invalid||[]).filter(u=>String(u.attribute_id)===String(a.id)).reduce((n,u)=>n+u.product_count,0)):0;
             const lib=!productMode&&data.library&&((data.library.defaults||{})[a.id]||(data.library.sources||{})[a.id])?'<span class="tya-variant" style="color:var(--text-muted)">Ortak kütüphaneden geldi; değiştirirseniz bu mağazanın kendi seçimi olur.</span>':'';
             const variant=(a.varianter||a.slicer)&&!productMode?'<span class="tya-variant">Varyant özelliği: sabit değer kategorideki tüm ürünlere aynı '+esc(a.name)+' yazar. Ürün alanından eşleştirmeniz önerilir.</span>':'';
-            return '<tr class="tya-row" data-required="'+(a.required?'1':'0')+'"><td><b>'+esc(a.name)+'</b>'+(issue?'<span class="tya-badge">'+issue+' ürün</span>':'')+(a.required?'<span class="tya-required">Zorunlu</span>':'<small>İsteğe bağlı</small>')+variant+lib+'</td><td>'+source+'<div data-tya-values="'+a.id+'">'+valuesHtml(a)+'</div></td><td>'+field+'</td></tr>';
+            return '<tr class="tya-row" data-required="'+(a.required?'1':'0')+'"><td><b>'+esc(a.name)+'</b>'+(issue?'<button type="button" class="tya-badge" data-tya-affected="'+a.id+'" title="Bu özellik yüzünden gönderilemeyen ürünleri göster">'+issue+' ürün ▾</button>':'')+(a.required?'<span class="tya-required">Zorunlu</span>':'<small>İsteğe bağlı</small>')+variant+lib+'</td><td>'+source+'<div data-tya-values="'+a.id+'">'+valuesHtml(a)+'</div></td><td>'+field+'</td></tr>'+(issue?'<tr class="tya-affected" data-tya-affected-row="'+a.id+'" hidden><td colspan="3"></td></tr>':'');
         }).join('');
         applyFilter(); issuesHtml(); save.disabled=!data.can_edit || (productMode&&!products.value); dirty=false;
         document.getElementById('tyaReviewBox').hidden=!data.can_review||productMode;document.getElementById('tyaReviewConfirm').checked=false;document.getElementById('tyaUnreviewed').hidden=true;
@@ -117,6 +118,34 @@
     document.getElementById('tyaClose').addEventListener('click',()=>dialog.close());
     dialog.addEventListener('close',()=>{generation++;data=null;dirty=false;});
     document.getElementById('tyaRequired').addEventListener('change',applyFilter);
+    // "N ürün" → which products this attribute blocks, what their XML says, and a shortcut to give each its own value.
+    rows.addEventListener('click',async event=>{
+        const badge=event.target.closest('[data-tya-affected]');
+        if(badge){
+            const aid=badge.dataset.tyaAffected,row=rows.querySelector('[data-tya-affected-row="'+aid+'"]');if(!row)return;
+            if(!row.hidden){row.hidden=true;return;}
+            row.hidden=false;const cell=row.firstElementChild;cell.textContent='Ürünler yükleniyor…';
+            try{
+                const r=await request('/categories/mapping/'+mappingId+'/trendyol-attribute-products?attribute='+encodeURIComponent(aid));
+                const label={missing:'Değer yok',unmatched:'XML değeri Trendyol seçeneğinde yok',invalid:'Geçersiz değer'};
+                cell.innerHTML='<div class="tya-aff-list">'+r.items.map(p=>'<div class="tya-aff">'+(p.image?'<img src="'+esc(p.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':'')
+                    +'<div class="tya-aff-body"><b>'+esc(p.sku)+' · '+esc(p.name)+'</b><span class="tya-required">'+esc(label[p.problem]||p.problem)+(p.value?': “'+esc(p.value)+'”':'')+'</span>'
+                    +'<div class="tya-aff-xml">'+(p.xml.length?p.xml.map(x=>esc(x.name)+': '+esc(x.value)).join(' · '):'XML’de özellik yok')+'</div></div>'
+                    +'<div class="tya-aff-actions"><a class="btn btn-secondary" href="/products/'+p.id+'" target="_blank" rel="noopener">Ürünü aç</a>'
+                    +(data.can_edit&&!String(mappingId).startsWith('product-')?'<button type="button" class="btn btn-primary" data-tya-goto="'+p.id+'" data-sku="'+esc(p.sku)+'" data-name="'+esc(p.name)+'">Bu ürüne değer gir</button>':'')+'</div></div>').join('')+'</div>'
+                    +(r.total>r.items.length?'<small class="tya-sub">İlk '+r.items.length+' / '+r.total+' ürün gösteriliyor.</small>':'')
+                    +(!r.items.length?'<small class="tya-sub">Şu an bu özellik yüzünden bekleyen ürün yok; rapor güncellenince sayı düşer.</small>':'');
+            }catch(error){cell.textContent=error.message;}
+            return;
+        }
+        const go=event.target.closest('[data-tya-goto]');
+        if(go){
+            if(!discard())return;
+            // Switch to "only this product": the value saved there applies to this product alone.
+            search.value=go.dataset.sku;products.innerHTML='<option value="'+esc(go.dataset.tyaGoto)+'">'+esc(go.dataset.sku+' · '+go.dataset.name)+'</option>';products.value=go.dataset.tyaGoto;
+            scope.value='product';await load();message(go.dataset.sku+' için ürüne özel değerleri girip kaydedin. Kategori seçimleri bu ürünü etkilemeye devam eder.');
+        }
+    });
     rows.addEventListener('change',event=>{dirty=true;document.getElementById('tyaPreviewBox').hidden=true;
         const src=event.target.closest('[data-tya-source]');if(src&&data){const a=data.attributes.find(x=>String(x.id)===src.dataset.tyaSource);const box=rows.querySelector('[data-tya-values="'+src.dataset.tyaSource+'"]');if(a&&box)box.innerHTML=valuesHtml(a);}});
     function discard(){return !dirty || window.confirm('Kaydedilmemiş eşleştirmeler var. Değişiklikleri bırakmak istiyor musunuz?');}

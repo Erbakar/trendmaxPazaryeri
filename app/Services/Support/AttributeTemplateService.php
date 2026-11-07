@@ -81,7 +81,7 @@ final class AttributeTemplateService
                     $skipped[] = ['index' => $i, 'trendyol_category_id' => $target, 'reason' => 'Bu sitede bu Trendyol kategorisine eşlenmiş kategori yok.']; continue;
                 }
                 $definitions = array_column($catalog->get($target)['attributes'], null, 'id');
-                $clean = self::validate($template, $definitions, $locals);
+                $clean = self::validate($template, $definitions, $locals, $this->usedLocals($mid, $target));
                 $changes = $model->applyAttributeTemplate($mid, $target, $clean['defaults'], $clean['sources'], $clean['value_map'], $mode, $dryRun);
                 if ($changes === []) { $skipped[] = ['index' => $i, 'trendyol_category_id' => $target, 'reason' => 'Bu sitede bu Trendyol kategorisine eşlenmiş kategori yok.']; continue; }
                 $applied[] = ['index' => $i, 'trendyol_category_id' => $target, 'mappings' => $changes, 'warnings' => $clean['warnings']];
@@ -92,16 +92,33 @@ final class AttributeTemplateService
         return ['mode' => $mode, 'dry_run' => $dryRun, 'applied' => $applied, 'skipped' => $skipped];
     }
 
+    /** Local attribute ids that this store's products in categories mapped to $target actually fill. */
+    private function usedLocals(int $mid, string $target): array
+    {
+        return array_column($this->db->fetchAll('SELECT DISTINCT pav.attribute_id FROM category_marketplace_mapping m
+            JOIN products p ON p.store_id=m.store_id AND p.category_id=m.category_id
+            JOIN product_attribute_values pav ON pav.store_id=p.store_id AND pav.product_id=p.id
+            WHERE m.store_id=? AND m.marketplace_id=? AND m.marketplace_category_id=? AND (pav.attribute_value_id IS NOT NULL OR TRIM(COALESCE(pav.custom_value,\'\'))<>\'\')',
+            [$this->tenant->currentStoreId(), $mid, $target]), 'attribute_id');
+    }
+
     /**
      * Pure validation (unit tested). Unknown attributes/options reject the template; a source attribute
      * name that does not exist on this site is dropped with a warning (the default value still applies).
      * @param array<string,array> $definitions Trendyol attributes of the category, keyed by id
      * @param array<string,string> $locals normalized local attribute name → local id
      */
-    public static function validate(array $template, array $definitions, array $locals): array
+    public static function validate(array $template, array $definitions, array $locals, ?array $usedLocals = null): array
     {
         $defaults = []; $sources = []; $valueMap = []; $warnings = [];
-        $templateSources = array_map('strval', array_keys((array)($template['sources'] ?? [])));
+        // Sources first: the same-name guard below must see what this site will actually use.
+        foreach ((array)($template['sources'] ?? []) as $aid => $name) {
+            $aid = (string)$aid;
+            if (!isset($definitions[$aid]) || !is_scalar($name)) throw new \InvalidArgumentException("Özellik $aid bu Trendyol kategorisinde yok.");
+            $local = $locals[TrendyolAttributeResolver::normalize((string)$name)] ?? null;
+            if ($local === null) { $warnings[] = "Kaynak alan \"$name\" bu sitede yok; atlandı."; continue; }
+            $sources[$aid] = $local;
+        }
         foreach ((array)($template['defaults'] ?? []) as $aid => $value) {
             $aid = (string)$aid;
             if (!isset($definitions[$aid]) || !is_scalar($value)) throw new \InvalidArgumentException("Özellik $aid bu Trendyol kategorisinde yok.");
@@ -113,19 +130,14 @@ final class AttributeTemplateService
                 // One fixed colour/size for a whole category on another site would mislabel its variants.
                 $warnings[] = "$name varyant özelliği; sabit değeri aktarılmadı."; continue;
             }
-            if (!in_array($aid, $templateSources, true) && isset($locals[TrendyolAttributeResolver::normalize($name)])) {
-                // The receiving site reads this attribute from its own same-name product field; a fixed
-                // value would override every product's own value.
-                $warnings[] = "$name bu sitede aynı adlı ürün alanından okunuyor; sabit değeri aktarılmadı."; continue;
+            $sameName = $locals[TrendyolAttributeResolver::normalize($name)] ?? null;
+            $inUse = $sameName !== null && ($usedLocals === null || in_array((string)$sameName, array_map('strval', $usedLocals), true));
+            if ($inUse && ($sources[$aid] ?? null) !== $sameName) {
+                // This site's products carry their own value in a same-name field; a fixed value (or a
+                // fallback behind another source) would replace it.
+                $warnings[] = "$name bu sitede ürünlerin kendi alanından okunuyor; sabit değeri aktarılmadı."; continue;
             }
             $defaults[$aid] = $value;
-        }
-        foreach ((array)($template['sources'] ?? []) as $aid => $name) {
-            $aid = (string)$aid;
-            if (!isset($definitions[$aid]) || !is_scalar($name)) throw new \InvalidArgumentException("Özellik $aid bu Trendyol kategorisinde yok.");
-            $local = $locals[TrendyolAttributeResolver::normalize((string)$name)] ?? null;
-            if ($local === null) { $warnings[] = "Kaynak alan \"$name\" bu sitede yok; atlandı."; continue; }
-            $sources[$aid] = $local;
         }
         foreach ((array)($template['value_map'] ?? []) as $aid => $pairs) {
             $aid = (string)$aid;

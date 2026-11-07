@@ -42,7 +42,7 @@ final class TrendyolAttributeResolver
             $found = null;
             foreach ($attribute['values'] ?? [] as $option) {
                 if ((!$local && (string)$option['id'] === (string)$value)
-                    || ($local && self::normalize((string)$option['name']) === self::normalize((string)$value))) {
+                    || ($local && self::sameName((string)$option['name'], (string)$value))) {
                     // Two options that look the same after normalization ("1-2 Yaş"/"12 Yaş") are not guessed.
                     if ($local && $found !== null && $found !== (int)$option['id']) throw new \InvalidArgumentException('XML değeri birden çok Trendyol seçeneğine benziyor; değer eşleştirmesinden seçin.');
                     $found = (int)$option['id'];
@@ -74,11 +74,21 @@ final class TrendyolAttributeResolver
         return $out;
     }
 
+    /**
+     * XML value and option name are the same if they differ only in case, Turkish letters, spacing or
+     * punctuation — but never when their numbers differ ("1-2 Yaş" ≠ "12 Yaş", "%100" = "100%").
+     */
+    public static function sameName(string $a, string $b): bool
+    {
+        if (self::normalize($a) !== self::normalize($b)) return false;
+        preg_match_all('/\d+/', $a, $x); preg_match_all('/\d+/', $b, $y);
+        return $x[0] === $y[0];
+    }
     public static function matchesOption(array $attribute, string $raw): bool
     {
         // Exactly one option: an ambiguous name is not a match, so the user's value map decides.
         $ids = [];
-        foreach ($attribute['values'] ?? [] as $option) if (self::normalize((string)$option['name']) === self::normalize($raw)) $ids[(int)$option['id']] = true;
+        foreach ($attribute['values'] ?? [] as $option) if (self::sameName((string)$option['name'], $raw)) $ids[(int)$option['id']] = true;
         return count($ids) === 1;
     }
 

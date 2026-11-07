@@ -393,14 +393,14 @@ final class CatalogAuditService
      * category selection keep needing an individual review; an existing conflict is never overwritten.
      * @return array{reviewed:int,already:int,attribute_errors:int,individual:int,total:int,limited:bool}
      */
-    public function approveMapping(int $mappingId,int $user,int $limit=1000): array
+    public function approveMapping(int $mappingId,int $user,bool $includeUnreviewed=false,int $limit=1000): array
     {
         $mid=$this->marketplace();
         $mapping=$this->get(CategoryMarketplaceMapping::class)->find($mappingId);
         if(!$mapping||(int)$mapping['marketplace_id']!==$mid)throw new \RuntimeException('Trendyol kategori eşleştirmesi bulunamadı.');
         $rows=$this->repo->db->fetchAll('SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND COALESCE(p.is_archived,0)=0 AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id LIMIT '.(max(1,$limit)+1),[$this->repo->store(),(int)$mapping['category_id'],$mid]);
         $limited=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
-        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'total'=>count($rows),'limited'=>$limited];
+        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'unreviewed'=>0,'unreviewed_samples'=>[],'total'=>count($rows),'limited'=>$limited];
         $publish=$this->get(ProductPublishService::class);$supplier=$this->get(SupplierCatalog::class);
         foreach($rows as$row){
             $p=$this->get(Product::class)->find((int)$row['id']);if(!$p)continue;
@@ -409,11 +409,21 @@ final class CatalogAuditService
             if($this->repo->blockedReason($mid,$p)!==null||$supplier->errors($p)){$out['individual']++;continue;}
             // A product reviewed before may only be re-approved here if just its mapping changed since;
             // a changed name, description, image or XML attribute still needs an individual review.
-            $prior=$this->repo->db->fetchOne('SELECT evidence_json FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,(int)$p['id']]);
+            $prior=$this->repo->db->fetchOne('SELECT evidence_json,reviewed_at FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,(int)$p['id']]);
             $content=$this->contentHash($p);
-            if($prior){$proof=json_decode((string)$prior['evidence_json'],true)?:[];if(($proof['content_hash']??null)!==$content&&!$this->repo->reviewed($mid,(int)$p['id'],$this->contentFingerprint($p,$m))){$out['individual']++;continue;}}
             $resolution=$publish->resolveTrendyolAttributes($p,$m);
             if($resolution['errors']){$out['attribute_errors']++;continue;}
+            if($prior&&!$this->repo->reviewed($mid,(int)$p['id'],$this->contentFingerprint($p,$m))){
+                $proof=json_decode((string)$prior['evidence_json'],true)?:[];
+                // Older reviews carry no content hash: accept them only if the product row is unchanged since.
+                $unchanged=isset($proof['content_hash'])?hash_equals((string)$proof['content_hash'],$content):strtotime((string)($p['updated_at']??'now'))<=strtotime((string)$prior['reviewed_at']);
+                if(!$unchanged){$out['individual']++;continue;}
+            }elseif(!$prior&&!$includeUnreviewed){
+                // Never reviewed: the user must see these products before approving them (second step).
+                $out['unreviewed']++;
+                if(count($out['unreviewed_samples'])<50)$out['unreviewed_samples'][]=['id'=>(int)$p['id'],'sku'=>(string)$p['sku'],'name'=>(string)$p['name'],'image'=>CatalogAuditPolicy::images($p)[0]??null];
+                continue;
+            }
             $fingerprint=$this->contentFingerprint($p,$m);
             if($this->repo->reviewed($mid,(int)$p['id'],$fingerprint)){$out['already']++;continue;}
             $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'category_bulk_review','mapping_id'=>$mappingId,'content_hash'=>$content,

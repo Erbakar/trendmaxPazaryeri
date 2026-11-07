@@ -51,6 +51,19 @@ final class SupportBridgeTest extends TestCase
         self::assertSame([],$clean['defaults']);self::assertCount(2,$clean['warnings']);
         $clean=AttributeTemplateService::validate(['defaults'=>['1192'=>'10617344'],'sources'=>['1192'=>'Menşei']],$defs,['mensei'=>'40']);
         self::assertSame(['1192'=>'10617344'],$clean['defaults']);self::assertSame(['1192'=>'40'],$clean['sources']);
+        // Template source missing here: its default must not replace this site's own same-name values.
+        $clean=AttributeTemplateService::validate(['defaults'=>['1192'=>'10617344'],'sources'=>['1192'=>'Ülke']],$defs,['mensei'=>'40'],['40']);
+        self::assertSame([],$clean['defaults']);self::assertSame([],$clean['sources']);
+        // Same-name field exists globally but no product of these categories fills it: the default is useful.
+        $clean=AttributeTemplateService::validate(['defaults'=>['1192'=>'10617344']],$defs,['mensei'=>'40'],['12']);
+        self::assertSame(['1192'=>'10617344'],$clean['defaults']);
+    }
+    public function testDryRunIsPreviewUnlessExplicitlyFalse(): void
+    {
+        $f=[\App\Controllers\Api\ApiSupportController::class,'dryRun'];
+        self::assertTrue($f(null));self::assertTrue($f(true));self::assertTrue($f('true'));
+        self::assertFalse($f(false));self::assertFalse($f(0));self::assertFalse($f('false'));
+        self::assertNull($f(''));self::assertNull($f('preview'));self::assertNull($f('yes'));
     }
     public function testUnknownAttributeRejectsTemplate(): void
     {

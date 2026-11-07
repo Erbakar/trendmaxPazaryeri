@@ -81,9 +81,13 @@ final class AttributeValueMapTest extends TestCase
     {
         $size=['id'=>293,'name'=>'Yaş','required'=>true,'allowCustom'=>false,'values'=>[['id'=>1,'name'=>'1-2 Yaş'],['id'=>2,'name'=>'12 Yaş']]];
         $r=Resolver::resolve(['id'=>1],[],[$size],[$this->local('Yaş','12 yaş',5)]);
-        self::assertSame([],$r['attributes']);self::assertCount(1,$r['unmatched']);
-        $r=Resolver::resolve(['id'=>1],['attribute_mapping_json'=>json_encode(['value_map'=>['293'=>['12 yas'=>'2']]])],[$size],[$this->local('Yaş','12 yaş',5)]);
-        self::assertSame(['attributeId'=>293,'attributeValueId'=>2],$r['attributes'][0]);
+        self::assertSame(['attributeId'=>293,'attributeValueId'=>2],$r['attributes'][0]); // numbers must agree
+        $only12=['id'=>293,'name'=>'Yaş','required'=>true,'allowCustom'=>false,'values'=>[['id'=>2,'name'=>'12 Yaş'],['id'=>3,'name'=>'1-3 Yaş']]];
+        $r=Resolver::resolve(['id'=>1],[],[$only12],[$this->local('Yaş','1-2 Yaş',5)]);
+        self::assertSame([],$r['attributes']);self::assertCount(1,$r['unmatched']);   // "1-2" is never sent as "12"
+        $r=Resolver::resolve(['id'=>1],['attribute_mapping_json'=>json_encode(['value_map'=>['293'=>['1 2 yas'=>'3']]])],[$only12],[$this->local('Yaş','1-2 Yaş',5)]);
+        self::assertSame(['attributeId'=>293,'attributeValueId'=>3],$r['attributes'][0]);
+        self::assertTrue(Resolver::sameName('%100 Pamuk','100% pamuk'));self::assertTrue(Resolver::sameName('ÇokRenkli','Çok Renkli'));
         $variant=['id'=>9,'name'=>'Beden','required'=>false,'varianter'=>true,'allowCustom'=>false,'values'=>[['id'=>3,'name'=>'S']]];
         $r=Resolver::resolve(['id'=>1],[],[$variant],[$this->local('Beden','XXS',6)]);
         self::assertCount(1,$r['errors']);self::assertSame([],$r['warnings']);

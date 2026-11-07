@@ -72,8 +72,8 @@ final class ApiSupportController extends ApiBaseController
         $body = $this->jsonBody($request);
         if (($body['format'] ?? '') !== AttributeTemplateService::FORMAT) $this->apiValidationError(['format' => AttributeTemplateService::FORMAT.' bekleniyor']);
         if (!isset($body['templates']) || !is_array($body['templates']) || !array_is_list($body['templates'])) $this->apiValidationError(['templates' => 'templates dizisi zorunlu']);
-        // Safe default: preview. Only a real boolean (or "true"/"false"/1/0) is accepted.
-        $dryRun = array_key_exists('dry_run', $body) ? filter_var($body['dry_run'], FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) : true;
+        // Safe default: preview. Missing or null previews; anything but an explicit boolean is rejected.
+        $dryRun = self::dryRun($body['dry_run'] ?? null);
         if ($dryRun === null) $this->apiValidationError(['dry_run' => 'true veya false olmalı']);
         try {
             $result = $this->container->get(AttributeTemplateService::class)->import($body['templates'], (string)($body['mode'] ?? 'fill'), $dryRun);
@@ -83,5 +83,15 @@ final class ApiSupportController extends ApiBaseController
             try { $this->container->get(AttributeIssueReport::class)->request(); } catch (\Throwable) {}
         }
         $this->apiSuccess($result, $dryRun ? 'Önizleme: hiçbir değişiklik yazılmadı.' : 'Şablon uygulandı.');
+    }
+
+    /** true/false, "true"/"false", 1/0 → bool; missing/null → true (preview); anything else → null (invalid). */
+    public static function dryRun(mixed $value): ?bool
+    {
+        if ($value === null) return true;
+        if (is_bool($value)) return $value;
+        if ($value === 1 || $value === '1' || $value === 'true') return true;
+        if ($value === 0 || $value === '0' || $value === 'false') return false;
+        return null;
     }
 }

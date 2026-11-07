@@ -55,6 +55,7 @@ final class TrendyolAttributeController extends BaseController
             if (!empty($mapping['_override_id']) && $productId!==(int)$mapping['product_id']) $this->error('Bu eşleştirme yalnız seçilen ürün içindir.',422);
             if ($productId>0) $this->product($mapping,$productId);
             if ($productId>0 && !in_array($productId,array_map('intval',array_column($products,'id')),true)) $products[]=$this->product($mapping,$productId);
+            $locals = $this->container->get(ProductAttribute::class)->all([], 'name ASC');
             $this->success($catalog + [
                 'mapping'=>['id'=>$id,'category_id'=>(int)$mapping['category_id'],'name'=>$mapping['marketplace_category_name'],'target'=>$mapping['marketplace_category_id']],
                 'defaults'=>(object)CategoryMarketplaceMapping::attributeDefaults($mapping),
@@ -63,10 +64,10 @@ final class TrendyolAttributeController extends BaseController
                 // Inner tables as objects: keys like "0","1" must not turn into a JSON list in the browser.
                 'value_map'=>(object)array_map(static fn(array $pairs)=>(object)$pairs, TrendyolAttributeResolver::valueMap($config)),
                 'mapping_version'=>self::mappingVersion($mapping),
-                'local_values'=>$this->localValues($mapping),
+                'local_values'=>$this->localValues($mapping, self::valueSourceIds($catalog['attributes'], (array)($config['sources'] ?? []), $locals)),
                 'issues'=>$this->issues((string)$id),
                 'can_review'=>empty($mapping['_override_id']) && $this->authorization()->hasPermission('products.edit') && $this->authorization()->hasPermission('categories.edit'),
-                'local_attributes'=>$this->container->get(ProductAttribute::class)->all([], 'name ASC'),
+                'local_attributes'=>$locals,
                 'products'=>$products,'more_products'=>$more,'can_edit'=>$this->authorization()->hasPermission('categories.edit')]);
         } catch (\Throwable $e) { $this->error('Trendyol özellikleri alınamadı: '.$e->getMessage(),502); }
     }
@@ -147,8 +148,10 @@ final class TrendyolAttributeController extends BaseController
         if ($request->post('confirm','') !== '1') $this->error('Onay kutusunu işaretleyin.',422);
         if (!hash_equals(self::mappingVersion($mapping), (string)$request->post('mapping_version',''))) $this->error('Kategori eşleştirmesi siz incelerken değişti; ekranı yenileyip tekrar inceleyin.',409);
         try {
-            $result = $this->container->get(\App\Services\Catalog\CatalogAuditService::class)->approveMapping((int)$id,(int)$this->session->userId());
+            $include = $request->post('include_unreviewed','') === '1';
+            $result = $this->container->get(\App\Services\Catalog\CatalogAuditService::class)->approveMapping((int)$id,(int)$this->session->userId(),$include);
             $parts = [$result['reviewed'].' ürün onaylandı'];
+            if ($result['unreviewed']) $parts[] = $result['unreviewed'].' ürün daha önce hiç incelenmedi; aşağıdaki listeyi kontrol edip ayrıca onaylayın';
             if ($result['already']) $parts[] = $result['already'].' ürün zaten onaylıydı';
             if ($result['attribute_errors']) $parts[] = $result['attribute_errors'].' üründe özellik eksiği sürüyor (onaylanmadı)';
             if ($result['individual']) $parts[] = $result['individual'].' ürün içerik çelişkisi, tedarikçi farkı veya ayrı kategori nedeniyle tek tek incelenmeli';
@@ -193,8 +196,26 @@ final class TrendyolAttributeController extends BaseController
      * Distinct XML/product values in this category, merged by value-map key (as the resolver reads them),
      * so unmatched ones can be mapped once for every product.
      */
-    private function localValues(array $mapping): array
+    /**
+     * Local attribute ids whose values can need a value map: the chosen source of each option-list
+     * attribute, or its same-name field. Free-text fields are never queried (they would only fill the result).
+     * @return list<int>
+     */
+    public static function valueSourceIds(array $attributes, array $sources, array $locals): array
     {
+        $byName = [];
+        foreach ($locals as $l) $byName[TrendyolAttributeResolver::normalize((string)$l['name'])] ??= (int)$l['id'];
+        $ids = [];
+        foreach ($attributes as $a) {
+            if (!empty($a['allowCustom'])) continue;
+            $id = (string)($sources[(string)$a['id']] ?? '') !== '' ? (int)$sources[(string)$a['id']] : ($byName[TrendyolAttributeResolver::normalize((string)$a['name'])] ?? 0);
+            if ($id > 0) $ids[$id] = $id;
+        }
+        return array_values($ids);
+    }
+    private function localValues(array $mapping, array $attributeIds): array
+    {
+        if ($attributeIds === []) return [];
         $db = $this->container->get(Database::class);
         $sid = $this->container->get(TenantContext::class)->currentStoreId();
         $params = ['sid'=>$sid];
@@ -207,8 +228,8 @@ final class TrendyolAttributeController extends BaseController
                 SELECT pav.attribute_id, pav.product_id, TRIM(COALESCE(NULLIF(TRIM(pav.custom_value),''), av.value)) AS value
                 FROM products p JOIN product_attribute_values pav ON pav.store_id=p.store_id AND pav.product_id=p.id
                 LEFT JOIN attribute_values av ON av.id=pav.attribute_value_id
-                WHERE p.store_id=:sid AND $scope) v
-            WHERE v.value IS NOT NULL AND v.value<>'' GROUP BY v.attribute_id, v.value ORDER BY v.attribute_id, products DESC LIMIT 50000", $params);
+                WHERE p.store_id=:sid AND $scope AND pav.attribute_id IN (".implode(',', array_map('intval', $attributeIds)).")) v
+            WHERE v.value IS NOT NULL AND v.value<>'' GROUP BY v.attribute_id, v.value ORDER BY v.attribute_id, products DESC LIMIT 20000", $params);
         $merged = [];
         foreach ($rows as $row) {
             $key = TrendyolAttributeResolver::mapKey((string)$row['value']);

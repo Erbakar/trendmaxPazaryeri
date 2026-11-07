@@ -82,7 +82,7 @@ Pazaryerleri → Kategori Eşleştirme → Trendyol satırındaki **Özellikler*
 özelliklerini (zorunlu olanlar işaretli) Trendyol'dan çeker. Her özellik için sırayla ürün değeri,
 seçilen ürün alanı (XML'den gelen Renk, Menşei vb.), kategori sabit değeri kullanılır; seçim yapılmamışsa
 aynı adlı ürün özelliği otomatik eşleşir. Seçenek listeli bir özellikte XML değeri Trendyol seçeneğiyle
-birebir uyuşmuyorsa (örn. `Lacivert-Beyaz`, `Türkiye`) **XML değerlerini eşleştir** bölümünde bir kez
+birebir uyuşmuyorsa (örn. `Lacivert-Beyaz`, `Türkiye`; sayıları farklı adlar — `1-2 Yaş`/`12 Yaş` — hiç eşlenmez) **XML değerlerini eşleştir** bölümünde bir kez
 Trendyol seçeneği seçilir; kategorideki aynı değerli tüm ürünlere uygulanır. Kayıtsız değer tahmin edilmez.
 Aynı adla bulunan isteğe bağlı bir alanın geçersiz değeri ürünü engellemez, yalnız gönderilmez.
 Varyant özelliklerinde (Renk, Beden) kategori sabit değeri tüm ürünlere aynı değeri yazar; ekranda uyarı verilir.
@@ -92,8 +92,10 @@ sayar (varsayılan 6 saatte bir — `ATTRIBUTE_ISSUES_INTERVAL_SECONDS`; eşleş
 hemen, “Raporu yenile” ile tüm mağaza birkaç dakika içinde). Sonuç Kategori Eşleştirme ve Katalog Kontrolü
 ekranlarında görünür. Bu görev Trendyol'a ürün göndermez; gönderim Katalog Kontrolü'nün otomatik
 gönderim seçeneğiyle yapılır. Özellik değişikliği içerik onayını geçersiz kılar; Özellikler ekranındaki
-**Kategorideki ürünlerin içeriğini onayla** yalnız özellikleri eksiksiz çözülen ürünleri onaylar. İçerik
-çelişkisi, tedarikçi farkı veya ürüne özel kategori seçimi olan ürünler tek tek incelenmeye devam eder.
+**Kategorideki ürünlerin içeriğini onayla** yalnız özellikleri eksiksiz çözülen ürünleri onaylar ve ekranın açıldığı
+andaki eşleştirmeyi doğrular. Daha önce onaylanıp adı, açıklaması, görseli veya XML özellikleri değişen ürünler;
+içerik çelişkisi, tedarikçi farkı veya ürüne özel kategori seçimi olan ürünler tek tek incelenir. Hiç incelenmemiş
+ürünler ikinci adımda adları ve görselleriyle listelenir, ayrıca onaylanmadan gönderime alınmaz.
 Reddedilen bir ürünün içeriği değişince sonraki katalog turunda yeniden gönderilir; aynı içerik tekrar gönderilmez.
 
 ## Destek paneli köprüsü (trendmaxdestek.com)

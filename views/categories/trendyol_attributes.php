@@ -21,7 +21,7 @@
     <div class="tya-body tya-table-wrap"><table class="tya-table"><thead><tr><th>Trendyol özelliği</th><th>Üründeki kaynak alan</th><th>Sabit / varsayılan değer</th></tr></thead><tbody id="tyaRows"></tbody></table></div>
     <details id="tyaPreviewBox" hidden><summary style="padding:12px 20px">Gönderilecek değerler ve kontrol sonucu</summary><pre id="tyaPreview" class="tya-preview"></pre></details>
     <div class="tya-footer"><button type="button" class="btn btn-primary" id="tyaSave">Eşleştirmeleri Kaydet</button><button type="button" class="btn btn-secondary" id="tyaCheck">Gönderimi Kontrol Et</button><small>Kontrol işlemi Trendyol’a ürün göndermez.</small>
-        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini, kaydedilen özellik değerlerini ve kategorideki ürünlerin ad/görsellerini inceledim; ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><small>Yalnız özellikleri eksiksiz çözülen ürünler onaylanır; daha önce onaylanıp adı, açıklaması veya görseli değişen ürünler tek tek incelenir. Tek seferde en çok 1000 ürün işlenir. Otomatik katalog kontrolü açıksa onaylanan ürünler bir sonraki turda gönderilir; görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
+        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini, kaydedilen özellik değerlerini ve kategorideki ürünlerin ad/görsellerini inceledim; ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><div id="tyaUnreviewed" hidden style="width:100%"></div><small>Yalnız özellikleri eksiksiz çözülen ürünler onaylanır; daha önce onaylanıp adı, açıklaması veya görseli değişen ürünler tek tek incelenir. Tek seferde en çok 1000 ürün işlenir. Otomatik katalog kontrolü açıksa onaylanan ürünler bir sonraki turda gönderilir; görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
     </div>
 </dialog>
 <script>
@@ -32,8 +32,6 @@
     let mappingId=0, data=null, generation=0, busy=false, dirty=false;
     const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const norm=v=>String(v==null?'':v).trim().toLowerCase().replace(/i̇/g,'i').replace(/[ıöüşçğ]/g,c=>({'ı':'i','ö':'o','ü':'u','ş':'s','ç':'c','ğ':'g'}[c])).replace(/[^a-z0-9]/g,'');
-    // Same keys as PHP TrendyolAttributeResolver::mapKey (word/digit boundaries kept).
-    const mapKey=v=>String(v==null?'':v).trim().toLowerCase().replace(/i̇/g,'i').replace(/[ıöüşçğ]/g,c=>({'ı':'i','ö':'o','ü':'u','ş':'s','ç':'c','ğ':'g'}[c])).replace(/[^a-z0-9]+/g,' ').trim();
     const asObject=v=>(v&&typeof v==='object'&&!Array.isArray(v))?v:Object.assign({},v||{});
     function localFor(a){
         const chosen=rows.querySelector('[data-tya-source="'+a.id+'"]');
@@ -41,11 +39,14 @@
         const id=chosen?chosen.value:String(data.sources[a.id]||'');if(id)return {id,explicit:true};
         const same=data.local_attributes.find(p=>norm(p.name)===norm(a.name));return {id:same?String(same.id):'',explicit:false};
     }
-    // Mirrors PHP matchesOption(): exactly one Trendyol option with this normalized name.
-    function matchesOption(a,value){const k=norm(value);return new Set((a.values||[]).filter(o=>norm(o.name)===k).map(o=>String(o.id))).size===1;}
+    // Mirrors PHP sameName()/matchesOption(): same normalized name AND same numbers, exactly one option.
+    const digits=v=>(String(v).match(/\d+/g)||[]).join(',');
+    const sameName=(x,y)=>norm(x)===norm(y)&&digits(x)===digits(y);
+    function matchesOption(a,value){return new Set((a.values||[]).filter(o=>sameName(o.name,value)).map(o=>String(o.id))).size===1;}
     function valuesHtml(a){
         if(a.allowCustom||scope.value==='product')return '';
-        const local=localFor(a);const list=(data.local_values||{})[local.id]||[];if(!list.length)return '';
+        const local=localFor(a);const list=(data.local_values||{})[local.id]||[];
+        if(!list.length)return local.explicit&&local.id!==String(data.sources[a.id]||'')?'<small class="tya-sub">Bu alanın ürün değerleri kaydettikten sonra listelenir.</small>':'';
         if(!local.explicit&&data.defaults[a.id])return '<small class="tya-sub">Kategori sabit değeri kullanılıyor; ürünlerdeki değerler okunmaz.</small>';
         const options=(a.values||[]).map(v=>({id:String(v.id),name:v.name}));
         const map=asObject((data.value_map||{})[a.id]);
@@ -91,7 +92,7 @@
             return '<tr class="tya-row" data-required="'+(a.required?'1':'0')+'"><td><b>'+esc(a.name)+'</b>'+(issue?'<span class="tya-badge">'+issue+' ürün</span>':'')+(a.required?'<span class="tya-required">Zorunlu</span>':'<small>İsteğe bağlı</small>')+variant+'</td><td>'+source+'<div data-tya-values="'+a.id+'">'+valuesHtml(a)+'</div></td><td>'+field+'</td></tr>';
         }).join('');
         applyFilter(); issuesHtml(); save.disabled=!data.can_edit || (productMode&&!products.value); dirty=false;
-        document.getElementById('tyaReviewBox').hidden=!data.can_review||productMode;document.getElementById('tyaReviewConfirm').checked=false;
+        document.getElementById('tyaReviewBox').hidden=!data.can_review||productMode;document.getElementById('tyaReviewConfirm').checked=false;document.getElementById('tyaUnreviewed').hidden=true;
     }
     async function load(refresh=false){
         const current=++generation;rows.innerHTML='';save.disabled=true;check.disabled=true;busy=true;
@@ -133,7 +134,9 @@
         rows.querySelectorAll('[data-tya-map]').forEach(field=>{const aid=field.dataset.tyaMap,key=field.dataset.tyaKey;valueMap[aid]=valueMap[aid]||{};if(field.value)valueMap[aid][key]=field.value;else delete valueMap[aid][key];});
         Object.keys(valueMap).forEach(aid=>{if(!Object.keys(valueMap[aid]).length)delete valueMap[aid];});
         const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('category_target',data.mapping.target);body.append('values',JSON.stringify(values));body.append('sources',JSON.stringify(sources));if(scope.value!=='product')body.append('value_map',JSON.stringify(valueMap));body.append('product_id',scope.value==='product'?products.value:'0');
-        try{const saved=await request('/categories/mapping/'+mappingId+'/trendyol-attributes',{method:'POST',body});dirty=false;data.value_map=scope.value!=='product'?valueMap:data.value_map;if(saved&&saved.mapping_version)data.mapping_version=saved.mapping_version;if(saved&&saved.issues){data.issues=saved.issues;issuesHtml();}message('Eşleştirmeler kaydedildi.'+((saved&&saved.warnings&&saved.warnings.length)?' '+saved.warnings.join(' '):'')+' Şimdi seçili ürünün gönderimini kontrol edebilirsiniz.');}
+        try{const saved=await request('/categories/mapping/'+mappingId+'/trendyol-attributes',{method:'POST',body});dirty=false;data.value_map=scope.value!=='product'?valueMap:data.value_map;const note='Eşleştirmeler kaydedildi.'+((saved&&saved.warnings&&saved.warnings.length)?' '+saved.warnings.join(' '):'')+' Şimdi seçili ürünün gönderimini kontrol edebilirsiniz.';
+            // Reload: new source fields' XML values, the recounted report and the new mapping version.
+            busy=false;await load();message(note);}
         catch(error){message(error.message,true);}finally{busy=false;save.disabled=false;check.disabled=!products.value;}
     });
     check.addEventListener('click',async()=>{
@@ -146,13 +149,26 @@
             document.getElementById('tyaPreview').textContent=JSON.stringify({kategori:result.category,ozellik_eslemeleri:result.resolution.details,gonderilecek_urun:result.preview.item},null,2);
         }catch(error){message(error.message,true);}finally{busy=false;check.disabled=false;}
     });
-    document.getElementById('tyaReview').addEventListener('click',async()=>{
+    const unreviewedBox=document.getElementById('tyaUnreviewed');
+    async function sendReview(includeUnreviewed){
         if(busy||!data)return;if(dirty){message('Onaylamadan önce eşleştirmeleri kaydedin.',true);return;}
         if(!document.getElementById('tyaReviewConfirm').checked){message('Onay kutusunu işaretleyin.',true);return;}
         busy=true;const button=document.getElementById('tyaReview');button.disabled=true;message('Kategorideki ürünler kontrol ediliyor…');
         const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('confirm','1');body.append('mapping_version',data.mapping_version||'');
-        try{const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});let result=null;try{result=await response.json();}catch{throw new Error('Sunucu yanıtı okunamadı (HTTP '+response.status+'). Çok sayıda ürün varsa işlem zaman aşımına uğramış olabilir; birkaç dakika sonra tekrar deneyin.');}if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');message(result.message);}
+        if(includeUnreviewed)body.append('include_unreviewed','1');
+        try{const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});let result=null;try{result=await response.json();}catch{throw new Error('Sunucu yanıtı okunamadı (HTTP '+response.status+'). Çok sayıda ürün varsa işlem zaman aşımına uğramış olabilir; birkaç dakika sonra tekrar deneyin.');}if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');message(result.message);
+            const r=result.data||{};unreviewedBox.hidden=true;unreviewedBox.innerHTML='';
+            if(!includeUnreviewed&&r.unreviewed>0){
+                // Second step: products nobody has looked at are listed before they can be approved.
+                unreviewedBox.hidden=false;
+                unreviewedBox.innerHTML='<p><b>'+r.unreviewed+' ürün daha önce hiç incelenmedi.</b> Aşağıdaki ürünlerin ad ve görsellerini kontrol edin'+(r.unreviewed>r.unreviewed_samples.length?' (ilk '+r.unreviewed_samples.length+' gösteriliyor)':'')+'.</p><div style="max-height:220px;overflow:auto">'
+                    +r.unreviewed_samples.map(p=>'<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed var(--border)">'+(p.image?'<img src="'+esc(p.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:40px;height:40px;object-fit:cover;border-radius:6px">':'')+'<a href="/products/'+p.id+'" target="_blank" rel="noopener">'+esc(p.sku+' · '+p.name)+'</a></div>').join('')
+                    +'</div><label><input type="checkbox" id="tyaUnreviewedConfirm"> Listelenen ve bu kategorideki diğer incelenmemiş ürünlerin içeriğini kontrol ettim.</label> <button type="button" class="btn btn-secondary" id="tyaUnreviewedSend">İncelenmemiş ürünleri de onayla</button>';
+                document.getElementById('tyaUnreviewedSend').addEventListener('click',()=>{if(!document.getElementById('tyaUnreviewedConfirm').checked){message('İncelenmemiş ürünler için onay kutusunu işaretleyin.',true);return;}document.getElementById('tyaReviewConfirm').checked=true;sendReview(true);});
+            }
+        }
         catch(error){message(error.message,true);}finally{busy=false;button.disabled=false;document.getElementById('tyaReviewConfirm').checked=false;}
-    });
+    }
+    document.getElementById('tyaReview').addEventListener('click',()=>sendReview(false));
 })();
 </script>

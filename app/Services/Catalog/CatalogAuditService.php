@@ -379,6 +379,37 @@ final class CatalogAuditService
         $product['_attribute_values']=$this->get(\App\Models\ProductAttributeValue::class)->getByProduct((int)$product['id']);
         return CatalogAuditPolicy::fingerprint($product,$mapping);
     }
+    /**
+     * Category-level content approval after the user has reviewed the category's attribute mapping.
+     * Records the same per-product review as approve(), but only for products whose Trendyol attributes
+     * now resolve completely. Products with a content conflict, a supplier difference or their own
+     * category selection keep needing an individual review; an existing conflict is never overwritten.
+     * @return array{reviewed:int,already:int,attribute_errors:int,individual:int,total:int,limited:bool}
+     */
+    public function approveMapping(int $mappingId,int $user,int $limit=3000): array
+    {
+        $mid=$this->marketplace();
+        $mapping=$this->get(CategoryMarketplaceMapping::class)->find($mappingId);
+        if(!$mapping||(int)$mapping['marketplace_id']!==$mid)throw new \RuntimeException('Trendyol kategori eşleştirmesi bulunamadı.');
+        $rows=$this->repo->db->fetchAll('SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND COALESCE(p.is_archived,0)=0 AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id LIMIT '.(max(1,$limit)+1),[$this->repo->store(),(int)$mapping['category_id'],$mid]);
+        $limited=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
+        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'total'=>count($rows),'limited'=>$limited];
+        $publish=$this->get(ProductPublishService::class);$supplier=$this->get(SupplierCatalog::class);
+        foreach($rows as$row){
+            $p=$this->get(Product::class)->find((int)$row['id']);if(!$p)continue;
+            $m=$this->get(CategoryMarketplaceMapping::class)->forProduct($p,$mid)?:null;
+            if(!$m||!empty($m['_override_id'])||(int)$m['id']!==$mappingId){$out['individual']++;continue;}
+            if($this->repo->blockedReason($mid,$p)!==null||$supplier->errors($p)){$out['individual']++;continue;}
+            $resolution=$publish->resolveTrendyolAttributes($p,$m);
+            if($resolution['errors']){$out['attribute_errors']++;continue;}
+            $fingerprint=$this->contentFingerprint($p,$m);
+            if($this->repo->reviewed($mid,(int)$p['id'],$fingerprint)){$out['already']++;continue;}
+            $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'category_bulk_review','mapping_id'=>$mappingId,
+                'category'=>(string)$m['marketplace_category_id'],'note'=>'Kategori özellik eşleştirmesi kullanıcı tarafından toplu onaylandı.'],$user);
+            $out['reviewed']++;
+        }
+        return $out;
+    }
     public function approve(int $itemId,string $fingerprint,int $user): void
     {
         $mid=$this->marketplace();

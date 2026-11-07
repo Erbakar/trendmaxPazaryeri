@@ -37,6 +37,15 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <?php foreach($supplier['profiles']as$sp): ?><a href="/xml-profilleri/<?= (int)$sp['id'] ?>/duzenle"><?= $e($sp['name']) ?> — kaynak ayarı</a> <?php endforeach; ?>
 </div>
 <?php endif; ?>
+<?php $ai=$data['attributeIssues']??null; if(is_array($ai)&&!empty($ai['state']['refreshed_at'])): ?>
+<div class="catalog-box">
+<h2>Zorunlu Trendyol özellikleri</h2>
+<?php if((int)$ai['products_blocked']>0): ?><p><strong><?= number_format((int)$ai['products_blocked'],0,',','.') ?></strong> üründe zorunlu özellik eksik veya XML değeri Trendyol seçeneğiyle eşleşmiyor (<?= (int)$ai['categories_blocked'] ?> kategori). Değerler kategori bazında bir kez tamamlanır ve kategorideki tüm ürünlere uygulanır.</p>
+<p><a class="ui-btn ui-btn-outline" href="/categories/mapping?marketplace_id=<?= (int)($data['marketplaceId']??0) ?>">Kategori özelliklerini tamamla</a></p>
+<?php else: ?><p>Gönderilmeyi bekleyen <?= number_format((int)$ai['products_checked'],0,',','.') ?> ürünün zorunlu özellikleri tamam.</p><?php endif; ?>
+<p class="catalog-note">Son hesaplama: <?= $e($ai['state']['refreshed_at']) ?>. Özellik değişikliği içerik onayını yeniler; Özellikler ekranındaki toplu onayla kategorinin ürünleri yeniden gönderime alınabilir.</p>
+</div>
+<?php endif; ?>
 <div class="catalog-summary"><a href="/products/catalog-audit"><strong><?= number_format(array_sum($report['counts']),0,',','.') ?></strong>Tümü</a><?php foreach($report['counts'] as$key=>$count): ?><a href="?status=<?= urlencode($key) ?>"><strong><?= number_format((int)$count,0,',','.') ?></strong><?= $e($labels[$key]??$key) ?></a><?php endforeach; ?></div>
 <div class="catalog-box"><form method="get" class="catalog-controls"><input class="form-control" style="max-width:360px" name="q" value="<?= $e($search) ?>" placeholder="Ürün, stok kodu veya eksik bilgi"><select class="form-control" style="max-width:300px" name="status"><option value="">Tüm durumlar</option><?php foreach($labels as$key=>$label): ?><option value="<?= $e($key) ?>" <?= $status===$key?'selected':'' ?>><?= $e($label) ?></option><?php endforeach; ?></select><button class="ui-btn ui-btn-outline">Filtrele</button><a href="/products/catalog-audit">Yenile</a></form></div>
 <div class="catalog-box catalog-scroll"><table class="catalog-table"><thead><tr><th>Ürün / ilan</th><th>Durum</th><th>Beklenen / Trendyol</th><th>Kontrol ve eksikler</th></tr></thead><tbody>

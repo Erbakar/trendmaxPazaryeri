@@ -105,7 +105,18 @@ final class CategoryMappingController extends BaseController
             ? $this->container->get(MarketplaceCategory::class)->countByMarketplace($marketplaceId)
             : 0;
 
+        $attributeIssues = null; $blockedByMapping = [];
+        if ($selected !== null && ($selected['slug'] ?? '') === 'trendyol') {
+            try {
+                $report = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class);
+                $attributeIssues = $report->summary();
+                $blockedByMapping = $report->blockedByMapping();
+            } catch (\Throwable) { $attributeIssues = null; } // report table not migrated yet
+        }
+
         $this->view('categories.mapping', [
+            'attributeIssues' => $attributeIssues,
+            'blockedByMapping' => $blockedByMapping,
             'pageTitle'       => 'Kategori Eşleştirme',
             'marketplaces'    => $marketplaces,
             'marketplaceId'   => $marketplaceId,

@@ -437,17 +437,74 @@ final class CategoryMarketplaceMapping extends BaseModel
      *
      * @param callable(array<int|string, mixed>): array<int|string, mixed> $mutator
      */
-    public function saveTrendyolAttributes(int $mappingId, array $values, array $sources, ?int $productId = null): bool
+    public function saveTrendyolAttributes(int $mappingId, array $values, array $sources, ?int $productId = null, ?array $valueMap = null): bool
     {
-        return $this->mutateAttributeMapping($mappingId, static function(array $config) use ($values, $sources, $productId): array {
+        return $this->mutateAttributeMapping($mappingId, static function(array $config) use ($values, $sources, $productId, $valueMap): array {
             if ($productId !== null) {
                 $config['products']['id:'.$productId] = $values;
             } else {
                 $config['defaults'] = $values;
                 $config['sources'] = $sources;
+                // null = caller did not send the table (older screen); keep the saved XML value choices.
+                if ($valueMap !== null) $config['value_map'] = $valueMap;
             }
             return $config;
         }, true);
+    }
+
+    /**
+     * Applies a shared (support panel) template to every local category of this store mapped to the
+     * same Trendyol category. 'fill' never overwrites a user's existing choice; 'replace' overwrites
+     * only the attributes the template carries. Returns the per-mapping changes for reporting.
+     *
+     * @return array<int, array{mapping_id:int, category_id:int, changed:array<string,int>}>
+     */
+    public function applyAttributeTemplate(int $marketplaceId, string $marketplaceCategoryId, array $defaults, array $sources, array $valueMap, string $mode, bool $dryRun): array
+    {
+        $rows = $this->rawQuery(
+            'SELECT id, category_id FROM category_marketplace_mapping WHERE store_id = :sid AND marketplace_id = :mid AND marketplace_category_id = :target ORDER BY id',
+            ['sid' => $this->tenantId(), 'mid' => $marketplaceId, 'target' => $marketplaceCategoryId]
+        );
+        $report = [];
+        foreach ($rows as $row) {
+            $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+            $apply = static function (array $config) use ($defaults, $sources, $valueMap, $mode, &$changed): array {
+                $current = self::stringMap($config['defaults'] ?? []);
+                foreach ($defaults as $aid => $value) {
+                    if ($mode === 'fill' && isset($current[$aid]) && $current[$aid] !== '') continue;
+                    if (($current[$aid] ?? null) !== $value) { $current[$aid] = $value; $changed['defaults']++; }
+                }
+                $config['defaults'] = $current;
+                $currentSources = self::stringMap($config['sources'] ?? []);
+                foreach ($sources as $aid => $value) {
+                    if ($mode === 'fill' && isset($currentSources[$aid]) && $currentSources[$aid] !== '') continue;
+                    if (($currentSources[$aid] ?? null) !== $value) { $currentSources[$aid] = $value; $changed['sources']++; }
+                }
+                $config['sources'] = $currentSources;
+                $currentMap = is_array($config['value_map'] ?? null) ? $config['value_map'] : [];
+                foreach ($valueMap as $aid => $pairs) {
+                    $existing = is_array($currentMap[$aid] ?? null) ? $currentMap[$aid] : [];
+                    foreach ($pairs as $key => $option) {
+                        if ($mode === 'fill' && isset($existing[$key])) continue;
+                        if (($existing[$key] ?? null) !== $option) { $existing[$key] = $option; $changed['value_map']++; }
+                    }
+                    if ($existing !== []) $currentMap[$aid] = $existing;
+                }
+                $config['value_map'] = $currentMap;
+                return $config;
+            };
+            $config = self::decodeAttributeMapping($this->find((int) $row['id']));
+            if ($config !== [] && array_is_list($config)) $config = [];
+            $apply($config);
+            // Writing identical content would still change updated_at and so the content fingerprint,
+            // which would void existing content reviews for nothing.
+            if (!$dryRun && array_sum($changed) > 0) {
+                $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+                if (!$this->mutateAttributeMapping((int) $row['id'], $apply, true)) continue;
+            }
+            $report[] = ['mapping_id' => (int) $row['id'], 'category_id' => (int) $row['category_id'], 'changed' => $changed];
+        }
+        return $report;
     }
 
     private function mutateAttributeMapping(int $mappingId, callable $mutator, bool $convertLegacy = false): bool

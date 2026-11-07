@@ -248,6 +248,8 @@ $router->post('/categories/mapping/{id}/hb-attribute',      [CategoryMappingCont
 $router->get('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'show'], $authMiddleware);
 $router->post('/categories/mapping/{id}/trendyol-attributes', [\App\Controllers\TrendyolAttributeController::class, 'save'], $authCsrf);
 $router->get('/categories/mapping/{id}/trendyol-preview', [\App\Controllers\TrendyolAttributeController::class, 'preview'], $authMiddleware);
+$router->post('/categories/mapping/{id}/trendyol-review', [\App\Controllers\TrendyolAttributeController::class, 'review'], $authCsrf);
+$router->post('/categories/attribute-issues/refresh', [\App\Controllers\TrendyolAttributeController::class, 'refreshIssues'], $authCsrf);
 $router->post('/categories/mapping/{id}/delete',            [CategoryMappingController::class, 'delete'],         $authCsrf);
 
 $router->post('/categories/{id}',            [CategoryController::class, 'update'],              $authCsrf);
@@ -765,6 +767,13 @@ $router->get('/api/v1/brands/{id}',                          [ApiBrandController
 // ─── Stock API ─────────────────────────────────────────
 $router->get('/api/v1/stock/summary',                        [ApiStockController::class, 'summary'],      $apiAuth);
 $router->post('/api/v1/stock/bulk-update',                   [ApiStockController::class, 'bulkUpdate'],   $apiAuth);
+
+// ─── Destek paneli köprüsü (trendmaxdestek.com) — salt okunur özet + açık izinli şablon yazımı ───
+$router->get('/api/v1/support/status',                       [\App\Controllers\Api\ApiSupportController::class, 'status'],                 $apiAuth);
+$router->get('/api/v1/support/attribute-issues',             [\App\Controllers\Api\ApiSupportController::class, 'attributeIssues'],        $apiAuth);
+$router->post('/api/v1/support/attribute-issues/refresh',    [\App\Controllers\Api\ApiSupportController::class, 'refreshAttributeIssues'], $apiAuth);
+$router->get('/api/v1/support/attribute-mappings',           [\App\Controllers\Api\ApiSupportController::class, 'exportMappings'],         $apiAuth);
+$router->post('/api/v1/support/attribute-mappings',          [\App\Controllers\Api\ApiSupportController::class, 'importMappings'],         $apiAuth);
 
 // ─── API Token Yönetimi (Panel) ────────────────────────
 // API Anahtarları artık ADMIN kontrolünde (yönetim: /admin/api-tokens). Merchant YALNIZ salt-görüntüleme.

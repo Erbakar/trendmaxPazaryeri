@@ -35,6 +35,7 @@ boss_page_header('Yeni API Anahtarı', [['l' => 'Api Yönetimi', 'u' => '/admin/
         <label class="d-flex align-items-center gap-2 border rounded-3 px-3 py-2 mb-0" style="cursor:pointer;"><input type="checkbox" class="form-check-input mt-0" name="permissions[]" value="<?= $e($key) ?>"><span style="font-size:13px;"><?= $e($lbl) ?></span></label>
         <?php endforeach ?>
       </div>
+      <p class="text-muted mt-3 mb-0" style="font-size:12.5px;">trendmaxdestek.com bağlantısı için ayrı bir anahtar oluşturun ve yalnız <code>support:read</code> verin; eşleştirme şablonu uygulanacaksa <code>support:mappings</code> ekleyin. Destek sunucusunun IP adresini aşağıdaki beyaz listeye yazın. Anahtar yalnız bu mağazanın özetlerini görür; veritabanı bilgisi paylaşılmaz.</p>
     </div>
   </div>
 

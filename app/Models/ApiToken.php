@@ -211,6 +211,8 @@ final class ApiToken extends BaseModel
             'stock:read'      => 'Stok bilgisi görüntüleme',
             'stock:write'     => 'Stok güncelleme',
             'customers:read'  => 'Müşteri bilgisi görüntüleme',
+            'support:read'    => 'Destek paneli: durum, hata ve zorunlu özellik özeti (salt okunur)',
+            'support:mappings'=> 'Destek paneli: özellik eşleştirme şablonu uygulama',
         ];
     }
 

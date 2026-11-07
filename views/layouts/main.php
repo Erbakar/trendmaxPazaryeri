@@ -30,13 +30,13 @@ $bcRgbSp = implode(' ', [hexdec(substr($bcHex, 1, 2)), hexdec(substr($bcHex, 3, 
 
 $navModules = [
     '/orders'=>'orders','/returns'=>'returns','/questions'=>'questions',
-    '/products'=>'products','/categories'=>'categories','/brands'=>'brands','/customers'=>'customers',
+    '/products'=>'products','/categories'=>'categories','/categories/mapping'=>'categories','/brands'=>'brands','/customers'=>'customers',
     '/sync'=>'sync','/import'=>'import','/feeds'=>'feeds','/xml-profilleri'=>'products',
     '/invoices'=>'invoices','/finance'=>'finance',
 ];
 $navPermissions = [
     '/dashboard' => ['dashboard.view'], '/orders' => ['orders.view'], '/returns' => ['returns.view'],
-    '/products' => ['products.view'], '/categories' => ['categories.view'], '/brands' => ['brands.view'],
+    '/products' => ['products.view'], '/categories' => ['categories.view'], '/categories/mapping' => ['categories.view'], '/brands' => ['brands.view'],
     '/customers' => ['customers.view'], '/marketplaces' => ['marketplaces.view'], '/sync' => ['sync.trigger'],
     '/import' => ['products.view', 'products.create'], '/xml-profilleri' => ['products.view', 'products.create'],
     '/invoices' => ['invoices.view'], '/finance' => ['finance.view'],
@@ -79,6 +79,7 @@ $navGroups = [
     ['l'=>'Ürünler','i'=>'tag','items'=>[
         ['u'=>'/products','i'=>'tag','l'=>'Ürünler','m'=>'Ürün'],
         ['u'=>'/categories','i'=>'folder-tree','l'=>'Kategoriler','m'=>'Kategori'],
+        ['u'=>'/categories/mapping','i'=>'git-compare','l'=>'Kategori Eşleştirme','m'=>'Kategori Eşleştirme'],
         ['u'=>'/brands','i'=>'award','l'=>'Markalar','m'=>'Marka'],
         ['u'=>'/feeds','i'=>'rss','l'=>'Feed','m'=>'Feed'],
         ['u'=>'/xml-profilleri','i'=>'file-code-2','l'=>'XML Profilleri','m'=>'XML'],

@@ -79,7 +79,7 @@ oluşmuş sipariş/değişiklikler varsa tam geri yüklemeden önce korunmalıd�
 
 ## Kategori bazında zorunlu Trendyol özellikleri
 
-Pazaryerleri → Kategori Eşleştirme → Trendyol satırındaki **Özellikler** ekranı kategorinin Trendyol
+Ürünler → Kategori Eşleştirme (`/categories/mapping`, üstten Trendyol) → kategori satırındaki **Özellikler** ekranı kategorinin Trendyol
 özelliklerini (zorunlu olanlar işaretli) Trendyol'dan çeker. Her özellik için sırayla ürün değeri,
 seçilen ürün alanı (XML'den gelen Renk, Menşei vb.), kategori sabit değeri kullanılır; seçim yapılmamışsa
 aynı adlı ürün özelliği otomatik eşleşir. Seçenek listeli bir özellikte XML değeri Trendyol seçeneğiyle

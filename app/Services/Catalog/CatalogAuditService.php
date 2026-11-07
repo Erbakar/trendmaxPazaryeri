@@ -87,6 +87,7 @@ final class CatalogAuditService
                         // Matching supplier facts plus all technical/image checks are evidence; API acceptance alone is not.
                         if(!$remaining&&empty($item['checks']['reviewed'])&&!empty($item['fingerprint'])){
                             $proof['images']='XML/panel image identity and fetched image checks passed';
+                            if($reviewed=$this->get(Product::class)->find((int)$item['product_id']))$proof['content_hash']=$this->contentHash($reviewed);
                             $this->repo->review($mid,(int)$item['product_id'],$item['fingerprint'],$proof,null);
                             $item=$this->inspect($mid,$entity,$snapshot);
                         }
@@ -374,10 +375,62 @@ final class CatalogAuditService
     {
         return implode('; ',array_map(static fn($e)=>is_array($e)?(string)($e['error']??'Pazaryeri hatası'):(string)$e,array_slice($errors,0,5)));
     }
+    /** Product content without its category/attribute mapping: tells a mapping-only change from a content change. */
+    public function contentHash(array $product): string
+    {
+        $product['_attribute_values']=$this->get(\App\Models\ProductAttributeValue::class)->getByProduct((int)$product['id']);
+        return CatalogAuditPolicy::fingerprint($product,null);
+    }
     public function contentFingerprint(array $product,?array $mapping): string
     {
         $product['_attribute_values']=$this->get(\App\Models\ProductAttributeValue::class)->getByProduct((int)$product['id']);
         return CatalogAuditPolicy::fingerprint($product,$mapping);
+    }
+    /**
+     * Category-level content approval after the user has reviewed the category's attribute mapping.
+     * Records the same per-product review as approve(), but only for products whose Trendyol attributes
+     * now resolve completely. Products with a content conflict, a supplier difference or their own
+     * category selection keep needing an individual review; an existing conflict is never overwritten.
+     * @return array{reviewed:int,already:int,attribute_errors:int,individual:int,total:int,limited:bool}
+     */
+    public function approveMapping(int $mappingId,int $user,bool $includeUnreviewed=false,int $limit=1000): array
+    {
+        $mid=$this->marketplace();
+        $mapping=$this->get(CategoryMarketplaceMapping::class)->find($mappingId);
+        if(!$mapping||(int)$mapping['marketplace_id']!==$mid)throw new \RuntimeException('Trendyol kategori eşleştirmesi bulunamadı.');
+        $rows=$this->repo->db->fetchAll('SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND COALESCE(p.is_archived,0)=0 AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id LIMIT '.(max(1,$limit)+1),[$this->repo->store(),(int)$mapping['category_id'],$mid]);
+        $limited=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
+        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'unreviewed'=>0,'unreviewed_samples'=>[],'total'=>count($rows),'limited'=>$limited];
+        $publish=$this->get(ProductPublishService::class);$supplier=$this->get(SupplierCatalog::class);
+        foreach($rows as$row){
+            $p=$this->get(Product::class)->find((int)$row['id']);if(!$p)continue;
+            $m=$this->get(CategoryMarketplaceMapping::class)->forProduct($p,$mid)?:null;
+            if(!$m||!empty($m['_override_id'])||(int)$m['id']!==$mappingId){$out['individual']++;continue;}
+            if($this->repo->blockedReason($mid,$p)!==null||$supplier->errors($p)){$out['individual']++;continue;}
+            // A product reviewed before may only be re-approved here if just its mapping changed since;
+            // a changed name, description, image or XML attribute still needs an individual review.
+            $prior=$this->repo->db->fetchOne('SELECT evidence_json,reviewed_at FROM catalog_content_reviews WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,(int)$p['id']]);
+            $content=$this->contentHash($p);
+            $resolution=$publish->resolveTrendyolAttributes($p,$m);
+            if($resolution['errors']){$out['attribute_errors']++;continue;}
+            if($prior&&!$this->repo->reviewed($mid,(int)$p['id'],$this->contentFingerprint($p,$m))){
+                $proof=json_decode((string)$prior['evidence_json'],true)?:[];
+                // Older reviews carry no content hash: accept them only if the product row is unchanged since.
+                $unchanged=isset($proof['content_hash'])?hash_equals((string)$proof['content_hash'],$content):strtotime((string)($p['updated_at']??'now'))<=strtotime((string)$prior['reviewed_at']);
+                if(!$unchanged){$out['individual']++;continue;}
+            }elseif(!$prior&&!$includeUnreviewed){
+                // Never reviewed: the user must see these products before approving them (second step).
+                $out['unreviewed']++;
+                if(count($out['unreviewed_samples'])<50)$out['unreviewed_samples'][]=['id'=>(int)$p['id'],'sku'=>(string)$p['sku'],'name'=>(string)$p['name'],'image'=>CatalogAuditPolicy::images($p)[0]??null];
+                continue;
+            }
+            $fingerprint=$this->contentFingerprint($p,$m);
+            if($this->repo->reviewed($mid,(int)$p['id'],$fingerprint)){$out['already']++;continue;}
+            $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'category_bulk_review','mapping_id'=>$mappingId,'content_hash'=>$content,
+                'category'=>(string)$m['marketplace_category_id'],'note'=>'Kategori özellik eşleştirmesi kullanıcı tarafından toplu onaylandı.'],$user);
+            $out['reviewed']++;
+        }
+        return $out;
     }
     public function approve(int $itemId,string $fingerprint,int $user): void
     {
@@ -389,7 +442,7 @@ final class CatalogAuditService
         $this->repo->db->beginTransaction();
         try{
             $this->get(SupplierCatalog::class)->acknowledge($p);
-            $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'panel_content_review','item_id'=>$itemId],$user);
+            $this->repo->review($mid,(int)$p['id'],$fingerprint,['type'=>'panel_content_review','item_id'=>$itemId,'content_hash'=>$this->contentHash($p)],$user);
             $this->repo->db->commit();
         }catch(\Throwable $e){$this->repo->db->rollBack();throw $e;}
     }

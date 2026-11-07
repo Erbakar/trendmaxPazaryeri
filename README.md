@@ -41,6 +41,8 @@ Git checkout'unu doğrudan web köküne kopyalamak yerine bu paket kullanılmal�
    Yedekten sonra `php database/migrate.php --allow-live` ile uygulayın; tekrar dry-run'da
    bekleyen işlem kalmamalı. Mevcut bilinmeyen bir şemaya gelişigüzel `--baseline` uygulamayın.
    Bu sürümün phase14 güncellemeleri 059–062'yi de içerir; katalog kontrolü, görsel önbelleği, eşleştirme geçmişi ve tedarikçi sayfa kontrolleri için yedi yeni tablo gerekir.
+   Phase15/063 zorunlu Trendyol özelliği raporu için `trendyol_attribute_issues` tablosunu, 064 mağazalar arası ortak
+   özellik kütüphanesi için `trendyol_attribute_library` tablosunu ekler.
 6. Uygulamayı yeni sürüme yönlendirin; kullanıcı girişi, kendi mağaza görünürlüğü, XML analizi,
    kategori/özellik seçimleri, fiyat önizlemesi ve sınırlı gerçek ürünün batch sonucunu doğrulayın.
    Batch kabulü, içerik onayı ve satışa açılma ayrı aşamalardır.
@@ -59,6 +61,7 @@ Sunucuda kuyruk işleyicisi henüz kurulmadıysa, aşağıdaki cron örneğinde 
 * * * * * /usr/bin/php /PROJE/cron/sync_publish_batches.php >> /PROJE/storage/logs/publish-batches.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/catalog_audit.php >> /PROJE/storage/logs/catalog-audit.log 2>&1
 * * * * * /usr/bin/php /PROJE/cron/supplier_catalog.php >> /PROJE/storage/logs/supplier-catalog.log 2>&1
+*/10 * * * * /usr/bin/php /PROJE/cron/attribute_issues.php >> /PROJE/storage/logs/attribute-issues.log 2>&1
 ```
 
 Aynı görevlerin doğrudan `sync_orders.php` vb. cron tanımlarını kuyrukla birlikte çalıştırmayın. Ürün gönderimi için ilgili veritabanı migrasyonları, kuyruk için de `sync_jobs` şeması tamamlanmış olmalıdır. `/sync` ekranında yalnız yeşil anahtar veya elle başarılı çalışma otomatik çalışmanın kanıtı değildir; her satırdaki **Son otomatik** tarihinin seçilen aralıkta ilerlediğini kontrol edin. Gönderim isteklerinin API kabulü, ürünün satışa açılması anlamına gelmez; batch sonucu ve Trendyol durum sayaçları ayrıca doğrulanmalıdır.
@@ -73,6 +76,48 @@ Geri dönüşte önce worker/cron'u durdurun; önceki uygulama sürümüne dön�
 gerekiyorsa bakım penceresinde alınmış veritabanı ve dosya yedeğini birlikte geri yükleyin.
 Bu sürümün phase14 güncellemelerinin otomatik down migration'ı yoktur. Yedek sonrasında
 oluşmuş sipariş/değişiklikler varsa tam geri yüklemeden önce korunmalıdır.
+
+## Kategori bazında zorunlu Trendyol özellikleri
+
+Pazaryerleri → Kategori Eşleştirme → Trendyol satırındaki **Özellikler** ekranı kategorinin Trendyol
+özelliklerini (zorunlu olanlar işaretli) Trendyol'dan çeker. Her özellik için sırayla ürün değeri,
+seçilen ürün alanı (XML'den gelen Renk, Menşei vb.), kategori sabit değeri kullanılır; seçim yapılmamışsa
+aynı adlı ürün özelliği otomatik eşleşir. Seçenek listeli bir özellikte XML değeri Trendyol seçeneğiyle
+birebir uyuşmuyorsa (örn. `Lacivert-Beyaz`, `Türkiye`; sayıları farklı adlar — `1-2 Yaş`/`12 Yaş` — hiç eşlenmez) **XML değerlerini eşleştir** bölümünde bir kez
+Trendyol seçeneği seçilir; kategorideki aynı değerli tüm ürünlere uygulanır. Kayıtsız değer tahmin edilmez.
+Aynı adla bulunan isteğe bağlı bir alanın geçersiz değeri ürünü engellemez, yalnız gönderilmez.
+Varyant özelliklerinde (Renk, Beden) kategori sabit değeri tüm ürünlere aynı değeri yazar; ekranda uyarı verilir.
+
+`cron/attribute_issues.php` Trendyol'a henüz gönderilmemiş / reddedilmiş ürünleri kategori bazında
+sayar (varsayılan 6 saatte bir — `ATTRIBUTE_ISSUES_INTERVAL_SECONDS`; eşleştirme kaydedilince o kategori
+hemen, “Raporu yenile” ile tüm mağaza birkaç dakika içinde). Sonuç Kategori Eşleştirme ve Katalog Kontrolü
+ekranlarında görünür. Bu görev Trendyol'a ürün göndermez; gönderim Katalog Kontrolü'nün otomatik
+gönderim seçeneğiyle yapılır. Özellik değişikliği içerik onayını geçersiz kılar; Özellikler ekranındaki
+**Kategorideki ürünlerin içeriğini onayla** yalnız özellikleri eksiksiz çözülen ürünleri onaylar ve ekranın açıldığı
+andaki eşleştirmeyi doğrular. Daha önce onaylanıp adı, açıklaması, görseli veya XML özellikleri değişen ürünler;
+içerik çelişkisi, tedarikçi farkı veya ürüne özel kategori seçimi olan ürünler tek tek incelenir. Hiç incelenmemiş
+ürünler ikinci adımda adları ve görselleriyle listelenir, ayrıca onaylanmadan gönderime alınmaz.
+Reddedilen bir ürünün içeriği değişince sonraki katalog turunda yeniden gönderilir; aynı içerik tekrar gönderilmez.
+
+### Ortak özellik kütüphanesi ("tek kaynak")
+
+Tüm mağazalar aynı veritabanında olduğu için bir mağazada kaydedilen kategori özellik seçimleri
+(sabit değer, ürün alanı, XML değer eşleştirmesi) Trendyol kategori kimliğiyle `trendyol_attribute_library`
+tablosuna yazılır. `cron/attribute_issues.php` aynı Trendyol kategorisini kullanan diğer mağazalara
+bunları uygular: yalnız mağazanın karar vermediği alanlar doldurulur, kütüphaneden gelen değerler
+sonraki düzeltmelerle güncellenir/geri çekilir, mağazanın kendi seçimine dokunulmaz. Varyant
+özelliklerinin (renk/beden) sabit değerleri ve mağazanın ürünlerinin kendi alanından okunan özelliklerin
+sabit değerleri taşınmaz. Her mağaza Kategori Eşleştirme ekranındaki **Ortak kütüphane** düğmesiyle
+katılımı kapatabilir (varsayılan açık). Değişen kategorilerde içerik onayı yine gerekir; Katalog
+Kontrolü'nde kaynak bilgisiyle tamamlama açık mağazalarda bu onay doğrulanan ürünler için otomatik verilir.
+
+## Destek paneli köprüsü (trendmaxdestek.com)
+
+Destek paneli müşteri sitesinin veritabanı bilgisini tutmaz. Admin → API Anahtarları ekranından mağaza
+için ayrı bir anahtar oluşturulur, yalnız `support:read` (şablon uygulanacaksa ayrıca `support:mappings`)
+izni verilir ve destek sunucusunun IP adresi beyaz listeye yazılır. Uçlar ve yanıt biçimi
+[`docs/destek-api.md`](docs/destek-api.md) dosyasındadır. Yanıtlar kimlik bilgisi, bağlantı adresi,
+müşteri/sipariş kişisel verisi veya ham log içermez.
 
 ## Yeni XML kullanıcısının akışı
 

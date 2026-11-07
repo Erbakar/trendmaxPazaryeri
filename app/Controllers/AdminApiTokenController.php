@@ -99,6 +99,8 @@ final class AdminApiTokenController
 
         $permissions = $request->post('permissions', []);
         if (!is_array($permissions)) { $permissions = []; }
+        // Only listed permissions; a crafted "*" or unknown scope must not reach the token.
+        $permissions = array_values(array_intersect(array_map('strval', $permissions), array_keys(ApiToken::availablePermissions())));
 
         $rateLimit = max(1, min(1000, (int) $request->integer('rate_limit', 60)));
 

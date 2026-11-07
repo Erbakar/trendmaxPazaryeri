@@ -8,6 +8,8 @@ $unmappedCount   = (int) ($data['unmappedCount'] ?? 0);
 $unsellableCount = (int) ($data['unsellableCount'] ?? 0);
 $csrf            = (string) ($data['_csrf'] ?? '');
 $catalogSize     = (int) ($data['catalogSize'] ?? 0);
+$attributeIssues = $data['attributeIssues'] ?? null;
+$blockedByMapping = (array) ($data['blockedByMapping'] ?? []);
 $confidenceSafe  = (int) ($data['confidenceSafe'] ?? 75);
 $can             = $data['_can'] ?? static fn(string $permission): bool => true;
 $canEdit         = (bool) $can('categories.edit');
@@ -141,6 +143,31 @@ $unsellableLabels = [
 </div>
 <?php return; endif; ?>
 
+<?php if (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []); ?>
+<div class="cmap-alert <?= (int) $attributeIssues['products_blocked'] > 0 ? 'is-danger' : 'is-warning' ?>" role="status" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+    <div>
+    <?php if (empty($aiState['refreshed_at'])): ?>
+        <strong>Zorunlu özellik raporu henüz hesaplanmadı.</strong> Sunucu görevi (cron/attribute_issues.php) çalıştığında Trendyol’a gönderilmeyi bekleyen ürünler kategori bazında kontrol edilir.
+    <?php elseif ((int) $attributeIssues['products_blocked'] > 0): ?>
+        <strong><?= number_format((int) $attributeIssues['products_blocked'], 0, ',', '.') ?> üründe zorunlu Trendyol özelliği eksik veya XML değeri eşleşmiyor</strong>
+        (<?= (int) $attributeIssues['categories_blocked'] ?> kategori). İlgili satırdaki <em>Özellikler</em> düğmesinden tamamlayın; aynı değer kategorideki tüm ürünlere uygulanır.
+    <?php else: ?>
+        <strong>Gönderilmeyi bekleyen <?= number_format((int) $attributeIssues['products_checked'], 0, ',', '.') ?> ürünün zorunlu Trendyol özellikleri tamam.</strong>
+    <?php endif; ?>
+    <?php if (!empty($aiState['refreshed_at'])): ?><span class="cmap-sub">Son hesaplama: <?= $esc($aiState['refreshed_at']) ?><?= !empty($aiState['cursor_active']) ? ' · yeniden hesaplanıyor' : '' ?><?= !empty($aiState['error']) ? ' · Son hata: ' . $esc($aiState['error']) : '' ?></span><?php endif; ?>
+    </div>
+    <div class="cmap-actions">
+    <form method="POST" action="/categories/attribute-issues/refresh"><input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><button type="submit" class="cmap-btn"><i data-lucide="refresh-cw" aria-hidden="true"></i> Raporu yenile</button></form>
+    <?php if ($canEdit): $libOn = !empty($attributeIssues['library_enabled']); ?>
+    <form method="POST" action="/categories/attribute-library/toggle" title="Bir mağazada kaydedilen Trendyol kategori özellik seçimleri, aynı Trendyol kategorisini kullanan diğer mağazalara uygulanır. Mağazanın kendi seçimleri değiştirilmez.">
+        <input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><input type="hidden" name="marketplace_id" value="<?= $marketplaceId ?>"><input type="hidden" name="enabled" value="<?= $libOn ? '0' : '1' ?>">
+        <button type="submit" class="cmap-btn"><i data-lucide="share-2" aria-hidden="true"></i> Ortak kütüphane: <?= $libOn ? 'açık' : 'kapalı' ?></button>
+    </form>
+    <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if ($catalogSize < 100): ?>
 <div class="cmap-alert is-warning" role="status">
     <strong>Bu pazaryerinin kategori katalogu eksik görünüyor (<?= number_format($catalogSize) ?> kayıt).</strong>
@@ -231,6 +258,7 @@ $unsellableLabels = [
                                 <?php if ($marketplaceSlug === 'trendyol'): ?>
                                 <button type="button" class="cmap-btn" data-tya-open="<?= $mappingId ?>" aria-haspopup="dialog" aria-controls="tyaDialog">
                                     <i data-lucide="list-checks" aria-hidden="true"></i> Özellikler
+                                    <?php if (($blockedByMapping[(string) $mappingId] ?? 0) > 0): ?><span class="badge badge-danger" title="Zorunlu özellik eksik veya XML değeri eşleşmeyen ürün"><?= (int) $blockedByMapping[(string) $mappingId] ?></span><?php endif; ?>
                                 </button>
                                 <?php endif; ?>
                                 <?php if ($isHb): ?>

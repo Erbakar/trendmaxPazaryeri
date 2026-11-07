@@ -437,17 +437,183 @@ final class CategoryMarketplaceMapping extends BaseModel
      *
      * @param callable(array<int|string, mixed>): array<int|string, mixed> $mutator
      */
-    public function saveTrendyolAttributes(int $mappingId, array $values, array $sources, ?int $productId = null): bool
+    public function saveTrendyolAttributes(int $mappingId, array $values, array $sources, ?int $productId = null, ?array $valueMap = null): bool
     {
-        return $this->mutateAttributeMapping($mappingId, static function(array $config) use ($values, $sources, $productId): array {
+        return $this->mutateAttributeMapping($mappingId, static function(array $config) use ($values, $sources, $productId, $valueMap): array {
             if ($productId !== null) {
                 $config['products']['id:'.$productId] = $values;
             } else {
+                // null = caller did not send the table (older screen); keep the saved XML value choices.
+                $config = self::keepLibraryMarks($config, $values, $sources, $valueMap ?? (is_array($config['value_map'] ?? null) ? $config['value_map'] : []));
                 $config['defaults'] = $values;
                 $config['sources'] = $sources;
+                if ($valueMap !== null) $config['value_map'] = $valueMap;
             }
             return $config;
         }, true);
+    }
+
+    /**
+     * Applies a shared (support panel) template to every local category of this store mapped to the
+     * same Trendyol category. 'fill' never overwrites a user's existing choice; 'replace' overwrites
+     * only the attributes the template carries. Returns the per-mapping changes for reporting.
+     *
+     * @return array<int, array{mapping_id:int, category_id:int, changed:array<string,int>}>
+     */
+    public function applyAttributeTemplate(int $marketplaceId, string $marketplaceCategoryId, array $defaults, array $sources, array $valueMap, string $mode, bool $dryRun): array
+    {
+        $rows = $this->rawQuery(
+            'SELECT id, category_id FROM category_marketplace_mapping WHERE store_id = :sid AND marketplace_id = :mid AND marketplace_category_id = :target ORDER BY id',
+            ['sid' => $this->tenantId(), 'mid' => $marketplaceId, 'target' => $marketplaceCategoryId]
+        );
+        $report = [];
+        foreach ($rows as $row) {
+            $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+            $apply = static function (array $config) use ($defaults, $sources, $valueMap, $mode, &$changed): array {
+                [$config, $changed] = self::mergeAttributeTemplate($config, $defaults, $sources, $valueMap, $mode);
+                return $config;
+            };
+            $config = self::decodeAttributeMapping($this->find((int) $row['id']));
+            if ($config !== [] && array_is_list($config)) $config = [];
+            $apply($config);
+            // Writing identical content would still change updated_at and so the content fingerprint,
+            // which would void existing content reviews for nothing.
+            if (!$dryRun && array_sum($changed) > 0) {
+                $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+                if (!$this->mutateAttributeMapping((int) $row['id'], $apply, true)) continue;
+            }
+            // A changed mapping voids the content approval of every product in the category.
+            $products = (int) ($this->rawQueryOne('SELECT COUNT(*) n FROM products WHERE store_id = :sid AND category_id = :cid', ['sid' => $this->tenantId(), 'cid' => (int) $row['category_id']])['n'] ?? 0);
+            $report[] = ['mapping_id' => (int) $row['id'], 'category_id' => (int) $row['category_id'], 'changed' => $changed, 'products_in_category' => $products];
+        }
+        return $report;
+    }
+
+    /**
+     * A value written by the shared library stays library-owned only while the user keeps it unchanged;
+     * an edited or removed value becomes the store's own decision (library sync never touches it again).
+     */
+    public static function keepLibraryMarks(array $config, array $values, array $sources, array $valueMap): array
+    {
+        $marks = self::libraryMarks($config);
+        $keep = ['defaults' => [], 'sources' => [], 'value_map' => []];
+        foreach ($marks['defaults'] as $aid => $v) if (isset($values[$aid]) && (string) $values[$aid] === (string) ($config['defaults'][$aid] ?? null)) $keep['defaults'][$aid] = true;
+        foreach ($marks['sources'] as $aid => $v) if (isset($sources[$aid]) && (string) $sources[$aid] === (string) ($config['sources'][$aid] ?? null)) $keep['sources'][$aid] = true;
+        foreach ($marks['value_map'] as $aid => $keys) foreach ($keys as $key => $v) {
+            if (isset($valueMap[$aid][$key]) && (string) $valueMap[$aid][$key] === (string) ($config['value_map'][$aid][$key] ?? null)) $keep['value_map'][$aid][$key] = true;
+        }
+        $config['library'] = $keep;
+        return $config;
+    }
+
+    /** @return array{defaults:array<string,bool>,sources:array<string,bool>,value_map:array<string,array<string,bool>>} */
+    public static function libraryMarks(array $config): array
+    {
+        $m = is_array($config['library'] ?? null) ? $config['library'] : [];
+        $out = ['defaults' => [], 'sources' => [], 'value_map' => []];
+        foreach (['defaults', 'sources'] as $k) foreach ((array) ($m[$k] ?? []) as $aid => $v) if ($v) $out[$k][(string) $aid] = true;
+        foreach ((array) ($m['value_map'] ?? []) as $aid => $keys) foreach ((array) $keys as $key => $v) if ($v) $out['value_map'][(string) $aid][(string) $key] = true;
+        return $out;
+    }
+
+    /**
+     * Pure (unit tested): applies the shared library's current template for this Trendyol category.
+     * Only library-owned or undecided entries change: a store's own fixed value, source field or XML
+     * value choice is never overwritten. Library-owned entries the library no longer carries are removed,
+     * so a fix (or withdrawal) made once reaches every store that took the earlier value from the library.
+     * @return array{0:array,1:array{defaults:int,sources:int,value_map:int}}
+     */
+    public static function mergeLibraryTemplate(array $config, array $defaults, array $sources, array $valueMap): array
+    {
+        $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+        $marks = self::libraryMarks($config);
+        $current = self::stringMap($config['defaults'] ?? []);
+        $currentSources = self::stringMap($config['sources'] ?? []);
+        $ownDecision = static fn(string $aid): bool => (isset($current[$aid]) && empty($marks['defaults'][$aid])) || (isset($currentSources[$aid]) && empty($marks['sources'][$aid]));
+        foreach (['defaults' => $defaults, 'sources' => $sources] as $kind => $incoming) {
+            $target = $kind === 'defaults' ? $current : $currentSources;
+            foreach ($incoming as $aid => $value) {
+                $aid = (string) $aid;
+                if ($ownDecision($aid)) continue;
+                if (($target[$aid] ?? null) !== (string) $value) { $target[$aid] = (string) $value; $changed[$kind]++; }
+                $marks[$kind][$aid] = true;
+            }
+            foreach (array_keys($marks[$kind]) as $aid) {
+                if (array_key_exists($aid, $incoming)) continue;
+                if (isset($target[$aid])) { unset($target[$aid]); $changed[$kind]++; }
+                unset($marks[$kind][$aid]);
+            }
+            if ($kind === 'defaults') $current = $target; else $currentSources = $target;
+        }
+        $map = [];
+        foreach ((array) ($config['value_map'] ?? []) as $aid => $pairs) if (is_array($pairs)) foreach ($pairs as $key => $option) $map[(string) $aid][(string) $key] = (string) $option;
+        foreach ($valueMap as $aid => $pairs) foreach ($pairs as $key => $option) {
+            $aid = (string) $aid; $key = (string) $key;
+            if (isset($map[$aid][$key]) && empty($marks['value_map'][$aid][$key])) continue; // store's own choice
+            if (($map[$aid][$key] ?? null) !== (string) $option) { $map[$aid][$key] = (string) $option; $changed['value_map']++; }
+            $marks['value_map'][$aid][$key] = true;
+        }
+        foreach ($marks['value_map'] as $aid => $keys) foreach (array_keys($keys) as $key) {
+            if (isset($valueMap[$aid][$key])) continue;
+            if (isset($map[$aid][$key])) { unset($map[$aid][$key]); $changed['value_map']++; }
+            unset($marks['value_map'][$aid][$key]);
+        }
+        foreach ($map as $aid => $pairs) if ($pairs === []) unset($map[$aid]);
+        foreach ($marks['value_map'] as $aid => $keys) if ($keys === []) unset($marks['value_map'][$aid]);
+        $config['defaults'] = $current;
+        $config['sources'] = $currentSources;
+        $config['value_map'] = $map;
+        $config['library'] = $marks;
+        return [$config, $changed];
+    }
+
+    /** Writes a library merge into one mapping of the active store; no write when nothing changes. */
+    public function applyLibraryTemplate(int $mappingId, array $defaults, array $sources, array $valueMap): array
+    {
+        $config = self::decodeAttributeMapping($this->find($mappingId));
+        if ($config !== [] && array_is_list($config)) $config = [];
+        [, $changed] = self::mergeLibraryTemplate($config, $defaults, $sources, $valueMap);
+        if (array_sum($changed) === 0) return $changed;
+        $this->mutateAttributeMapping($mappingId, static function (array $c) use ($defaults, $sources, $valueMap): array {
+            return self::mergeLibraryTemplate($c, $defaults, $sources, $valueMap)[0];
+        }, true);
+        return $changed;
+    }
+
+    /**
+     * Pure merge of a support-panel template into one stored mapping config (unit tested).
+     * 'fill' leaves every attribute the user already decided (fixed value OR source field) untouched;
+     * value-map entries are only added for XML values without a choice.
+     * @return array{0:array,1:array{defaults:int,sources:int,value_map:int}}
+     */
+    public static function mergeAttributeTemplate(array $config, array $defaults, array $sources, array $valueMap, string $mode): array
+    {
+        $changed = ['defaults' => 0, 'sources' => 0, 'value_map' => 0];
+        $current = self::stringMap($config['defaults'] ?? []);
+        $currentSources = self::stringMap($config['sources'] ?? []);
+        // A source plus fallback default, or vice versa, would change what products send.
+        $decided = array_map('strval', array_keys($current + $currentSources));
+        foreach ($defaults as $aid => $value) {
+            if ($mode === 'fill' && in_array((string) $aid, $decided, true)) continue;
+            if (($current[$aid] ?? null) !== $value) { $current[$aid] = $value; $changed['defaults']++; }
+        }
+        foreach ($sources as $aid => $value) {
+            if ($mode === 'fill' && in_array((string) $aid, $decided, true)) continue;
+            if (($currentSources[$aid] ?? null) !== $value) { $currentSources[$aid] = $value; $changed['sources']++; }
+        }
+        $config['defaults'] = $current;
+        $config['sources'] = $currentSources;
+        $currentMap = is_array($config['value_map'] ?? null) ? $config['value_map'] : [];
+        foreach ($valueMap as $aid => $pairs) {
+            $existing = is_array($currentMap[$aid] ?? null) ? $currentMap[$aid] : [];
+            foreach ($pairs as $key => $option) {
+                if ($mode === 'fill' && isset($existing[$key])) continue;
+                if (($existing[$key] ?? null) !== $option) { $existing[$key] = $option; $changed['value_map']++; }
+            }
+            if ($existing !== []) $currentMap[$aid] = $existing;
+        }
+        $config['value_map'] = $currentMap;
+        return [$config, $changed];
     }
 
     private function mutateAttributeMapping(int $mappingId, callable $mutator, bool $convertLegacy = false): bool

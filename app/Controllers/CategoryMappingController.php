@@ -112,7 +112,10 @@ final class CategoryMappingController extends BaseController
                 $attributeIssues = $report->summary();
                 $attributeIssues['library_enabled'] = $this->container->get(\App\Services\Catalog\AttributeLibrary::class)->enabled();
                 $blockedByMapping = $report->blockedByMapping();
-            } catch (\Throwable) { $attributeIssues = null; } // report table not migrated yet
+            } catch (\Throwable $e) {
+                // Usually phase15 (063/064) not migrated yet: say so instead of hiding the feature.
+                $attributeIssues = ['migration_missing' => str_contains($e->getMessage(), 'trendyol_attribute') || $e instanceof \PDOException];
+            }
         }
 
         $this->view('categories.mapping', [

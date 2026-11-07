@@ -143,7 +143,13 @@ $unsellableLabels = [
 </div>
 <?php return; endif; ?>
 
-<?php if (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []); ?>
+<?php if (is_array($attributeIssues) && !empty($attributeIssues['migration_missing'])): ?>
+<div class="cmap-alert is-danger" role="alert">
+    <strong>Zorunlu özellik raporu ve ortak özellik kütüphanesi için veritabanı güncellemesi eksik.</strong>
+    Sunucuda <code>php database/migrate.php</code> çalıştırın (phase15: 063, 064) veya phpMyAdmin'den
+    <code>database/migrations/phase15/063_trendyol_attribute_issues.sql</code> ve <code>064_trendyol_attribute_library.sql</code> dosyalarını içe aktarın.
+</div>
+<?php elseif (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []); ?>
 <div class="cmap-alert <?= (int) $attributeIssues['products_blocked'] > 0 ? 'is-danger' : 'is-warning' ?>" role="status" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
     <div>
     <?php if (empty($aiState['refreshed_at'])): ?>

@@ -108,6 +108,15 @@ $unsellableLabels = [
 @media (max-width:640px){.hba-head,.hba-toolbar,.hba-body{padding-left:16px;padding-right:16px}.hba-status{padding:0 16px}.hba-fields{grid-template-columns:1fr}}
 </style>
 
+<?php $subnav = ['active' => '/categories/mapping', 'items' => [
+  ['u' => '/products', 'l' => 'Ürünler'],
+  ['u' => '/categories', 'l' => 'Kategoriler'],
+  ['u' => '/categories/mapping', 'l' => 'Kategori Eşleştirme'],
+  ['u' => '/brands', 'l' => 'Markalar'],
+  ['u' => '/feeds', 'l' => 'Feed'],
+  ['u' => '/xml-profilleri', 'l' => 'XML Profilleri'],
+]]; include BASE_PATH . '/views/layouts/_subnav.php'; ?>
+
 <div class="filter-bar cmap-bar">
     <form method="GET" action="/categories/mapping">
         <div class="form-group">

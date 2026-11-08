@@ -394,6 +394,7 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
 <?php $subnav = ['active' => '/products', 'items' => [
     ['u' => '/products', 'l' => 'Ürünler'],
     ['u' => '/categories', 'l' => 'Kategoriler'],
+    ['u' => '/categories/mapping', 'l' => 'Kategori Eşleştirme'],
     ['u' => '/brands', 'l' => 'Markalar'],
     ['u' => '/feeds', 'l' => 'Feed'],
     ['u' => '/xml-profilleri', 'l' => 'XML Profilleri'],

@@ -42,6 +42,7 @@ $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : '
 <?php $subnav = ['active' => '/feeds', 'items' => [
   ['u' => '/products', 'l' => 'Ürünler'],
   ['u' => '/categories', 'l' => 'Kategoriler'],
+  ['u' => '/categories/mapping', 'l' => 'Kategori Eşleştirme'],
   ['u' => '/brands', 'l' => 'Markalar'],
   ['u' => '/feeds', 'l' => 'Feed'],
   ['u' => '/xml-profilleri', 'l' => 'XML Profilleri'],

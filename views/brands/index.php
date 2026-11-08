@@ -174,6 +174,7 @@ $mpBgs    = ['trendyol'=>'#fff7ed','hepsiburada'=>'#fff4ed','n11'=>'#faf5ff','am
 <?php $subnav = ['active' => '/brands', 'items' => [
   ['u' => '/products', 'l' => 'Ürünler'],
   ['u' => '/categories', 'l' => 'Kategoriler'],
+  ['u' => '/categories/mapping', 'l' => 'Kategori Eşleştirme'],
   ['u' => '/brands', 'l' => 'Markalar'],
   ['u' => '/feeds', 'l' => 'Feed'],
   ['u' => '/xml-profilleri', 'l' => 'XML Profilleri'],

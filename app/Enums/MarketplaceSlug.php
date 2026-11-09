@@ -16,7 +16,6 @@ namespace App\Enums;
 
 enum MarketplaceSlug: string
 {
-    case OZIYGO      = 'oziygo';
     case TRENDYOL     = 'trendyol';
     case HEPSIBURADA  = 'hepsiburada';
     case N11          = 'n11';
@@ -31,7 +30,6 @@ enum MarketplaceSlug: string
     public function label(): string
     {
         return match ($this) {
-            self::OZIYGO     => 'OziyGO',
             self::TRENDYOL    => 'Trendyol',
             self::HEPSIBURADA => 'Hepsiburada',
             self::N11         => 'n11',
@@ -48,7 +46,6 @@ enum MarketplaceSlug: string
     public function color(): string
     {
         return match ($this) {
-            self::OZIYGO     => '#1967F2',
             self::TRENDYOL    => '#f27a1a',
             self::HEPSIBURADA => '#ff6000',
             self::N11         => '#7b2d8b',
@@ -65,7 +62,7 @@ enum MarketplaceSlug: string
     public function isCurrentlySupported(): bool
     {
         return match ($this) {
-            self::OZIYGO, self::TRENDYOL, self::HEPSIBURADA, self::N11, self::AMAZON, self::SHOPIFY, self::WOOCOMMERCE, self::OPENCART => true,
+            self::TRENDYOL, self::HEPSIBURADA, self::N11, self::AMAZON, self::SHOPIFY, self::WOOCOMMERCE, self::OPENCART => true,
             default                                                    => false,
         };
     }

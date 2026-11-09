@@ -33,7 +33,6 @@ use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\AmazonService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\ShopifyService;
 use App\Services\Marketplace\WooCommerceService;
 use App\Services\Marketplace\OpenCartService;
@@ -43,6 +42,9 @@ final class OrderSyncService
 {
     /** @var array<string, mixed>|null */
     private ?array $marketplacesConfig = null;
+
+    /** fetchOrdersForRange'in tanıdığı pazaryerleri; listede olmayan slug için çekim yapılmaz. */
+    private const RANGE_FETCH_SLUGS = ['trendyol', 'n11', 'pazarama', 'hepsiburada', 'pttavm', 'ciceksepeti', 'idefix', 'amazon', 'shopify', 'woocommerce', 'opencart'];
 
     public function __construct(
         private readonly Database $db,
@@ -60,7 +62,6 @@ final class OrderSyncService
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly AmazonService $amazonService,
         private readonly IdefixService $idefixService,
-        private readonly OziygoService $oziygoService,
         private readonly ShopifyService $shopifyService,
         private readonly WooCommerceService $wooCommerceService,
         private readonly OpenCartService $openCartService,
@@ -165,7 +166,6 @@ final class OrderSyncService
             'ciceksepeti' => $hasApiKey,
             'amazon' => $hasApiKey,
             'idefix' => $hasApiKey,
-            'oziygo' => $hasApiKey,
             'shopify' => $hasApiSecret,
             'woocommerce' => $hasApiKey && $hasApiSecret,
             'opencart' => $hasApiSecret,
@@ -362,6 +362,12 @@ final class OrderSyncService
     {
         $rawOrders = [];
 
+        // Bilinmeyen/kaldırılmış pazaryeri (örn. eski oziygo satırı) son else'teki Trendyol
+        // çekimine düşmesin: Trendyol siparişleri yanlış pazaryerine yazılırdı.
+        if (!in_array($slug, self::RANGE_FETCH_SLUGS, true)) {
+            return [];
+        }
+
         if ($slug === 'n11') {
             // N11: statü filtresi olmadan tarih bazlı tek geçişte çek (performans)
             // Eski yöntem: 7 statü × 5 blok = 35+ API çağrısı → ÇOK YAVAŞ
@@ -432,12 +438,6 @@ final class OrderSyncService
             // Amazon SP-API: CreatedAfter ile tek sorguda çekilir
             $rawOrders = $this->amazonService->fetchOrders([
                 'start_date' => gmdate('Y-m-d\TH:i:s\Z', $startTs),
-            ]);
-        } elseif ($slug === 'oziygo') {
-            // OziyGO bridge yerel e-ticaret gecmisini tasir; ilk aktarimda
-            // eski siparisleri kacirmamak icin tarih filtresi uygulama.
-            $rawOrders = $this->oziygoService->fetchOrders([
-                'limit' => 200,
             ]);
         } elseif ($slug === 'shopify') {
             $rawOrders = $this->shopifyService->fetchOrders(['days' => $days > 0 ? $days : 60]);
@@ -669,12 +669,6 @@ final class OrderSyncService
                 // Amazon SP-API: CreatedAfter ile tek sorguda çekilir
                 $rawOrders = $this->amazonService->fetchOrders([
                     'start_date' => gmdate('Y-m-d\TH:i:s\Z', $startTs),
-                ]);
-            } elseif ($slug === 'oziygo') {
-                // OziyGO siparisleri yerel DB'den gelir; tarih filtresi eski
-                // kurulumlarda 2024 gibi gecmis siparisleri bos dondurur.
-                $rawOrders = $this->oziygoService->fetchOrders([
-                    'limit' => 200,
                 ]);
             } elseif ($slug === 'shopify') {
                 $rawOrders = $this->shopifyService->fetchOrders(['days' => 60]);

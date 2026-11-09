@@ -26,7 +26,6 @@ use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\AmazonService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\ShopifyService;
 use App\Services\Marketplace\WooCommerceService;
 use App\Services\Marketplace\OpenCartService;
@@ -48,7 +47,6 @@ final class StockSyncService
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly AmazonService $amazonService,
         private readonly IdefixService $idefixService,
-        private readonly OziygoService $oziygoService,
         private readonly ShopifyService $shopifyService,
         private readonly WooCommerceService $wooCommerceService,
         private readonly OpenCartService $openCartService,
@@ -117,7 +115,6 @@ final class StockSyncService
             'ciceksepeti' => $hasApiKey,
             'amazon' => $hasApiKey,
             'idefix' => $hasApiKey,
-            'oziygo' => $hasApiKey,
             'shopify' => $hasApiSecret,
             'woocommerce' => $hasApiKey && $hasApiSecret,
             'opencart' => $hasApiSecret,
@@ -236,7 +233,6 @@ final class StockSyncService
                 'ciceksepeti' => $this->ciceksepetiService->updateStock($batchItems),
                 'idefix'      => $this->idefixService->updateStock($batchItems),
                 'amazon'      => $this->amazonService->updateStock($batchItems),
-                'oziygo'      => $this->oziygoService->updateStock($batchItems),
                 'shopify'     => $this->shopifyService->updateStock($batchItems),
                 'woocommerce' => $this->wooCommerceService->updateStock($batchItems),
                 'opencart'    => $this->openCartService->updateStock($batchItems),

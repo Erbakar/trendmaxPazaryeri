@@ -146,44 +146,6 @@ return [
         ],
     ],
 
-    'oziygo' => [
-        'display_name' => 'OziyGO',
-        'base_url'     => '',
-        'is_active'    => true,
-        'color'        => '#1967F2',
-        'icon'         => 'OG',
-        'api' => [
-            'rate_limit_per_second' => 5,
-            'batch_limit'           => 250,
-            'timeout_seconds'       => 30,
-            'max_retries'           => 2,
-            'retry_base_delay_ms'   => 500,
-            'page_size'             => 100,
-            'order_history_days'    => 365,
-        ],
-        'status_mapping' => [
-            'pending'    => 'beklemede',
-            'confirmed'  => 'yeni',
-            'processing' => 'hazirlaniyor',
-            'shipped'    => 'kargoda',
-            'delivered'  => 'teslim_edildi',
-            'cancelled'  => 'iptal',
-            'returned'   => 'iade',
-        ],
-        'endpoints' => [
-            'test'                => 'test',
-            'products'            => 'products',
-            'product'             => 'product',
-            'categories'          => 'categories',
-            'brands'              => 'brands',
-            'orders'              => 'orders',
-            'order'               => 'order',
-            'update_stock'        => 'update_stock',
-            'update_price'        => 'update_price',
-            'update_order_status' => 'update_order_status',
-        ],
-    ],
-
     // ─── Trendyol ──────────────────────────────────────────
     'trendyol' => [
         'display_name'  => 'Trendyol',

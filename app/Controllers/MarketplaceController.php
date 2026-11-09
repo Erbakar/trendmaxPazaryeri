@@ -27,7 +27,6 @@ use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\AmazonService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\ShopifyService;
 use App\Services\Marketplace\WooCommerceService;
 use App\Services\Marketplace\OpenCartService;
@@ -46,7 +45,6 @@ final class MarketplaceController extends BaseController
     private readonly CiceksepetiService $ciceksepetiService;
     private readonly AmazonService $amazonService;
     private readonly IdefixService $idefixService;
-    private readonly OziygoService $oziygoService;
     private readonly ShopifyService $shopifyService;
     private readonly WooCommerceService $wooCommerceService;
     private readonly OpenCartService $openCartService;
@@ -65,7 +63,6 @@ final class MarketplaceController extends BaseController
         $this->ciceksepetiService  = $container->get(CiceksepetiService::class);
         $this->amazonService       = $container->get(AmazonService::class);
         $this->idefixService       = $container->get(IdefixService::class);
-        $this->oziygoService       = $container->get(OziygoService::class);
         $this->shopifyService      = $container->get(ShopifyService::class);
         $this->wooCommerceService  = $container->get(WooCommerceService::class);
         $this->openCartService     = $container->get(OpenCartService::class);
@@ -194,11 +191,6 @@ final class MarketplaceController extends BaseController
                 $data['api_secret_encrypted'] = $this->crypto->encrypt($apiSecret);
             }
             $data['api_key_encrypted'] = null;
-        } elseif ($mp['slug'] === 'oziygo') {
-            if ($apiKey !== '') {
-                $data['api_key_encrypted'] = $this->crypto->encrypt($apiKey);
-            }
-            $data['api_secret_encrypted'] = null;
         } elseif (in_array($mp['slug'], ['ciceksepeti', 'idefix'], true)) {
             if ($apiKey !== '') {
                 $data['api_key_encrypted'] = $this->crypto->encrypt($apiKey);
@@ -243,13 +235,6 @@ final class MarketplaceController extends BaseController
         $merchantId = trim((string) $request->post('merchant_id', ''));
         if ($merchantId !== '') {
             $extraConfig['merchant_id'] = $merchantId;
-        }
-
-        if ($mp['slug'] === 'oziygo') {
-            $apiUrl = trim($request->post('api_url', ''));
-            if ($apiUrl !== '') {
-                $extraConfig['api_url'] = rtrim($apiUrl, '/');
-            }
         }
 
         // Hepsiburada Entegratör Kullanıcı Adı
@@ -481,7 +466,6 @@ final class MarketplaceController extends BaseController
             'ciceksepeti' => $this->ciceksepetiService->testConnection(),
             'amazon'      => $this->amazonService->testConnection(),
             'idefix'      => $this->idefixService->testConnection(),
-            'oziygo'      => $this->oziygoService->testConnection(),
             'shopify'     => $this->shopifyService->testConnection(),
             'woocommerce' => $this->wooCommerceService->testConnection(),
             'opencart'    => $this->openCartService->testConnection(),

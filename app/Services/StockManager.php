@@ -31,7 +31,6 @@ use App\Services\Marketplace\PazaramaService;
 use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\WooCommerceService;
 use RuntimeException;
 
@@ -60,7 +59,6 @@ final class StockManager
         private readonly PttavmService $pttavmService,
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly IdefixService $idefixService,
-        private readonly OziygoService $oziygoService,
         private readonly Logger $logger,
         private readonly StoreSetting $storeSettingModel,
         private readonly Container $container,
@@ -535,7 +533,7 @@ final class StockManager
                 $mpProductId = (string) ($mpProduct['marketplace_product_id'] ?? '');
                 $barcode = $mpProduct['marketplace_barcode'] ?? $mpProduct['marketplace_sku'] ?? $product['barcode'] ?? '';
                 $sku = (string) (($mpProduct['marketplace_sku'] ?? '') ?: ($product['sku'] ?? ''));
-                if ($barcode === '' && !($slug === 'oziygo' && $mpProductId !== '')) {
+                if ($barcode === '') {
                     continue;
                 }
                 $metaKey = $barcode !== '' ? $barcode : 'mp:' . $mpProductId;
@@ -582,7 +580,6 @@ final class StockManager
                     'pttavm'      => $this->pttavmService->updateStock($batchItems),
                     'ciceksepeti' => $this->ciceksepetiService->updateStock($batchItems),
                     'idefix'      => $this->idefixService->updateStock($batchItems),
-                    'oziygo'      => $this->oziygoService->updateStock($batchItems),
                     'woocommerce' => $this->wooCommerce()->updateStock($batchItems),
                     default       => ['success' => 0, 'failed' => count($batchItems)],
                 };
@@ -655,7 +652,7 @@ final class StockManager
         $mpProductId = (string) ($mpProduct['marketplace_product_id'] ?? '');
         $barcode = $mpProduct['marketplace_barcode'] ?? $mpProduct['marketplace_sku'] ?? $product['barcode'] ?? '';
         $sku = (string) (($mpProduct['marketplace_sku'] ?? '') ?: ($product['sku'] ?? ''));
-        if ($barcode === '' && !($slug === 'oziygo' && $mpProductId !== '')) {
+        if ($barcode === '') {
             $this->mpProductModel->setSyncError((int) $mpProduct['id'], 'Barkod bulunamadı');
             return false;
         }
@@ -679,7 +676,6 @@ final class StockManager
             'pttavm'      => $this->pttavmService->updateStock($items),
             'ciceksepeti' => $this->ciceksepetiService->updateStock($items),
             'idefix'      => $this->idefixService->updateStock($items),
-            'oziygo'      => $this->oziygoService->updateStock($items),
             'woocommerce' => $this->wooCommerce()->updateStock($items),
             default       => ['success' => 0, 'failed' => 1, 'errors' => [['error' => "Desteklenmeyen pazaryeri: {$slug}"]]],
         };

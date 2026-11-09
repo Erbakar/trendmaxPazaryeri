@@ -23,7 +23,6 @@ use App\Services\Marketplace\TrendyolService;
 use App\Services\Marketplace\N11Service;
 use App\Services\Marketplace\HepsiburadaService;
 use App\Services\Marketplace\PazaramaService;
-use App\Services\Marketplace\OziygoService;
 
 final class CategoryMappingService
 {
@@ -34,7 +33,6 @@ final class CategoryMappingService
         private readonly N11Service $n11Service,
         private readonly HepsiburadaService $hepsiburadaService,
         private readonly PazaramaService $pazaramaService,
-        private readonly OziygoService $oziygoService,
         private readonly Logger $logger,
     ) {}
 
@@ -67,7 +65,6 @@ final class CategoryMappingService
                 'n11'         => $this->n11Service->fetchCategories(),
                 'hepsiburada' => $this->hepsiburadaService->fetchCategories(),
                 'pazarama'    => $this->pazaramaService->fetchCategories(),
-                'oziygo'      => $this->oziygoService->fetchCategories(),
                 default       => [],
             };
             return $this->flattenCategories($categories, $query);

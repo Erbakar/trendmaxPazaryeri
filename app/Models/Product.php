@@ -630,7 +630,7 @@ final class Product extends BaseModel
     /**
      * İçe aktarılmış varyant grubu mu: hiçbir üyede varyant özniteliği (variant_attributes) yok ve ana ürünün
      * kaynağı bir pazaryeri. Böyle bir grupta ana ürün kendi ilanına bağlı, satılan bir varyanttır; stoğu
-     * KENDİ stoğudur (grup toplamı değil). Varyant formu, XML ya da OziyGO seçenekleri öznitelik taşır.
+     * KENDİ stoğudur (grup toplamı değil). Varyant formu ya da XML seçenekleri öznitelik taşır.
      *
      * @param array<string, mixed> $parent
      * @param array<int, array<string, mixed>> $variants
@@ -1075,7 +1075,7 @@ final class Product extends BaseModel
         // parametreyi göndermek HY093 hatası verir → ayrı parametre dizisi kurulur.
         $hazirParams = $params;
         $platform = $this->rawQueryOne('SELECT slug FROM marketplaces WHERE id=:readiness_platform', ['readiness_platform'=>$marketplaceId]);
-        $brandRequired = in_array($platform['slug'] ?? '', ['trendyol','pazarama','oziygo','idefix'], true);
+        $brandRequired = in_array($platform['slug'] ?? '', ['trendyol','pazarama','idefix'], true);
         $brandClause = '';
         if ($brandRequired) {
             $brandClause = "AND p.brand_id IS NOT NULL

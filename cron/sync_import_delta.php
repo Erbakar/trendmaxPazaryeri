@@ -25,7 +25,7 @@ $storeResults = $cronRunner->runForActiveStores(function (int $storeId) use ($mp
     $out = [];
     foreach ($mpModel->getActiveForStore($storeId) as $mp) {
         try {
-            $r = $importService->importFromMarketplace((int) $mp['id'], $mp['slug'], 'delta', 0);
+            $r = $importService->importFromMarketplace((int) $mp['id'], $mp['slug'], 'delta', null); // sistem işi: created_by NULL (0 → fk_pij_user ihlali)
             $out[$mp['slug']] = "created={$r->created}, updated={$r->updated}, failed={$r->failed}";
         } catch (\Throwable $e) {
             $out[$mp['slug']] = 'ERROR - ' . $e->getMessage();

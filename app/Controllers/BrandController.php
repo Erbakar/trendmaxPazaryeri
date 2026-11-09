@@ -202,26 +202,6 @@ final class BrandController extends BaseController
                     'skipped' => $skipped,
                     'total'   => count($rawBrands),
                 ]);
-            } elseif ($slug === 'oziygo') {
-                $oziygo = $this->container->get(\App\Services\Marketplace\OziygoService::class);
-                $rawBrands = $oziygo->fetchBrands();
-
-                $saved = 0;
-                $skipped = 0;
-                foreach ($rawBrands as $brand) {
-                    $name = trim($brand['name'] ?? '');
-                    $mpBrandId = (string)($brand['id'] ?? '');
-                    if ($name === '' || $mpBrandId === '') { $skipped++; continue; }
-                    $this->mpBrandModel->upsert($mpId, $mpBrandId, $name);
-                    $saved++;
-                }
-
-                $this->success([
-                    'message' => "OziyGO: {$saved} marka cache'e kaydedildi, {$skipped} atlandi",
-                    'saved'   => $saved,
-                    'skipped' => $skipped,
-                    'total'   => count($rawBrands),
-                ]);
             } elseif ($slug === 'ciceksepeti') {
                 // ÇiçekSepeti API'de marka listesi yok — ürünlerden çıkar
                 $db = $this->container->get(\App\Core\Database::class)->getConnection();
@@ -597,7 +577,6 @@ final class BrandController extends BaseController
             'ciceksepeti' => \App\Services\Marketplace\CiceksepetiService::class,
             'idefix'      => \App\Services\Marketplace\IdefixService::class,
             'pttavm'      => \App\Services\Marketplace\PttavmService::class,
-            'oziygo'      => \App\Services\Marketplace\OziygoService::class,
             'shopify'     => \App\Services\Marketplace\ShopifyService::class,
             'woocommerce' => \App\Services\Marketplace\WooCommerceService::class,
             'opencart'    => \App\Services\Marketplace\OpenCartService::class,

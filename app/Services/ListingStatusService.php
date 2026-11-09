@@ -40,7 +40,6 @@ final class ListingStatusService
         'ciceksepeti' => \App\Services\Marketplace\CiceksepetiService::class,
         'idefix'      => \App\Services\Marketplace\IdefixService::class,
         'amazon'      => \App\Services\Marketplace\AmazonService::class,
-        'oziygo'      => \App\Services\Marketplace\OziygoService::class,
         'shopify'     => \App\Services\Marketplace\ShopifyService::class,
         'woocommerce' => \App\Services\Marketplace\WooCommerceService::class,
         'opencart'    => \App\Services\Marketplace\OpenCartService::class,

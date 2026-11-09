@@ -220,29 +220,6 @@ final class CategoryController extends BaseController
                     'skipped' => $skipped,
                     'total'   => count($flat),
                 ]);
-            } elseif ($slug === 'oziygo') {
-                $oziygo = $this->container->get(\App\Services\Marketplace\OziygoService::class);
-                $flat = $oziygo->fetchCategories();
-
-                $saved = 0;
-                $skipped = 0;
-                foreach ($flat as $cat) {
-                    $name = trim($cat['name'] ?? '');
-                    $mpCatId = (string)($cat['id'] ?? '');
-                    if ($name === '' || $mpCatId === '') { $skipped++; continue; }
-
-                    $parentMpId = !empty($cat['parentId']) ? (string)$cat['parentId'] : null;
-                    $path = !empty($cat['paths']) && is_array($cat['paths']) ? implode(' > ', $cat['paths']) : $name;
-                    $this->mpCatModel->upsert($mpId, $mpCatId, $name, $parentMpId, $path, true);
-                    $saved++;
-                }
-
-                $this->success([
-                    'message' => "OziyGO: {$saved} kategori cache'e kaydedildi, {$skipped} atlandi",
-                    'saved'   => $saved,
-                    'skipped' => $skipped,
-                    'total'   => count($flat),
-                ]);
             } elseif ($slug === 'ciceksepeti') {
                 $ciceksepeti = $this->container->get(\App\Services\Marketplace\CiceksepetiService::class);
                 $flat = $ciceksepeti->fetchCategories();

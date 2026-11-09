@@ -35,7 +35,6 @@ use App\Services\Marketplace\PazaramaService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\ShopifyService;
 use App\Services\Marketplace\WooCommerceService;
 use App\Services\Marketplace\OpenCartService;
@@ -65,7 +64,6 @@ final class ProductImportService
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly PttavmService $pttavmService,
         private readonly IdefixService $idefixService,
-        private readonly OziygoService $oziygoService,
         private readonly ShopifyService $shopifyService,
         private readonly WooCommerceService $wooCommerceService,
         private readonly OpenCartService $openCartService,
@@ -91,7 +89,6 @@ final class ProductImportService
             'ciceksepeti' => $this->ciceksepetiService->loadCredentials(),
             'pttavm'      => $this->pttavmService->loadCredentials(),
             'idefix'      => $this->idefixService->loadCredentials(),
-            'oziygo'      => $this->oziygoService->loadCredentials(),
             'shopify'     => $this->shopifyService->loadCredentials(),
             'woocommerce' => $this->wooCommerceService->loadCredentials(),
             'opencart'    => $this->openCartService->loadCredentials(),
@@ -119,7 +116,6 @@ final class ProductImportService
                 'ciceksepeti' => $this->ciceksepetiService->importProducts($page, $size),
                 'pttavm'      => $this->pttavmService->importProducts($page, $size),
                 'idefix'      => $this->idefixService->importProducts($page, $size),
-                'oziygo'      => $this->oziygoService->importProducts($page, $size),
                 'shopify'     => $this->shopifyService->importProducts($page, $size),
                 'woocommerce' => $this->wooCommerceService->importProducts($page, $size),
                 'opencart'    => $this->openCartService->importProducts($page, $size),
@@ -268,7 +264,6 @@ final class ProductImportService
                     'ciceksepeti' => $this->ciceksepetiService->importProducts($page, $size),
                     'pttavm'      => $this->pttavmService->importProducts($page, $size),
                     'idefix'      => $this->idefixService->importProducts($page, $size),
-                    'oziygo'      => $this->oziygoService->importProducts($page, $size),
                     'shopify'     => $this->shopifyService->importProducts($page, $size),
                     'woocommerce' => $this->wooCommerceService->importProducts($page, $size),
                     'opencart'    => $this->openCartService->importProducts($page, $size),
@@ -549,16 +544,6 @@ final class ProductImportService
             ]);
 
             $this->importProductAttributes($productId, $data['attributes'] ?? []);
-            $this->syncOziygoVariants(
-                $marketplaceId,
-                $productId,
-                $data,
-                $mainImage,
-                $brandId !== null ? (int) $brandId : null,
-                $categoryId !== null ? (int) $categoryId : null,
-                (float) $systemPrice,
-                (float) $systemListPrice
-            );
             return;
         }
 
@@ -627,15 +612,12 @@ final class ProductImportService
         $systemListPrice = $mpListPrice !== null
             ? $this->reversePriceAdjustment((float)$mpListPrice, $marketplaceId)
             : $existingProduct['list_price'];
-        $hasReliableStock = $this->hasReliableStock($data);
-        $importStock = $this->normalizeReliableStock($data);
 
         $updateData = [
             'base_price'  => $systemPrice,
             'list_price'  => $systemListPrice,
-            'stock_qty'   => $this->shouldUpdateMasterStockFromImport() && $hasReliableStock
-                ? $importStock
-                : $existingProduct['stock_qty'],
+            // Pazaryeri importu ana stoğu ezmez; ana stok XML/manuel kaynaktan gelir.
+            'stock_qty'   => $existingProduct['stock_qty'],
             'brand_id'    => $brandId,
             'category_id' => $categoryId,
             'main_image'  => $mainImage,
@@ -658,16 +640,6 @@ final class ProductImportService
 
         // ── 7. Özellik verilerini kaydet ──
         $this->importProductAttributes($productId, $data['attributes'] ?? []);
-        $this->syncOziygoVariants(
-            $marketplaceId,
-            $productId,
-            $data,
-            $mainImage,
-            $brandId !== null ? (int) $brandId : null,
-            $categoryId !== null ? (int) $categoryId : null,
-            (float) $systemPrice,
-            (float) $systemListPrice
-        );
     }
 
     /**
@@ -678,255 +650,6 @@ final class ProductImportService
      *
      * @return array<string, mixed>
      */
-    /**
-     * OziyGO stores options in anaozellik/anaozellikalt, not as child products.
-     * Convert those option rows into OzyConnect child variants under the parent.
-     *
-     * @param array<string, mixed> $data
-     */
-    private function syncOziygoVariants(
-        int $marketplaceId,
-        int $parentId,
-        array $data,
-        ?string $mainImage,
-        ?int $brandId,
-        ?int $categoryId,
-        float $parentPrice,
-        float $parentListPrice
-    ): void {
-        if ($this->currentSlug !== 'oziygo') {
-            return;
-        }
-
-        $groups = is_array($data['variants'] ?? null) ? $data['variants'] : [];
-        $sourceProductId = (string) ($data['marketplace_product_id'] ?? '');
-        if ($sourceProductId === '') {
-            return;
-        }
-
-        $combinations = $this->buildOziygoVariantCombinations($groups);
-        if ($combinations === []) {
-            $this->deleteStaleOziygoVariants($parentId, $sourceProductId, []);
-            $this->productModel->update($parentId, ['has_variants' => 0]);
-            return;
-        }
-
-        $parent = $this->productModel->find($parentId);
-        if ($parent === false) {
-            return;
-        }
-
-        $parentSku = trim((string) ($parent['sku'] ?? $data['marketplace_sku'] ?? ''));
-        $parentName = trim((string) ($parent['name'] ?? $data['name'] ?? 'Urun'));
-        $imagesJson = $parent['images_json'] ?? null;
-        $processedIds = [];
-
-        foreach ($combinations as $combo) {
-            $valueIds = [];
-            $labels = [];
-            $attributes = [];
-            $stockValues = [];
-            $priceAdd = 0.0;
-
-            foreach ($combo as $entry) {
-                $groupName = trim((string) ($entry['group_name'] ?? 'Secenek'));
-                $valueName = trim((string) ($entry['value_name'] ?? ''));
-                $valueId = trim((string) ($entry['value_id'] ?? ''));
-
-                if ($valueId !== '') {
-                    $valueIds[] = $valueId;
-                }
-                if ($valueName !== '') {
-                    $labels[] = $valueName;
-                    $attributes[$groupName] = $valueName;
-                }
-
-                if ($this->hasReliableStock($entry)) {
-                    $stockValues[] = $this->normalizeReliableStock($entry);
-                }
-                $priceAdd += $this->reversePriceAdjustment((float) ($entry['price'] ?? 0), $marketplaceId);
-            }
-
-            if ($valueIds === []) {
-                continue;
-            }
-
-            $variantKey = implode('-', $valueIds);
-            $variantSourceId = $sourceProductId . ':' . $variantKey;
-            $variantCode = ($parentSku !== '' ? $parentSku : 'ozygo-' . $sourceProductId) . '-V' . $variantKey;
-            $label = implode(' / ', $labels);
-            $variantName = $parentName . ($label !== '' ? ' - ' . $label : '');
-            $variantPrice = round($parentPrice + $priceAdd, 2);
-            $variantListPrice = round($parentListPrice + $priceAdd, 2);
-
-            $existingChild = $this->productModel->findBy([
-                'source' => 'oziygo',
-                'source_id' => $variantSourceId,
-            ]);
-            if ($existingChild === false) {
-                $existingChild = $this->productModel->findBySku($variantCode);
-            }
-
-            if ($stockValues !== []) {
-                $variantStock = min($stockValues);
-            } elseif ($this->hasReliableStock($data)) {
-                $variantStock = $this->normalizeReliableStock($data);
-            } elseif ($existingChild !== false) {
-                $variantStock = (int) ($existingChild['stock_qty'] ?? 0);
-            } else {
-                $variantStock = 0;
-            }
-
-            $childData = [
-                'name' => $variantName,
-                'sku' => $variantCode,
-                'barcode' => $variantCode,
-                'base_price' => $variantPrice,
-                'list_price' => $variantListPrice,
-                'stock_qty' => $variantStock,
-                'parent_id' => $parentId,
-                'has_variants' => 0,
-                'is_active' => (int) ($parent['is_active'] ?? 1),
-                'category_id' => $categoryId,
-                'brand_id' => $brandId,
-                'tax_rate' => (float) ($parent['tax_rate'] ?? 20),
-                'description' => $parent['description'] ?? '',
-                'images_json' => $imagesJson,
-                'main_image' => $mainImage ?? ($parent['main_image'] ?? ''),
-                'source' => 'oziygo',
-                'source_id' => $variantSourceId,
-                'variant_attributes' => json_encode([
-                    'label' => $label,
-                    'options' => $attributes,
-                    'oziygo_product_id' => $sourceProductId,
-                    'oziygo_value_ids' => $valueIds,
-                ], JSON_UNESCAPED_UNICODE),
-            ];
-
-            if ($existingChild !== false) {
-                $childId = (int) $existingChild['id'];
-                $this->productModel->update($childId, $childData);
-            } else {
-                $childId = $this->productModel->create($childData);
-            }
-
-            $processedIds[] = $childId;
-            $this->processedProductIds[] = $childId;
-
-            $variantPayload = $data;
-            $variantPayload['name'] = $variantName;
-            $variantPayload['price'] = $variantPrice;
-            $variantPayload['list_price'] = $variantListPrice;
-            $variantPayload['stock'] = $variantStock;
-
-            $this->mpProductModel->upsertByProductAndMarketplace($childId, $marketplaceId, [
-                ...$this->buildMarketplaceProductPayload($variantPayload, $mainImage),
-                'marketplace_sku' => $variantCode,
-                'marketplace_barcode' => $variantCode,
-                'marketplace_product_id' => $variantSourceId,
-                'is_active' => 0,
-            ]);
-        }
-
-        $this->deleteStaleOziygoVariants($parentId, $sourceProductId, $processedIds);
-
-        if ($processedIds !== []) {
-            $summary = $this->productModel->getVariantSummary($parentId);
-            $this->productModel->update($parentId, [
-                'has_variants' => 1,
-                'stock_qty' => $summary['total_stock'],
-            ]);
-        }
-    }
-
-    /**
-     * @param array<int, mixed> $groups
-     * @return array<int, array<int, array<string, mixed>>>
-     */
-    private function buildOziygoVariantCombinations(array $groups): array
-    {
-        $normalizedGroups = [];
-
-        foreach ($groups as $group) {
-            if (!is_array($group)) {
-                continue;
-            }
-
-            $groupName = trim((string) ($group['name'] ?? 'Secenek'));
-            $values = [];
-            foreach (($group['values'] ?? []) as $value) {
-                if (!is_array($value)) {
-                    continue;
-                }
-
-                $valueId = trim((string) ($value['id'] ?? ''));
-                $valueName = trim((string) ($value['name'] ?? ''));
-                if ($valueId === '' || $valueName === '') {
-                    continue;
-                }
-
-                $option = [
-                    'group_name' => $groupName,
-                    'value_id' => $valueId,
-                    'value_name' => $valueName,
-                    'price' => (float) ($value['price'] ?? 0),
-                ];
-
-                if ($this->hasReliableStock($value)) {
-                    $option['stock'] = $this->normalizeReliableStock($value);
-                }
-
-                $values[] = $option;
-            }
-
-            if ($values !== []) {
-                $normalizedGroups[] = $values;
-            }
-        }
-
-        if ($normalizedGroups === []) {
-            return [];
-        }
-
-        $combinations = [[]];
-        foreach ($normalizedGroups as $values) {
-            $next = [];
-            foreach ($combinations as $combo) {
-                foreach ($values as $value) {
-                    $next[] = [...$combo, $value];
-                    if (count($next) >= 250) {
-                        break 2;
-                    }
-                }
-            }
-            $combinations = $next;
-        }
-
-        return $combinations;
-    }
-
-    /**
-     * @param array<int, int> $keepIds
-     */
-    private function deleteStaleOziygoVariants(int $parentId, string $sourceProductId, array $keepIds): void
-    {
-        $children = $this->productModel->getVariants($parentId);
-        foreach ($children as $child) {
-            $childId = (int) ($child['id'] ?? 0);
-            $source = (string) ($child['source'] ?? '');
-            $sourceId = (string) ($child['source_id'] ?? '');
-
-            if ($source !== 'oziygo' || !str_starts_with($sourceId, $sourceProductId . ':')) {
-                continue;
-            }
-            if (in_array($childId, $keepIds, true)) {
-                continue;
-            }
-
-            $this->productModel->delete($childId);
-        }
-    }
-
     private function buildMarketplaceProductPayload(array $data, ?string $fallbackImage = null): array
     {
         $firstImage = $fallbackImage;
@@ -992,11 +715,6 @@ final class ProductImportService
     private function normalizeReliableStock(array $data): int
     {
         return max(0, (int) ($data['stock'] ?? 0));
-    }
-
-    private function shouldUpdateMasterStockFromImport(): bool
-    {
-        return $this->currentSlug === 'oziygo';
     }
 
     /**

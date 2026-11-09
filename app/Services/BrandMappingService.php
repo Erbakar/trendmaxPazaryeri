@@ -24,7 +24,6 @@ use App\Services\Marketplace\TrendyolService;
 use App\Services\Marketplace\N11Service;
 use App\Services\Marketplace\HepsiburadaService;
 use App\Services\Marketplace\PazaramaService;
-use App\Services\Marketplace\OziygoService;
 
 final class BrandMappingService
 {
@@ -36,7 +35,6 @@ final class BrandMappingService
         private readonly N11Service $n11Service,
         private readonly HepsiburadaService $hepsiburadaService,
         private readonly PazaramaService $pazaramaService,
-        private readonly OziygoService $oziygoService,
         private readonly Logger $logger,
     ) {}
 
@@ -83,7 +81,6 @@ final class BrandMappingService
                 'n11'         => $this->n11Service->fetchBrands($query),
                 'hepsiburada' => $this->hepsiburadaService->fetchBrands($query),
                 'pazarama'    => $this->pazaramaService->fetchBrands($query),
-                'oziygo'      => $this->oziygoService->fetchBrands($query),
                 default       => [],
             };
 

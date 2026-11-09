@@ -36,7 +36,6 @@ use App\Services\Marketplace\PttavmService;
 use App\Services\Marketplace\CiceksepetiService;
 use App\Services\Marketplace\AmazonService;
 use App\Services\Marketplace\IdefixService;
-use App\Services\Marketplace\OziygoService;
 use App\Services\Marketplace\ShopifyService;
 use App\Services\Marketplace\WooCommerceService;
 use App\Services\Marketplace\OpenCartService;
@@ -69,7 +68,6 @@ final class InitialImportService
         private readonly CiceksepetiService $ciceksepetiService,
         private readonly IdefixService $idefixService,
         private readonly AmazonService $amazonService,
-        private readonly OziygoService $oziygoService,
         private readonly ShopifyService $shopifyService,
         private readonly WooCommerceService $wooCommerceService,
         private readonly OpenCartService $openCartService,
@@ -456,7 +454,7 @@ final class InitialImportService
     {
         $this->logger->info("İlk Import: İadeler çekiliyor ({$slug}, son {$days} gün)", 'InitialImport');
 
-        if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'hepsiburada', 'ciceksepeti', 'pttavm', 'idefix', 'oziygo', 'shopify', 'woocommerce'], true)) {
+        if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'hepsiburada', 'ciceksepeti', 'pttavm', 'idefix', 'shopify', 'woocommerce'], true)) {
             return ['fetched' => 0, 'processed' => 0, 'skipped' => 0, 'failed' => 0, 'skippedReason' => 'not_supported'];
         }
 
@@ -977,7 +975,6 @@ final class InitialImportService
             'ciceksepeti' => $this->ciceksepetiService,
             'idefix'      => $this->idefixService,
             'amazon'      => $this->amazonService,
-            'oziygo'      => $this->oziygoService,
             'shopify'     => $this->shopifyService,
             'woocommerce' => $this->wooCommerceService,
             'opencart'    => $this->openCartService,

@@ -84,7 +84,7 @@ final class ReturnSyncService
 
         foreach ($marketplaces as $mp) {
             $slug = $mp['slug'] ?? '';
-            if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'ciceksepeti', 'hepsiburada', 'pttavm', 'idefix', 'oziygo', 'shopify'], true)) {
+            if (!in_array($slug, ['trendyol', 'n11', 'pazarama', 'ciceksepeti', 'hepsiburada', 'pttavm', 'idefix', 'shopify'], true)) {
                 continue;
             }
 
@@ -144,7 +144,6 @@ final class ReturnSyncService
             'shopify' => $hasApiSecret,
             'ciceksepeti' => $hasApiKey,
             'idefix' => $hasApiKey,
-            'oziygo' => $hasApiKey,
             default => false,
         };
     }
@@ -188,7 +187,6 @@ final class ReturnSyncService
                     'startDate' => date('Y-m-d', strtotime('-' . ($fullSync ? $this->getReturnHistoryDays($slug) : max($days, 30)) . ' days')),
                     'endDate' => date('Y-m-d'),
                 ]),
-                'oziygo'      => [],
                 default    => [],
             };
 

@@ -584,7 +584,7 @@ final class ProductPublishService
 
     private function requiresBrandMapping(string $marketplaceSlug): bool
     {
-        return in_array($marketplaceSlug, ['trendyol', 'pazarama', 'oziygo', 'idefix'], true);
+        return in_array($marketplaceSlug, ['trendyol', 'pazarama', 'idefix'], true);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -2218,7 +2218,6 @@ final class ProductPublishService
             'ciceksepeti' => \App\Services\Marketplace\CiceksepetiService::class,
             'hepsiburada' => \App\Services\Marketplace\HepsiburadaService::class,
             'idefix'      => \App\Services\Marketplace\IdefixService::class,
-            'oziygo'      => \App\Services\Marketplace\OziygoService::class,
             // Amazon bu haritada YOKTU: AmazonService::createProducts() yazılmış olmasına
             // rağmen yayınlama akışı "Desteklenmeyen pazaryeri: amazon" ile duruyordu.
             'amazon'      => \App\Services\Marketplace\AmazonService::class,
@@ -2438,28 +2437,6 @@ final class ProductPublishService
                 'dimensionalWeight' => (float) ($product['desi'] ?? 1),
                 'images'            => $images,
                 'attributes'        => $attributes,
-            ];
-        }
-
-        if ($slug === 'oziygo') {
-            $images = $this->buildImageList($product, true);
-
-            return [
-                'sku'               => $product['sku'],
-                'barcode'           => $product['barcode'],
-                'name'              => $product['name'],
-                'title'             => $product['name'],
-                'description'       => $description,
-                'short_description' => $product['short_description'] ?? '',
-                'categoryId'        => (string) ($catMapping['marketplace_category_id'] ?? ''),
-                'brandId'           => (string) ($brandMapping['marketplace_brand_id'] ?? ''),
-                'quantity'          => max(0, (int) $product['stock_qty']),
-                'stock'             => max(0, (int) $product['stock_qty']),
-                'listPrice'         => $price['list_price'],
-                'salePrice'         => $price['sale_price'],
-                'price'             => $price['sale_price'],
-                'vatRate'           => (int) ($product['tax_rate'] ?? 20),
-                'images'            => $images,
             ];
         }
 

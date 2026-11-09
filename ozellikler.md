@@ -22,7 +22,6 @@ Kodda 12 entegrasyon tanımı vardır. Tanımın veya servisin bulunması, her i
 | Shopify | Ürün, sipariş, stok/fiyat; GraphQL iade okuması ve senkronizasyonu. İade onay/red işlemi satıcı panelindedir |
 | WooCommerce | Ürün, sipariş, stok/fiyat ve iade servisleri |
 | OpenCart | Bağlayıcı gerektirir; iade okuması desteklenmiyor |
-| OziyGO | Ayrı entegrasyonun özel adıdır; Trendmax markasının eski adı değildir |
 
 Ürün adı **Trendmax** olarak kullanılır. Eski OzyConnect/PazarConnect adları; geriye uyumluluk gerektiren paket kimlikleri, arşiv adları, eski kurulum yolları ve tarihsel kayıtlarda kalabilir. Bu kimlikleri topluca değiştirmek mevcut bağlantıları bozabilir.
 

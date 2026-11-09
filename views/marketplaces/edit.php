@@ -13,7 +13,6 @@ $marketplaceInfo = [
     'idefix' => ['name' => 'İdefix', 'color' => '#1a1a2e', 'gradient' => '#1a1a2e', 'logo' => '/public/assets/img/marketplaces/idefix.png'],
 ];
 
-$marketplaceInfo['oziygo'] = ['name' => 'OziyGO', 'color' => 'var(--primary)', 'gradient' => 'var(--primary)', 'logo' => '/public/assets/img/marketplaces/oziygo.png'];
 $marketplaceInfo['shopify'] = ['name' => 'Shopify', 'color' => '#95bf47', 'gradient' => '#95bf47', 'logo' => '/public/assets/img/marketplaces/shopify.svg'];
 $marketplaceInfo['woocommerce'] = ['name' => 'WooCommerce', 'color' => '#7f54b3', 'gradient' => '#7f54b3', 'logo' => '/public/assets/img/marketplaces/woocommerce.png'];
 $marketplaceInfo['opencart'] = ['name' => 'OpenCart', 'color' => '#1c8ed8', 'gradient' => '#1c8ed8', 'logo' => '/public/assets/img/marketplaces/opencart.png'];
@@ -230,24 +229,6 @@ $absValue = abs($savedPct);
                     </ul>
                 </div>
                 <?php endif; ?>
-                <?php if ($slug === 'oziygo'): ?>
-                <div class="mp-help">
-                    <h4><i data-lucide="info"></i> OziyGO Bridge Bilgileri</h4>
-                    <ul>
-                        <li>OziyGO admin panelinde OzyConnect Entegrasyon modulunu kurun</li>
-                        <li>Kurulumun verdigi API URL ve API anahtarini buraya girin</li>
-                        <li>Ornek API URL: https://site.com/eklentiler/ozyconnect/api.php</li>
-                    </ul>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">API URL <span style="color:var(--danger)">*</span></label>
-                    <div style="position:relative">
-                        <input type="url" name="api_url" class="form-input" style="padding-left:36px" value="<?= htmlspecialchars((string)($extraConfig['api_url'] ?? '')) ?>" placeholder="https://site.com/eklentiler/ozyconnect/api.php" required>
-                        <i data-lucide="link" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted)"></i>
-                    </div>
-                    <small class="form-help">OziyGO tarafindaki bridge api.php dosyasinin tam adresi</small>
-                </div>
-                <?php endif; ?>
                 <?php if (!in_array($slug, ['hepsiburada', 'pttavm', 'shopify', 'woocommerce', 'opencart'], true)): ?>
                 <div class="form-group">
                     <label class="form-label"><?= $slug === 'pazarama' ? 'API Key' : ($slug === 'amazon' ? 'LWA Client ID' : ($slug === 'idefix' ? 'Token' : 'API Key')) ?></label>
@@ -258,7 +239,7 @@ $absValue = abs($savedPct);
                     <small class="form-help"><?= $slug === 'amazon' ? "Amazon Developer Console'dan alınan LWA Client ID" : ($slug === 'idefix' ? 'İdefix tarafından e-posta ile gönderilen Token bilgisi' : 'Pazaryeri tarafından sağlanan API anahtarı') ?></small>
                 </div>
                 <?php endif; ?>
-                <?php if (!in_array($slug, ['ciceksepeti', 'oziygo', 'shopify', 'woocommerce', 'opencart'], true)): ?>
+                <?php if (!in_array($slug, ['ciceksepeti', 'shopify', 'woocommerce', 'opencart'], true)): ?>
                 <div class="form-group">
                     <label class="form-label" for="apiSecretInput"><?= $slug === 'hepsiburada' ? 'Servis Anahtarı' : ($slug === 'pazarama' ? 'API Secret' : ($slug === 'pttavm' ? 'Access Token' : ($slug === 'amazon' ? 'LWA Client Secret' : ($slug === 'idefix' ? 'Secret Key' : 'API Secret')))) ?></label>
                     <div style="position:relative">

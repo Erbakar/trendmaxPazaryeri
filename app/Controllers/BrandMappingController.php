@@ -206,7 +206,7 @@ final class BrandMappingController extends BaseController
     public function searchTrendyol(Request $request): void
     {
         $marketplaceId = $request->integer('marketplace_id');
-        $query = (string) $request->get('q', '');
+        $query = trim((string) $request->query('q', ''));
 
         // Slug GEÇİLMEZSE servis Trendyol'a düşer; hangi pazaryeri seçilirse
         // seçilsin Trendyol markaları dönerdi.

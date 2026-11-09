@@ -8,7 +8,7 @@ $marketplaceInfo = [
     'n11' => ['name' => 'n11', 'color' => '#7b2d96', 'gradient' => '#7b2d96', 'logo' => '/public/assets/img/marketplaces/n11.svg'],
     'amazon' => ['name' => 'Amazon TR', 'color' => '#ff9900', 'gradient' => '#ff9900', 'logo' => '/public/assets/img/marketplaces/amazon.svg'],
     'pazarama' => ['name' => 'Pazarama', 'color' => '#00a8e1', 'gradient' => '#00a8e1', 'logo' => '/public/assets/img/marketplaces/pazarama.svg'],
-    'pttavm' => ['name' => 'PttAVM', 'color' => '#ffc107', 'gradient' => '#ffc107', 'logo' => '/public/assets/img/marketplaces/pttavm.svg'],
+    'pttavm' => ['name' => 'PttAVM', 'color' => '#ffc107', 'gradient' => '#ffc107', 'logo' => '/public/assets/img/marketplaces/pttavm.png'],
     'ciceksepeti' => ['name' => 'ÇiçekSepeti', 'color' => '#e91e63', 'gradient' => '#e91e63', 'logo' => '/public/assets/img/marketplaces/ciceksepeti.svg'],
     'idefix' => ['name' => 'İdefix', 'color' => '#1a1a2e', 'gradient' => '#1a1a2e', 'logo' => '/public/assets/img/marketplaces/idefix.png'],
 ];

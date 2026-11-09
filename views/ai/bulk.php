@@ -130,9 +130,11 @@ $items = $items ?? [];
   selMissing?.addEventListener('click',()=>{ items().forEach(c=>{ c.checked=(c.dataset.missing==='1' && c.closest('.bf-row').style.display!=='none'); }); refresh(); });
 
   search?.addEventListener('input',()=>{
-    const q=search.value.trim().toLowerCase();
+    // Türkçe duyarsız (ozy.js ozyNorm): "iphone" = "İPHONE", "kapi" = "KAPI".
+    const N=s=>window.ozyNorm?window.ozyNorm(s):String(s||'').toLocaleLowerCase('tr');
+    const q=N(search.value);
     document.querySelectorAll('.bf-row[data-row]').forEach(r=>{
-      const hit=!q || (r.dataset.name||'').includes(q) || (r.dataset.sku||'').includes(q);
+      const hit=!q || N(r.dataset.name).includes(q) || N(r.dataset.sku).includes(q);
       r.style.display=hit?'':'none';
     });
     refresh();

@@ -113,12 +113,14 @@ final class Invoice extends BaseModel
         if (!empty($filters['search'])) {
             $where[] = "(
                 CONCAT(i.series, i.sequence_no) LIKE :search
-                OR i.customer_name LIKE :search
-                OR i.customer_tax_no LIKE :search
-                OR o.marketplace_order_id LIKE :search
-                OR CAST(i.id AS CHAR) LIKE :search
+                OR i.customer_name LIKE :search2
+                OR i.customer_tax_no LIKE :search3
+                OR o.marketplace_order_id LIKE :search4
+                OR CAST(i.id AS CHAR) LIKE :search5
             )";
             $params['search'] = '%' . trim((string) $filters['search']) . '%';
+            // Aynı yer tutucu tekrar kullanılamaz (EMULATE_PREPARES=false → HY093).
+            for ($k = 2; $k <= 5; $k++) { $params['search' . $k] = $params['search']; }
         }
 
         $whereStr = implode(' AND ', $where);
@@ -249,12 +251,14 @@ final class Invoice extends BaseModel
         if (!empty($filters['search'])) {
             $where[] = "(
                 CONCAT(i.series, i.sequence_no) LIKE :search
-                OR i.customer_name LIKE :search
-                OR i.customer_tax_no LIKE :search
-                OR o.marketplace_order_id LIKE :search
-                OR i.invoice_number LIKE :search
+                OR i.customer_name LIKE :search2
+                OR i.customer_tax_no LIKE :search3
+                OR o.marketplace_order_id LIKE :search4
+                OR i.invoice_number LIKE :search5
             )";
             $params['search'] = '%' . trim((string) $filters['search']) . '%';
+            // Aynı yer tutucu tekrar kullanılamaz (EMULATE_PREPARES=false → HY093).
+            for ($k = 2; $k <= 5; $k++) { $params['search' . $k] = $params['search']; }
         }
 
         $whereStr = implode(' AND ', $where);

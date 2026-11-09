@@ -932,9 +932,9 @@ final class MarketplaceController extends BaseController
      */
     public function amazonOAuthCallback(Request $request): void
     {
-        $authCode = $request->get('spapi_oauth_code', '');
-        $state    = $request->get('state', '');
-        $error    = $request->get('error', '');
+        $authCode = $request->query('spapi_oauth_code', '');
+        $state    = $request->query('state', '');
+        $error    = $request->query('error', '');
 
         if ($error !== '') {
             $this->redirectWithError('/marketplaces', 'Amazon yetkilendirme reddedildi: ' . $error);

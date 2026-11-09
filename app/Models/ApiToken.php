@@ -231,8 +231,8 @@ final class ApiToken extends BaseModel
             $params['sid'] = $storeId;
         }
         if ($q !== '') {
-            $where .= ' AND (t.name LIKE :q OR t.api_key LIKE :q)';
-            $params['q'] = '%' . $q . '%';
+            $where .= ' AND (t.name LIKE :q OR t.api_key LIKE :q2)';
+            $params['q'] = $params['q2'] = '%' . $q . '%';
         }
         return $this->db->fetchAll(
             "SELECT t.*, s.name AS store_name, u.name AS creator_name

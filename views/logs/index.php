@@ -202,8 +202,10 @@ boss_page_header('Sistem Logları', [['l' => 'Bakım', 'u' => '/admin/updates'],
     searchInput.addEventListener('input', function(){ clearTimeout(debounce); var v=this.value; debounce = setTimeout(function(){ filterLogs(v); }, 150); });
     document.addEventListener('keydown', function(e){ if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); searchInput.focus(); searchInput.select(); } });
   }
+  // Türkçe duyarsız ve uzunluk koruyan katlama: vurgu indeksi orijinal metinle hizalı kalır.
+  function lgFold(s){ s = String(s || ''); return s.split('').map(function(c){ var n = window.ozyNorm ? window.ozyNorm(c) : c.toLocaleLowerCase('tr'); return n.length === 1 ? n : c.toLowerCase().charAt(0) || c; }).join(''); }
   function filterLogs(query){
-    var q = query.toLowerCase().trim();
+    var q = lgFold(query.trim());
     var entries = document.querySelectorAll('[data-log-line]');
     var visibleCount = 0;
     entries.forEach(function(el){
@@ -212,7 +214,7 @@ boss_page_header('Sistem Logları', [['l' => 'Bakım', 'u' => '/admin/updates'],
       msgEl.querySelectorAll('.lg-highlight').forEach(function(h){ h.replaceWith(document.createTextNode(h.textContent)); });
       msgEl.normalize();
       if (!q) { el.style.display = ''; visibleCount++; return; }
-      if (el.textContent.toLowerCase().includes(q)) { el.style.display = ''; visibleCount++; highlightText(msgEl, q); }
+      if (lgFold(el.textContent).includes(q)) { el.style.display = ''; visibleCount++; highlightText(msgEl, q); }
       else { el.style.display = 'none'; }
     });
     if (noResults) noResults.classList.toggle('show', !!q && visibleCount === 0);
@@ -221,7 +223,7 @@ boss_page_header('Sistem Logları', [['l' => 'Bakım', 'u' => '/admin/updates'],
     var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
     var nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(function(node){
-      var idx = node.textContent.toLowerCase().indexOf(query);
+      var idx = lgFold(node.textContent).indexOf(query);
       if (idx === -1) return;
       var before = node.textContent.substring(0, idx), match = node.textContent.substring(idx, idx + query.length), after = node.textContent.substring(idx + query.length);
       var span = document.createElement('span'); span.className = 'lg-highlight'; span.textContent = match;

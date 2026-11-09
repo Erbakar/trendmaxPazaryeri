@@ -629,7 +629,8 @@ document.addEventListener('click', function (e) {
 let catSysSearchTimer;
 document.getElementById('sysSearch').addEventListener('input', function () {
     clearTimeout(catSysSearchTimer);
-    const q = this.value.toLowerCase();
+    // Ham değer gönderilir: JS toLowerCase('İ') birleşik nokta ekler ve SQL LIKE eşleşmez (sorgu zaten harf duyarsız).
+    const q = this.value.trim();
     catSysSearchTimer = setTimeout(() => {
         if (q.length >= 2) {
             fetch('/categories/ajax?search=' + encodeURIComponent(q))

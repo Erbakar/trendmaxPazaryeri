@@ -211,7 +211,7 @@ foreach ($roles as $role) {
             $hasWildcard = in_array('*', $rd['permissions'], true);
             ?>
             <!-- Rol satırı -->
-            <tr class="az-role-row" data-role-id="<?= $rd['id'] ?>" data-name="<?= htmlspecialchars(strtolower($rd['name'] . ' ' . $rd['slug'])) ?>">
+            <tr class="az-role-row" data-role-id="<?= $rd['id'] ?>" data-name="<?= htmlspecialchars($rd['name'] . ' ' . $rd['slug']) ?>">
                 <td>
                     <button class="az-tree-toggle" onclick="azToggleRole(<?= $rd['id'] ?>,this)" title="Detayları göster">
                         <i data-lucide="chevron-right" style="width:14px;height:14px"></i>
@@ -366,7 +366,7 @@ foreach ($roles as $role) {
             </td></tr>
             <?php else: ?>
             <?php foreach ($users as $user): ?>
-            <tr class="az-user-row" data-name="<?= htmlspecialchars(strtolower(($user['name'] ?? '') . ' ' . ($user['email'] ?? ''))) ?>">
+            <tr class="az-user-row" data-name="<?= htmlspecialchars(($user['name'] ?? '') . ' ' . ($user['email'] ?? '')) ?>">
                 <td>
                     <span class="indent">
                         <i data-lucide="user" style="width:14px;height:14px;color:var(--primary)"></i>
@@ -593,10 +593,12 @@ function azCollapseAllMatrix() {
 }
 
 // === Filters ===
+// Türkçe duyarsız: "çağrı" = "ÇAĞRI", "sahin" = "Şahin" (ozy.js ozyNorm).
+function azN(s) { return window.ozyNorm ? window.ozyNorm(s) : String(s || '').toLocaleLowerCase('tr'); }
 function azFilterRoles() {
-    var q = document.getElementById('azRoleSearch').value.toLowerCase();
+    var q = azN(document.getElementById('azRoleSearch').value);
     document.querySelectorAll('.az-role-row').forEach(function(tr) {
-        var match = (tr.dataset.name || '').includes(q);
+        var match = azN(tr.dataset.name).includes(q);
         tr.style.display = match ? '' : 'none';
         var roleId = tr.dataset.roleId;
         document.querySelectorAll('tr[data-parent-role="' + roleId + '"]').forEach(function(r) {
@@ -606,14 +608,14 @@ function azFilterRoles() {
 }
 
 function azFilterUsers() {
-    var q = document.getElementById('azUserSearch').value.toLowerCase();
+    var q = azN(document.getElementById('azUserSearch').value);
     document.querySelectorAll('.az-user-row').forEach(function(tr) {
-        tr.style.display = (tr.dataset.name || '').includes(q) ? '' : 'none';
+        tr.style.display = azN(tr.dataset.name).includes(q) ? '' : 'none';
     });
 }
 
 function azFilterMatrix() {
-    var q = document.getElementById('azMatrixSearch').value.toLowerCase();
+    var q = azN(document.getElementById('azMatrixSearch').value);
     if (!q) {
         document.querySelectorAll('#azMatrixTable tbody tr').forEach(function(r) { r.style.display = ''; });
         document.querySelectorAll('#azMatrixTable .az-child-row').forEach(function(r) { r.classList.remove('open'); });
@@ -621,7 +623,7 @@ function azFilterMatrix() {
         return;
     }
     document.querySelectorAll('#azMatrixTable tbody tr').forEach(function(r) {
-        var text = r.textContent.toLowerCase();
+        var text = azN(r.textContent);
         r.style.display = text.includes(q) ? '' : 'none';
         if (text.includes(q) && r.classList.contains('az-child-row')) r.classList.add('open');
     });

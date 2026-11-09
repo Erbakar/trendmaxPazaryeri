@@ -85,7 +85,7 @@ final class SubscriptionInvoice extends BaseModel
         }
         $q = trim((string) ($f['q'] ?? ''));
         if ($q !== '') {
-            $where[] = '(i.number LIKE :q OR st.name LIKE :q)'; $args['q'] = '%' . $q . '%';
+            $where[] = '(i.number LIKE :q OR st.name LIKE :q2)'; $args['q'] = $args['q2'] = '%' . $q . '%';
         }
         $sql = "SELECT i.*, st.name AS store_name FROM subscription_invoices i
                 LEFT JOIN stores st ON st.id = i.store_id";

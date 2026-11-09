@@ -77,7 +77,10 @@ final class InvoiceController extends BaseController
         $start  = (int) ($_GET['start'] ?? 0);
         $length = max(10, min(100, (int) ($_GET['length'] ?? 25)));
 
-        $searchValue = trim((string) ($_GET['search']['value'] ?? ''));
+        // DataTables search[value] gönderir; sayfa filtreleri düz search= ile ezebilir — ikisi de okunur.
+        $searchValue = is_array($_GET['search'] ?? null)
+            ? trim((string) ($_GET['search']['value'] ?? ''))
+            : trim((string) ($_GET['search'] ?? ''));
 
         $dtCol = (int) ($_GET['order'][0]['column'] ?? 0);
         $dtDir = strtolower((string) ($_GET['order'][0]['dir'] ?? 'desc'));

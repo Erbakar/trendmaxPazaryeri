@@ -159,11 +159,12 @@ final class User extends BaseModel
             "SELECT id
              FROM users
              WHERE email = :email
-               AND (:ignore_id IS NULL OR id <> :ignore_id)
+               AND id <> :ignore_id
              LIMIT 1",
             [
                 'email' => $email,
-                'ignore_id' => $ignoreId,
+                // Aynı adlı yer tutucu iki kez kullanılamaz (EMULATE_PREPARES=false → HY093).
+                'ignore_id' => $ignoreId ?? 0,
             ]
         );
 

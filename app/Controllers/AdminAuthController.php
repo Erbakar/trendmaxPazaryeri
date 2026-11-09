@@ -116,7 +116,7 @@ final class AdminAuthController
 
     public function showReset(Request $request): void
     {
-        $this->render('admin.reset', ['pageTitle' => 'Yeni Şifre', 'token' => (string) $request->get('token', '')]);
+        $this->render('admin.reset', ['pageTitle' => 'Yeni Şifre', 'token' => (string) $request->query('token', '')]);
     }
 
     public function reset(Request $request): void

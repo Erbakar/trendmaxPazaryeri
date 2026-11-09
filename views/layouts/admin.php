@@ -377,7 +377,7 @@ $bcDark = sprintf('#%02x%02x%02x', $bcDk($bcR), $bcDk($bcG), $bcDk($bcB));
 <script src="<?= $amp('vendor/summernote/summernote-bs5.min.js') ?>?v=20260618"></script>
 <script src="<?= $amp('vendor/summernote/lang/summernote-tr-TR.min.js') ?>?v=20260618"></script>
 <script src="<?= $amp('js/app.js') ?>?v=20260913"></script>
-<script src="<?= $amp('js/ozy.js') ?>?v=20260614"></script>
+<script src="<?= $amp('js/ozy.js') ?>?v=20261109"></script>
 <script>
 (function(){
   if (window.lucide) { try { lucide.createIcons(); } catch(e){} }
@@ -458,18 +458,13 @@ $bcDark = sprintf('#%02x%02x%02x', $bcDk($bcR), $bcDk($bcG), $bcDk($bcB));
   if(burger&&mob){ burger.addEventListener('click', function(){ mob.classList.toggle('open'); }); }
 
   // Command palette (⌘K / Ctrl+K)
-  window.adCmdk=function(){ var m=document.getElementById('ozyCmdk'); if(!m)return; m.hidden=false; var i=document.getElementById('ozyCmdkInput'); if(i){ i.value=''; setTimeout(function(){i.focus();},30); } if(window.lucide)lucide.createIcons(); };
+  window.adCmdk=function(){ var m=document.getElementById('ozyCmdk'); if(!m)return; m.hidden=false; var i=document.getElementById('ozyCmdkInput'); if(i){ i.value=''; if(window.ozyFilterCmd)ozyFilterCmd(''); setTimeout(function(){i.focus();},30); } if(window.lucide)lucide.createIcons(); };
   if(typeof window.ozyCloseCmdk!=='function'){ window.ozyCloseCmdk=function(){ var m=document.getElementById('ozyCmdk'); if(m)m.hidden=true; }; }
   document.addEventListener('keydown', function(e){
     if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); adCmdk(); }
     else if(e.key==='Escape'){ window.ozyCloseCmdk(); }
   });
-  var ci=document.getElementById('ozyCmdkInput');
-  if(ci){ ci.addEventListener('input', function(){
-    var q=this.value.toLowerCase().trim(), n=0;
-    document.querySelectorAll('#ozyCmdkList .ozy-cmd').forEach(function(a){ var ok=a.getAttribute('data-k').indexOf(q)>=0; a.classList.toggle('hidden',!ok); if(ok)n++; });
-    var em=document.querySelector('.ozy-cmd-empty'); if(em)em.classList.toggle('hidden',n>0);
-  }); }
+  // Filtre + klavye (↑ ↓ Enter) + ürün/sipariş araması ozy.js'te (ozyFilterCmd, Türkçe duyarsız).
 
   // Flash toast (sağ üst): tıklayınca veya 4.5 sn sonra kayarak kapanır
   (function(){

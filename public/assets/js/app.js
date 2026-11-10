@@ -18,8 +18,11 @@
     // ─── THEME SYSTEM ─────────────────────────────────────
     const ThemeManager = {
         init() {
-            const saved = localStorage.getItem('OzyConnect-theme') || 'dark';
-            this.apply(saved);
+            // Tek kaynak yeni arayüzün tercihi: mağaza paneli 'ozy-theme' (.dark sınıfı),
+            // admin paneli data-bs-theme. Eski 'OzyConnect-theme' anahtarı yoksa 'dark'
+            // varsayılıyordu: açık temalı sayfada eski bileşenler (tablo zebra satırları vb.)
+            // koyu renk alıyor, Kategori Eşleştirme listesi "aşure" gibi görünüyordu.
+            this.apply(this.current());
 
             const toggle = document.getElementById('themeToggle');
             if (toggle) {
@@ -27,9 +30,18 @@
                     const current = document.documentElement.getAttribute('data-theme');
                     const next = current === 'dark' ? 'light' : 'dark';
                     this.apply(next);
-                    localStorage.setItem('OzyConnect-theme', next);
+                    try { localStorage.setItem('ozy-theme', next); } catch (e) {}
+                    document.documentElement.classList.toggle('dark', next === 'dark');
                 });
             }
+        },
+        current() {
+            const root = document.documentElement;
+            const bs = root.getAttribute('data-bs-theme');
+            if (bs) return bs === 'dark' ? 'dark' : 'light';
+            let ozy = null;
+            try { ozy = localStorage.getItem('ozy-theme'); } catch (e) {}
+            return (ozy === 'dark' || root.classList.contains('dark')) ? 'dark' : 'light';
         },
         apply(theme) {
             document.documentElement.setAttribute('data-theme', theme);

@@ -376,8 +376,8 @@ $bcDark = sprintf('#%02x%02x%02x', $bcDk($bcR), $bcDk($bcG), $bcDk($bcB));
 <!-- Summernote (WYSIWYG) — YEREL; jQuery + Bootstrap bundle'dan SONRA -->
 <script src="<?= $amp('vendor/summernote/summernote-bs5.min.js') ?>?v=20260618"></script>
 <script src="<?= $amp('vendor/summernote/lang/summernote-tr-TR.min.js') ?>?v=20260618"></script>
-<script src="<?= $amp('js/app.js') ?>?v=20260913"></script>
-<script src="<?= $amp('js/ozy.js') ?>?v=20261109"></script>
+<script src="<?= $amp('js/app.js') ?>?v=20261110"></script>
+<script src="<?= $amp('js/ozy.js') ?>?v=20261110"></script>
 <script>
 (function(){
   if (window.lucide) { try { lucide.createIcons(); } catch(e){} }
@@ -445,6 +445,7 @@ $bcDark = sprintf('#%02x%02x%02x', $bcDk($bcR), $bcDk($bcG), $bcDk($bcB));
   // Tema toggle (light/dark)
   function applyTheme(t){
     document.documentElement.setAttribute('data-bs-theme', t);
+    document.documentElement.setAttribute('data-theme', t);   // app.css bileşenleri aynı temada kalsın
     try{ localStorage.setItem('boss-theme', t); }catch(_){}
     var m=document.querySelector('[data-theme-moon]'), s=document.querySelector('[data-theme-sun]');
     if(m&&s){ var dark=t==='dark'; m.classList.toggle('d-none',dark); s.classList.toggle('d-none',!dark); }

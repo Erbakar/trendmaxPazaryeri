@@ -45,6 +45,18 @@
 .bp-fld{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
 .bp-fld label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:700;color:var(--text-secondary,#475569)}
 .bp-fld input,.bp-fld select{padding:6px 9px;border:1px solid var(--border,#e5e7eb);border-radius:7px;font-size:13px;min-width:110px}
+.bp-cmap{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.bp-cmap-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;padding:10px 12px;border:1px dashed var(--border,#e5e7eb);border-radius:9px}
+.bp-cmap-name{flex:1 1 220px;font-size:13px;font-weight:700}
+.bp-cmap-name small{display:block;font-weight:400;font-size:11.5px;color:var(--text-muted,#6b7280);margin-top:2px}
+.bp-cmap-pick{flex:2 1 320px;position:relative}
+.bp-cmap-q{width:100%;padding:7px 10px;border:1px solid var(--border,#e5e7eb);border-radius:7px;font-size:13px;background:var(--bg-input,#fff);color:inherit}
+.bp-cmap-res{display:flex;flex-direction:column;max-height:220px;overflow-y:auto;margin-top:4px}
+.bp-cmap-opt{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:6px 9px;border:0;border-radius:6px;background:none;color:inherit;cursor:pointer;font-size:12.5px}
+.bp-cmap-opt:hover,.bp-cmap-opt:focus{background:rgba(59,130,246,.10);outline:none}
+.bp-cmap-opt small{font-size:11px;color:var(--text-muted,#6b7280)}
+.bp-cmap-msg{font-size:12px;color:var(--text-muted,#6b7280);padding:6px 2px}
+.bp-cmap-msg.is-err{color:#b91c1c}
 @media (max-width:768px){.bp-mp{grid-template-columns:1fr}}
 </style>
 
@@ -291,27 +303,21 @@
                 BP.selectedMp = Array.from(el('bpMpList').querySelectorAll('input:checked')).map((c) => parseInt(c.value, 10));
                 if (BP.selectedMp.length === 0) { alert('En az bir pazaryeri seçin.'); return; }
 
-                el('bpNextBtn').disabled = true;
-                el('bpFootNote').textContent = 'Hazırlık raporu çıkarılıyor…';
-
-                const veri = await bpPost('/products/publish/bulk/prepare', {
-                    product_ids: BP.useFilters ? '' : JSON.stringify(BP.ids),
-                    marketplace_ids: JSON.stringify(BP.selectedMp),
-                    filters: JSON.stringify(BP.filters)
-                });
-
-                BP.token = veri.token;
-                BP.marketplaces = veri.marketplaces || [];
-                BP.xmlKural = veri.xml_profit_rule || null;
-                bpRenderReady(veri);
-                bpFillMarginMp();
-                el('bpNextBtn').disabled = false;
-                el('bpFootNote').textContent = '';
+                await bpPrepare();
                 bpShowStep(2);
                 return;
             }
 
-            if (BP.step === 2) { bpShowStep(3); bpXmlKuralUygula(); bpPreview(); return; }
+            if (BP.step === 2) {
+                // Hiç hazır ürün yokken ilerlemek boş bir gönderim başlatıyordu: pencere
+                // "Gönderim" adımında boş kalıyor, sonunda "1 atlandı" diyordu.
+                const hazir = BP.marketplaces.reduce((t, m) => t + (m.ready || 0), 0);
+                if (hazir === 0 && el('bpSkipBlocked').checked) {
+                    alert('Gönderime hazır ürün yok. Önce yukarıdaki eksikleri tamamlayın (kategori eşleştirmesini bu pencereden yapabilirsiniz).');
+                    return;
+                }
+                bpShowStep(3); bpXmlKuralUygula(); bpPreview(); return;
+            }
 
             if (BP.step === 3) {
                 const zarar = parseInt(el('bpLossWarn').dataset.loss || '0', 10);
@@ -331,6 +337,103 @@
     };
 
     // ─── 2. adım: hazırlık raporu ─────────────────────────
+    // Rapor her çağrıda yeni bir gönderim jetonu üretir; eşleştirme sonrası yenilemede
+    // eski jeton bırakılır (iptal edilmemiş, başlamamış iş zararsızdır).
+    async function bpPrepare() {
+        el('bpNextBtn').disabled = true;
+        el('bpFootNote').textContent = 'Hazırlık raporu çıkarılıyor…';
+        try {
+            const veri = await bpPost('/products/publish/bulk/prepare', {
+                product_ids: BP.useFilters ? '' : JSON.stringify(BP.ids),
+                marketplace_ids: JSON.stringify(BP.selectedMp),
+                filters: JSON.stringify(BP.filters)
+            });
+
+            BP.token = veri.token;
+            BP.marketplaces = veri.marketplaces || [];
+            BP.xmlKural = veri.xml_profit_rule || null;
+            bpRenderReady(veri);
+            bpFillMarginMp();
+        } finally {
+            el('bpNextBtn').disabled = false;
+            el('bpFootNote').textContent = '';
+        }
+    }
+
+    // Eşleşmemiş iç kategoriler: sihirbazın içinde pazaryeri kategorisi aranıp kaydedilir.
+    function bpUnmappedHtml(m) {
+        const liste = m.unmapped_categories || [];
+        if (!liste.length) return '';
+
+        return '<div class="bp-cmap">' + liste.map((c) => {
+            if (!c.id) {
+                return `<div class="bp-cmap-row"><div class="bp-cmap-name">Kategorisi seçilmemiş ürün
+                        <small>${c.products} ürün — ürünü düzenleyip kategori seçin</small></div>
+                        <a class="o-btn o-btn-outline o-btn-sm" href="/products?category_id=yok" target="_blank">Ürünleri göster</a></div>`;
+            }
+            return `<div class="bp-cmap-row" data-cat="${c.id}" data-mp="${m.id}">
+                <div class="bp-cmap-name">${esc(c.name)} <small>${c.products} ürün${c.path && c.path !== c.name ? ' · ' + esc(c.path) : ''}</small></div>
+                <div class="bp-cmap-pick">
+                    <input type="search" class="bp-cmap-q" placeholder="${esc(m.name)} kategorisi ara (en az 2 harf)…" autocomplete="off"
+                           aria-label="${esc(c.name)} için ${esc(m.name)} kategorisi ara">
+                    <div class="bp-cmap-res" role="listbox"></div>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    function bpWireUnmapped() {
+        el('bpReady').querySelectorAll('.bp-cmap-row[data-cat]').forEach((row) => {
+            const q = row.querySelector('.bp-cmap-q');
+            const res = row.querySelector('.bp-cmap-res');
+            let zaman, sira = 0;
+
+            q.addEventListener('input', () => {
+                clearTimeout(zaman);
+                const metin = q.value.trim();
+                if (metin.length < 2) { res.innerHTML = ''; return; }
+                zaman = setTimeout(async () => {
+                    const benim = ++sira;
+                    res.innerHTML = '<div class="bp-cmap-msg">Aranıyor…</div>';
+                    try {
+                        const r = await fetch('/categories/mapping/search?marketplace_id=' + row.dataset.mp + '&q=' + encodeURIComponent(metin), {
+                            credentials: 'same-origin',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                        });
+                        const j = await r.json();
+                        if (benim !== sira) return;
+                        const kat = (j && j.data && j.data.categories) || [];
+                        if (!j.success) throw new Error(j.message || 'Arama başarısız');
+                        res.innerHTML = kat.length
+                            ? kat.slice(0, 15).map((k) => `<button type="button" class="bp-cmap-opt" data-id="${esc(k.id)}" data-name="${esc(k.name)}" data-path="${esc(k.path || k.name)}">
+                                    <b>${esc(k.name)}</b><small>${esc(k.path || '')}</small></button>`).join('')
+                            : '<div class="bp-cmap-msg">Sonuç yok — farklı bir kelime deneyin.</div>';
+                    } catch (err) {
+                        if (benim === sira) res.innerHTML = `<div class="bp-cmap-msg is-err">${esc(err.message)}</div>`;
+                    }
+                }, 300);
+            });
+
+            res.addEventListener('click', async (e) => {
+                const opt = e.target.closest('.bp-cmap-opt');
+                if (!opt) return;
+                res.innerHTML = '<div class="bp-cmap-msg">Kaydediliyor…</div>';
+                try {
+                    await bpPost('/categories/mapping', {
+                        category_id: row.dataset.cat,
+                        marketplace_id: row.dataset.mp,
+                        marketplace_category_id: opt.dataset.id,
+                        marketplace_category_name: opt.dataset.name,
+                        marketplace_category_path: opt.dataset.path
+                    });
+                    await bpPrepare();   // rapor yenilenir: ürün artık hazır sayılır (ya da sıradaki eksik görünür)
+                } catch (err) {
+                    res.innerHTML = `<div class="bp-cmap-msg is-err">${esc(err.message)}</div>`;
+                }
+            });
+        });
+    }
+
     function bpRenderReady(veri) {
         const etiket = {
             no_category_mapping: 'kategori eşleştirmesi yok',
@@ -352,7 +455,9 @@
             const engeller = Object.keys(etiket)
                 .filter((k) => (m.blockers[k] || 0) > 0)
                 .map((k) => `<li>${m.blockers[k]} ürün — ${etiket[k]}` +
-                    (k === 'no_category_mapping' ? ' <a href="/categories/mapping?marketplace_id=' + m.id + '" target="_blank">eşleştir</a>' : '') +
+                    (k === 'no_category_mapping' ? ' <a href="/categories/mapping?marketplace_id=' + m.id +
+                        ((m.unmapped_categories || []).find((c) => c.id) ? '&focus=' + (m.unmapped_categories.find((c) => c.id).id) : '') +
+                        '" target="_blank">eşleştirme sayfası</a> — ya da aşağıdan seçin' : '') +
                     (k === 'no_brand_mapping' ? ' <a href="/brands/mapping?marketplace_id=' + m.id + '" target="_blank">eşleştir</a>' : '') +
                     '</li>')
                 .join('');
@@ -365,6 +470,7 @@
             html += `<div class="bp-rap">
                 <h4>${esc(m.name)} — <span style="color:#15803d">${m.ready} hazır</span>${m.blocked > 0 ? ` · <span style="color:#b91c1c">${m.blocked} engelli</span>` : ''}</h4>
                 ${engeller ? '<ul>' + engeller + '</ul>' : '<div style="font-size:12.5px;color:#15803d">Tüm ürünler gönderime hazır.</div>'}
+                ${bpUnmappedHtml(m)}
                 ${istegeBagli}
             </div>`;
         });
@@ -374,6 +480,7 @@
         });
 
         el('bpReady').innerHTML = html;
+        bpWireUnmapped();
     }
 
     function bpFillMarginMp() {
@@ -455,6 +562,8 @@
         BP.aborted = false;
         el('bpStopBtn').style.display = 'inline-flex';
         el('bpResult').innerHTML = '';
+        // İlk parça pazaryeri API'sine gidip dönene kadar adım boş görünüyordu.
+        el('bpProgress').innerHTML = '<div class="bp-info">Gönderim başladı — ilk parça pazaryerine iletiliyor, bu birkaç saniye sürebilir…</div>';
 
         while (!BP.aborted) {
             let veri;

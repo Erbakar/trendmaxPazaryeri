@@ -39,6 +39,7 @@ $unsellableLabels = [
 .cmap-sub{display:block;margin-top:2px;font-size:11px;color:var(--text-muted)}
 .cmap-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
 .cmap-actions form{display:inline}
+.data-table tbody tr.cmap-focus,.data-table tbody tr.cmap-focus:hover{background:rgba(59,130,246,.12);box-shadow:inset 3px 0 0 var(--primary,#2563eb)}
 .cmap-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font:600 12px inherit;cursor:pointer;white-space:nowrap}
 .cmap-btn:hover{border-color:var(--primary);color:var(--primary)}
 .cmap-btn.is-danger:hover{border-color:var(--danger);color:var(--danger)}
@@ -223,7 +224,7 @@ $unsellableLabels = [
                         $conf        = $c['confidence'] ?? null;
                         $categoryName = (string) ($c['name'] ?? '');
                     ?>
-                    <tr>
+                    <tr id="cmap-row-<?= (int) ($c['id'] ?? 0) ?>">
                         <td class="fw-bold"><?= $esc($categoryName) ?><?php if ((int)($c['override_count']??0)>0): ?><small class="cmap-sub"><?= (int)$c['override_count'] ?> ürüne özel kategori seçimi</small><?php endif; ?></td>
                         <td class="cmap-path"><?= $esc($c['full_path'] ?? '') ?></td>
                         <td class="text-center"><?= (int) ($c['product_count'] ?? 0) ?></td>
@@ -829,6 +830,23 @@ $unsellableLabels = [
     document.addEventListener('keydown', function (olay) {
         if (olay.key === 'Escape' && !drawer.hidden) kapat();
     });
+})();
+</script>
+
+<script>
+/* ?focus=<iç kategori id>: gönderim sihirbazındaki "eşleştirme sayfası" bağlantısı kullanıcıyı
+   yüzlerce satır arasında arama yapmaya bırakmasın — satıra kaydır, vurgula, eşleşmemişse seçiciyi aç. */
+(function () {
+    var id = parseInt(new URLSearchParams(location.search).get('focus') || '0', 10);
+    if (!id) return;
+    var satir = document.getElementById('cmap-row-' + id);
+    if (!satir) return;
+    satir.classList.add('cmap-focus');
+    satir.scrollIntoView({ block: 'center' });
+    var dugme = satir.querySelector('[data-map-open]');
+    if (dugme && !satir.querySelector('form[action$="/delete"]')) {   // silme formu yalnız eşleşmiş satırda var
+        setTimeout(function () { dugme.click(); }, 250);
+    }
 })();
 </script>
 

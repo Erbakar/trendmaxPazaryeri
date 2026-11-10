@@ -3,9 +3,14 @@
   'use strict';
 
   // ---- Tema (dark/light), kalici ----
+  // data-theme eski app.css bileşenlerinin (tablo, kart) temasıdır; .dark ile aynı kalmalı.
   try { if (localStorage.getItem('ozy-theme') === 'dark') document.documentElement.classList.add('dark'); } catch (e) {}
+  if (!document.documentElement.hasAttribute('data-bs-theme')) {
+    document.documentElement.setAttribute('data-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  }
   window.ozyToggleTheme = function () {
     const on = document.documentElement.classList.toggle('dark');
+    document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
     try { localStorage.setItem('ozy-theme', on ? 'dark' : 'light'); } catch (e) {}
   };
 

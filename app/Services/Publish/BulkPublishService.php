@@ -166,6 +166,13 @@ final class BulkPublishService
                         'no_image'            => $rapor['no_image'],
                         'no_price'            => $rapor['no_price'],
                     ],
+                    // Hangi iç kategorinin eşleşmediği: sihirbaz burada adıyla gösterip eşleştirtir.
+                    'unmapped_categories' => $rapor['no_category_mapping'] > 0
+                        ? $this->productModel->getUnmappedPublishCategories(
+                            $productIds !== [] ? ['__ids' => $ids] + $filters : $filters,
+                            $mpId
+                        )
+                        : [],
                 ];
         }
 

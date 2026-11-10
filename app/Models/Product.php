@@ -1108,6 +1108,50 @@ final class Product extends BaseModel
         return $sonuc;
     }
 
+    /**
+     * Gönderim hazırlık raporu için: seçimdeki ürünlerin pazaryerine eşlenmemiş İÇ kategorileri.
+     *
+     * Rapor yalnız "N ürün — kategori eşleştirmesi yok" diyordu; kullanıcı hangi kategorinin eksik
+     * olduğunu göremiyor, 100+ satırlık eşleştirme listesinde arıyordu. Bu liste sihirbazın içinde
+     * kategoriyi adıyla gösterip orada eşleştirmeyi mümkün kılar. Kategorisi hiç atanmamış ürünler
+     * (category_id NULL) id=0 satırıyla döner.
+     *
+     * @param array<string, mixed> $filters
+     * @return array<int, array{id: int, name: string, path: string, products: int}>
+     */
+    public function getUnmappedPublishCategories(array $filters, int $marketplaceId, int $limit = 20): array
+    {
+        [$whereStr, $params] = $this->buildListWhere($filters);
+        $params['um_mp']    = $marketplaceId;
+        $params['um_store'] = $this->tenantId();
+        $limit = max(1, min(100, $limit));
+
+        $overrideExists = 'EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=' . (int) $marketplaceId . ')';
+        $rows = $this->rawQuery(
+            "SELECT COALESCE(p.category_id, 0) AS id, c.name AS name, c.full_path AS path, COUNT(*) AS products
+               FROM products p
+               LEFT JOIN categories c ON c.id = p.category_id AND c.store_id = p.store_id
+              WHERE {$whereStr}
+                AND NOT ({$overrideExists})
+                AND (p.category_id IS NULL OR NOT EXISTS (
+                        SELECT 1 FROM category_marketplace_mapping cm
+                         WHERE cm.category_id = p.category_id
+                           AND cm.marketplace_id = :um_mp
+                           AND cm.store_id = :um_store))
+              GROUP BY COALESCE(p.category_id, 0), c.name, c.full_path
+              ORDER BY products DESC, name ASC
+              LIMIT {$limit}",
+            $params
+        );
+
+        return array_map(static fn(array $r): array => [
+            'id'       => (int) $r['id'],
+            'name'     => (string) ($r['name'] ?? ''),
+            'path'     => (string) ($r['path'] ?? ''),
+            'products' => (int) $r['products'],
+        ], $rows ?: []);
+    }
+
     public function getForDataTables(
         array $filters,
         int $start,

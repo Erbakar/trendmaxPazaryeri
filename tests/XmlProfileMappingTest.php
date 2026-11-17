@@ -71,4 +71,12 @@ final class XmlProfileMappingTest extends TestCase
         $row=(new ReflectionMethod(XmlProfileImportService::class,'parseGenericItem'))->invoke($this->service(),$xml,$map);
         self::assertArrayNotHasKey('Renk',$row['import_attributes']);
     }
+    public function testImagesInsideAContainerTagAreImported(): void
+    {
+        $xml = simplexml_load_string('<urun><stok_kodu>SKU-9</stok_kodu><ad>Anakart</ad><fiyat>10</fiyat><stok>2</stok><resimler><resim><![CDATA[https://example.com/a.png]]></resim><resim>https://example.com/b.webp</resim><resim>https://example.com/a.png</resim><resim>gecersiz</resim></resimler></urun>');
+        $map = ['item_tag' => 'urun', 'sku' => 'stok_kodu', 'name' => 'ad', 'price' => 'fiyat', 'stock' => 'stok', 'image_prefix' => 'resimler'];
+        $parse = new ReflectionMethod(XmlProfileImportService::class, 'parseGenericItem');
+        $row = $parse->invoke($this->service(), $xml, $map);
+        self::assertSame(['https://example.com/a.png', 'https://example.com/b.webp'], $row['images']);
+    }
 }

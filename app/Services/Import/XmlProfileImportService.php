@@ -976,6 +976,18 @@ final class XmlProfileImportService
                 if (!$found) continue;
             }
         }
+        // Kapsayıcı etiket: <resimler><resim>URL</resim>…</resimler>. Numaralı etiket (resim1…)
+        // bulunamadıysa seçilen etiketin alt öğeleri görsel olarak okunur.
+        $container = (string) ($mapping['image_prefix'] ?? '');
+        if ($images === [] && $container !== '' && isset($item->{$container})) {
+            foreach ($item->{$container}->children() as $child) {
+                $url = trim((string) $child);
+                if ($url !== '' && preg_match('#^https?://#i', $url) && !in_array($url, $images, true)) {
+                    $images[] = $url;
+                }
+                if (count($images) >= 12) break;
+            }
+        }
         if ($images === [] && !empty($mapping['image'])) {
             $url = $get('image');
             if ($url !== '' && preg_match('#^https?://#i', $url)) {

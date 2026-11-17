@@ -328,9 +328,17 @@ final class CategoryMarketplaceMapping extends BaseModel
             return [];
         }
 
-        $decoded = json_decode((string) ($mapping['attribute_mapping_json'] ?? ''), true);
+        // The resolver decodes the same mapping several times for every product of a category; with
+        // per-product values the JSON can reach hundreds of KB, so the last result is kept.
+        static $lastRaw = null, $lastDecoded = [];
+        $raw = (string) ($mapping['attribute_mapping_json'] ?? '');
+        if ($raw === $lastRaw) {
+            return $lastDecoded;
+        }
+        $decoded = json_decode($raw, true);
+        $lastRaw = $raw;
 
-        return is_array($decoded) ? $decoded : [];
+        return $lastDecoded = is_array($decoded) ? $decoded : [];
     }
 
     /**
@@ -430,6 +438,65 @@ final class CategoryMarketplaceMapping extends BaseModel
 
             return $config;
         });
+    }
+
+    /**
+     * Üründen çıkarılan değerleri ürün bazlı değer olarak yazar. Kullanıcının elle girdiği ürün
+     * değerine dokunmaz. Yazılanlar 'inferred' altında işaretlenir; böylece geri alınabilir.
+     *
+     * @param array<string, array<string, string>> $values [ürünAnahtarı => [özellikId => değer]]
+     */
+    public function saveInferredAttributeValues(int $mappingId, array $values): bool
+    {
+        return $this->mutateAttributeMapping($mappingId, static function (array $config) use ($values): array {
+            [$config['products'], $config['inferred']] = self::mergeInferred(
+                is_array($config['products'] ?? null) ? $config['products'] : [],
+                is_array($config['inferred'] ?? null) ? $config['inferred'] : [], $values);
+            return $config;
+        }, true);
+    }
+
+    /** Pure (unit tested). @return array{0:array,1:array} [products, inferred] */
+    public static function mergeInferred(array $products, array $inferred, array $values): array
+    {
+        foreach ($values as $productKey => $pairs) {
+            foreach (self::stringMap($pairs) as $aid => $value) {
+                $own = self::stringMap($products[$productKey] ?? []);
+                // A value the user typed for this product wins; only empty or previously inferred slots are written.
+                if (isset($own[$aid]) && ($inferred[$productKey][$aid] ?? null) !== $own[$aid]) continue;
+                $products[$productKey][$aid] = $value;
+                $inferred[$productKey][$aid] = $value;
+            }
+        }
+        return [$products, $inferred];
+    }
+
+    /** Çıkarımla yazılan ve sonradan elle değiştirilmemiş ürün değerlerini kaldırır. Kaldırılan değer sayısı. */
+    public function clearInferredAttributeValues(int $mappingId): int
+    {
+        $removed = 0;
+        $this->mutateAttributeMapping($mappingId, static function (array $config) use (&$removed): array {
+            [$config['products'], $removed] = self::withoutInferred(
+                is_array($config['products'] ?? null) ? $config['products'] : [],
+                is_array($config['inferred'] ?? null) ? $config['inferred'] : []);
+            unset($config['inferred']);
+            return $config;
+        }, true);
+        return $removed;
+    }
+
+    /** Pure (unit tested). @return array{0:array,1:int} [products, removed count] */
+    public static function withoutInferred(array $products, array $inferred): array
+    {
+        $removed = 0;
+        foreach ($inferred as $productKey => $pairs) {
+            foreach (self::stringMap($pairs) as $aid => $value) {
+                if ((string)($products[$productKey][$aid] ?? '') !== $value) continue; // edited by hand since
+                unset($products[$productKey][$aid]); $removed++;
+            }
+            if (($products[$productKey] ?? null) === []) unset($products[$productKey]);
+        }
+        return [$products, $removed];
     }
 
     /**

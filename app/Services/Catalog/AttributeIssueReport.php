@@ -68,7 +68,7 @@ final class AttributeIssueReport
     }
 
     /** @return list<array{key:string,mapping:array}> */
-    private function mappings(int $mid): array
+    public function mappings(int $mid): array
     {
         $out = [];
         foreach ($this->db->fetchAll('SELECT m.*, c.name AS category_name FROM category_marketplace_mapping m LEFT JOIN categories c ON c.id=m.category_id WHERE m.store_id=? AND m.marketplace_id=? ORDER BY m.id', [$this->store(), $mid]) as $row) {
@@ -211,7 +211,7 @@ final class AttributeIssueReport
     }
 
     /** Products of this mapping that are not already live on Trendyol (new, rejected or never sent). */
-    private function pendingProducts(array $mapping, int $mid, bool $override): array
+    public function pendingProducts(array $mapping, int $mid, bool $override): array
     {
         $params = [$this->store()];
         if ($override) { $scope = 'p.id=?'; $params[] = (int)$mapping['product_id']; }
@@ -230,7 +230,7 @@ final class AttributeIssueReport
     }
 
     /** @param list<int> $ids @return array<int,list<array>> */
-    private function localAttributes(array $ids): array
+    public function localAttributes(array $ids): array
     {
         $out = [];
         foreach (array_chunk(array_map('intval', $ids), 1000) as $chunk) {

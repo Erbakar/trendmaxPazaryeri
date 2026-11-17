@@ -157,6 +157,38 @@ final class TrendyolAttributeController extends BaseController
         $report->request();
         $this->redirectWithSuccess('/categories/mapping?marketplace_id='.(int)$report->marketplace(),'Zorunlu özellik raporu yenileme için sıraya alındı. Sunucu birkaç dakika içinde güncelleyecek.');
     }
+    /**
+     * Fills one category's blocking required attributes from the product names (dry run unless apply=1).
+     * The panel calls it category by category so a large catalog never runs in one request.
+     */
+    public function infer(Request $request, string $id): void
+    {
+        $mapping = $this->mapping($id);
+        if (!empty($mapping['_override_id'])) $this->error('Ürüne özel kategori seçimi için özellikler tek tek girilir.',422);
+        $apply = $request->post('apply','') === '1';
+        if ($apply && (!$this->authorization()->hasPermission('categories.edit') || !$this->authorization()->hasPermission('products.edit'))) $this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
+        @set_time_limit(120);
+        try {
+            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->run((string)$id, $request->post('neutral','') === '1', $apply));
+        } catch (\Throwable $e) {
+            $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
+        }
+    }
+    /** Removes the inferred values again (hand-edited ones stay). */
+    public function undoInference(Request $request): void
+    {
+        $report = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class);
+        $mid = $report->marketplace();
+        if ($mid === null || !$this->authorization()->canAccessMarketplace((int)$mid)) $this->redirectWithError('/categories/mapping','Trendyol bağlantısı aktif değil veya erişiminiz yok.');
+        try {
+            $r = $this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->undo();
+            $this->redirectWithSuccess('/categories/mapping?marketplace_id='.(int)$mid, $r['removed'] > 0
+                ? $r['mappings'].' kategoride üründen çıkarılan '.$r['removed'].' değer geri alındı. Elle değiştirdiğiniz değerlere dokunulmadı.'
+                : 'Geri alınacak çıkarım değeri yok.');
+        } catch (\Throwable $e) {
+            $this->redirectWithError('/categories/mapping?marketplace_id='.(int)$mid, 'Geri alınamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e));
+        }
+    }
     /** Store opt-out for the shared ("tek kaynak") attribute library; on by default. */
     public function toggleLibrary(Request $request): void
     {

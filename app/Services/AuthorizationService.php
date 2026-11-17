@@ -241,6 +241,8 @@ final class AuthorizationService
         \App\Controllers\TrendyolAttributeController::class => [
             'show' => ['categories.view'], 'save' => ['categories.edit'], 'preview' => ['categories.view','products.view'],
             'review' => ['categories.edit','products.edit'], 'refreshIssues' => ['categories.view'], 'toggleLibrary' => ['categories.edit'], 'attributeProducts' => ['categories.view'],
+            // infer: a dry run only reads; the controller requires both edit permissions to apply.
+            'infer' => ['categories.view'], 'undoInference' => ['categories.edit','products.edit'],
         ],
         // Akıllı Eşleştirme sihirbazı kategori VE marka için çalışır (?kind=category|brand)
         AutoMappingController::class => [

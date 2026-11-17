@@ -36,6 +36,21 @@ $unsellableLabels = [
 .cmap-alert.is-warning{background:var(--warning-bg);border-color:rgba(245,158,11,.28);color:var(--text-primary)}
 .cmap-alert.is-danger{background:var(--danger-bg);border-color:rgba(239,68,68,.28);color:var(--text-primary)}
 .cmap-path{font-size:11px;color:var(--text-muted)}
+.cmap-infer{margin:0 0 16px;padding:16px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);font-size:13px;line-height:1.55}
+.cmap-infer[hidden]{display:none}
+.cmap-infer h2{margin:0 0 6px;font-size:15px}
+.cmap-infer p{margin:0 0 10px;color:var(--text-secondary);max-width:90ch}
+.cmap-infer-check{display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;max-width:90ch}
+.cmap-infer-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cmap-infer-status{margin-top:10px;font-weight:600}
+.cmap-infer-total{margin-top:10px!important;color:var(--text-primary)!important}
+.cmap-infer-scroll{overflow-x:auto}
+.cmap-infer-table{width:100%;border-collapse:collapse;font-size:12px}
+.cmap-infer-table th,.cmap-infer-table td{padding:6px 10px;border-top:1px solid var(--border);text-align:left;vertical-align:top}
+.cmap-infer-table td:nth-child(n+2):nth-child(-n+4){font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmap-infer-samples{color:var(--text-muted)}
+.cmap-btn[disabled]{opacity:.5;cursor:not-allowed}
+.cmap-btn.is-primary{background:var(--primary,#2563eb);border-color:var(--primary,#2563eb);color:#fff}
 .cmap-sub{display:block;margin-top:2px;font-size:11px;color:var(--text-muted)}
 .cmap-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px}
 .cmap-actions form{display:inline}
@@ -159,7 +174,9 @@ $unsellableLabels = [
     Sunucuda <code>php database/migrate.php</code> çalıştırın (phase15: 063, 064) veya phpMyAdmin'den
     <code>database/migrations/phase15/063_trendyol_attribute_issues.sql</code> ve <code>064_trendyol_attribute_library.sql</code> dosyalarını içe aktarın.
 </div>
-<?php elseif (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []); ?>
+<?php elseif (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []);
+    $inferKeys = array_values(array_filter(array_map('strval', array_keys(array_filter($blockedByMapping, static fn($n) => (int) $n > 0))), 'ctype_digit'));
+    $canInfer = $canEdit && $can('products.edit') && ($inferKeys !== [] || !empty($attributeIssues['has_inferred'])); ?>
 <div class="cmap-alert <?= (int) $attributeIssues['products_blocked'] > 0 ? 'is-danger' : 'is-warning' ?>" role="status" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
     <div>
     <?php if (empty($aiState['refreshed_at'])): ?>
@@ -174,6 +191,7 @@ $unsellableLabels = [
     </div>
     <div class="cmap-actions">
     <form method="POST" action="/categories/attribute-issues/refresh"><input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><button type="submit" class="cmap-btn"><i data-lucide="refresh-cw" aria-hidden="true"></i> Raporu yenile</button></form>
+    <?php if ($canInfer): ?><button type="button" class="cmap-btn" id="cmapInferOpen" aria-expanded="false" aria-controls="cmapInfer"><i data-lucide="wand-2" aria-hidden="true"></i> Ürün adından tamamla</button><?php endif; ?>
     <?php if ($canEdit): $libOn = !empty($attributeIssues['library_enabled']); ?>
     <form method="POST" action="/categories/attribute-library/toggle" title="Bir mağazada kaydedilen Trendyol kategori özellik seçimleri, aynı Trendyol kategorisini kullanan diğer mağazalara uygulanır. Mağazanın kendi seçimleri değiştirilmez.">
         <input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><input type="hidden" name="marketplace_id" value="<?= $marketplaceId ?>"><input type="hidden" name="enabled" value="<?= $libOn ? '0' : '1' ?>">
@@ -182,6 +200,96 @@ $unsellableLabels = [
     <?php endif; ?>
     </div>
 </div>
+<?php if ($canInfer): ?>
+<section class="cmap-infer" id="cmapInfer" aria-labelledby="cmapInferTitle" hidden>
+    <h2 id="cmapInferTitle">Eksik zorunlu özellikleri ürün adından tamamla</h2>
+    <p>Her ürünün adında (ve Trendyol seçeneğiyle eşleşmeyen XML değerinde) geçen seçenek aranır: adında "Kırmızı" yazan ürüne Renk = Kırmızı yazılır.
+       Rastgele değer seçilmez; adında bir şey yazmayan ürün atlanır. Elle girdiğiniz ürün değerleri değiştirilmez ve işlem geri alınabilir.</p>
+    <label class="cmap-infer-check"><input type="checkbox" id="cmapInferNeutral" checked>
+        <span>Adında bulunamazsa nötr seçeneği kullan (varsa "Belirtilmemiş", "Çok Renkli", "Unisex", "Diğer"). Kapalıyken yalnız adından okunan değerler yazılır.</span></label>
+    <div class="cmap-infer-actions">
+        <button type="button" class="cmap-btn" id="cmapInferPreview"<?= $inferKeys === [] ? ' disabled' : '' ?>><i data-lucide="search" aria-hidden="true"></i> Önizle (<?= count($inferKeys) ?> kategori)</button>
+        <button type="button" class="cmap-btn is-primary" id="cmapInferApply" disabled><i data-lucide="check" aria-hidden="true"></i> Uygula</button>
+        <?php if (!empty($attributeIssues['has_inferred'])): ?>
+        <form method="POST" action="/categories/attribute-inference/undo" onsubmit="return confirm('Ürün adından çıkarılan tüm değerler kaldırılacak. Elle değiştirdikleriniz kalır. Devam edilsin mi?')">
+            <input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><button type="submit" class="cmap-btn"><i data-lucide="undo-2" aria-hidden="true"></i> Çıkarımları geri al</button>
+        </form>
+        <?php endif; ?>
+    </div>
+    <div class="cmap-infer-status" id="cmapInferStatus" role="status" aria-live="polite"></div>
+    <div id="cmapInferResult"></div>
+</section>
+<script>
+(function () {
+    'use strict';
+    const KEYS = <?= json_encode($inferKeys) ?>;
+    const CSRF = <?= json_encode($csrf, $jsonFlags ?? 0) ?>;
+    const $ = (id) => document.getElementById(id);
+    const box = $('cmapInfer'), openBtn = $('cmapInferOpen'), previewBtn = $('cmapInferPreview'), applyBtn = $('cmapInferApply');
+    const statusBox = $('cmapInferStatus'), resultBox = $('cmapInferResult'), neutralBox = $('cmapInferNeutral');
+    const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const num = (n) => Number(n || 0).toLocaleString('tr-TR');
+    let busy = false;
+
+    openBtn.addEventListener('click', function () {
+        box.hidden = !box.hidden;
+        openBtn.setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
+        if (!box.hidden) box.scrollIntoView({ block: 'nearest' });
+    });
+    // A changed option invalidates the preview the user would be applying.
+    neutralBox.addEventListener('change', function () { if (!busy) applyBtn.disabled = true; });
+
+    async function one(key, apply) {
+        const body = new URLSearchParams({ _csrf_token: CSRF, neutral: neutralBox.checked ? '1' : '0', apply: apply ? '1' : '0' });
+        const response = await fetch('/categories/mapping/' + encodeURIComponent(key) + '/trendyol-infer', {
+            method: 'POST', credentials: 'same-origin', body: body,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-Token': CSRF },
+        });
+        let json = null;
+        try { json = JSON.parse(await response.text()); } catch (e) { /* not JSON: reported below */ }
+        if (!json || !json.success) throw new Error((json && json.message) || 'Sunucudan beklenmeyen yanıt geldi (' + response.status + ').');
+        return json.data || {};
+    }
+
+    async function run(apply) {
+        if (busy) return;
+        busy = true; previewBtn.disabled = true; applyBtn.disabled = true; neutralBox.disabled = true;
+        const total = { checked: 0, blocked: 0, ready: 0, written: 0, failed: 0 }, attrs = {};
+        let lastError = '';
+        for (let i = 0; i < KEYS.length; i++) {
+            statusBox.textContent = (apply ? 'Uygulanıyor' : 'Önizleniyor') + ': ' + (i + 1) + ' / ' + KEYS.length + ' kategori…';
+            try {
+                const d = await one(KEYS[i], apply);
+                ['checked', 'blocked', 'ready', 'written'].forEach((k) => { total[k] += Number(d[k] || 0); });
+                Object.values(d.attributes || {}).forEach((a) => {
+                    const slot = attrs[a.name] = attrs[a.name] || { text: 0, neutral: 0, none: 0, samples: [] };
+                    slot.text += a.text; slot.neutral += a.neutral; slot.none += a.none;
+                    (a.samples || []).forEach((s) => { if (slot.samples.length < 3) slot.samples.push(s); });
+                });
+            } catch (e) { total.failed++; lastError = e.message; }
+        }
+        const rows = Object.keys(attrs).sort((a, b) => (attrs[b].text + attrs[b].neutral + attrs[b].none) - (attrs[a].text + attrs[a].neutral + attrs[a].none)).map((name) => {
+            const a = attrs[name];
+            return '<tr><td>' + esc(name) + '</td><td>' + num(a.text) + '</td><td>' + num(a.neutral) + '</td><td>' + num(a.none) + '</td><td class="cmap-infer-samples">' + a.samples.map(esc).join('<br>') + '</td></tr>';
+        }).join('');
+        resultBox.innerHTML = '<p class="cmap-infer-total"><strong>' + num(total.blocked) + '</strong> engelli üründen <strong>' + num(total.ready) + '</strong> tanesi '
+            + (apply ? 'gönderime hazır hale geldi' : 'bu işlemle gönderime hazır olur') + '; ' + num(total.blocked - total.ready) + ' ürün için elle seçim gerekir.'
+            + (apply ? ' ' + num(total.written) + ' değer yazıldı.' : '') + '</p>'
+            + (rows ? '<div class="cmap-infer-scroll"><table class="cmap-infer-table"><thead><tr><th>Özellik</th><th>Adından bulundu</th><th>Nötr seçenek</th><th>Bulunamadı</th><th>Örnekler</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '');
+        statusBox.textContent = total.failed
+            ? total.failed + ' kategori işlenemedi: ' + lastError
+            : (apply ? 'Uygulandı. Sayfayı yenileyince rapor güncel sayıları gösterir; hazır ürünler Katalog Kontrolü ile gönderilir.' : 'Önizleme tamam. Hiçbir şey yazılmadı; sonuç uygunsa "Uygula"ya basın.');
+        busy = false; previewBtn.disabled = false; neutralBox.disabled = false;
+        // Nothing to write when the preview found no value at all.
+        applyBtn.disabled = apply || Object.keys(attrs).every((n) => attrs[n].text + attrs[n].neutral === 0);
+    }
+    previewBtn.addEventListener('click', function () { run(false); });
+    applyBtn.addEventListener('click', function () {
+        if (confirm('Önizlemedeki değerler ürünlere yazılacak. Sonradan "Çıkarımları geri al" ile kaldırabilirsiniz. Devam edilsin mi?')) run(true);
+    });
+})();
+</script>
+<?php endif; ?>
 <?php endif; ?>
 
 <?php if ($catalogSize < 100): ?>

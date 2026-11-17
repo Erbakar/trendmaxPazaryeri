@@ -61,14 +61,14 @@ final class AttributeInference
     /** @return list<array{id:int|string,name:string}> options named in the text, longest phrase wins over its parts */
     public static function optionsInText(array $attribute, string $text): array
     {
-        $hay = ' '.TrendyolAttributeResolver::mapKey($text).' ';
-        if (trim($hay) === '') return [];
+        $name = TrendyolAttributeResolver::mapKey($text);
+        if ($name === '') return [];
+        $hay = ' '.$name.' ';
+        $index = self::optionIndex($attribute);
         $hits = [];
-        foreach ($attribute['values'] ?? [] as $option) {
-            $key = TrendyolAttributeResolver::mapKey((string)($option['name'] ?? ''));
-            // A bare number ("3", "12") or a one/two letter code ("M", "XL") matches unrelated words and counts.
-            if ($key === '' || mb_strlen($key) < 3 || ctype_digit(str_replace(' ', '', $key)) || in_array($key, self::STOP, true)) continue;
-            if (str_contains($hay, ' '.$key.' ')) $hits[$key] = ['id' => $option['id'], 'name' => (string)$option['name']];
+        // Only options that start with a word of the text can be in it.
+        foreach (array_unique(explode(' ', $name)) as $word) foreach ($index[$word] ?? [] as $key => $option) {
+            if (str_contains($hay, ' '.$key.' ')) $hits[$key] = $option;
         }
         foreach (array_keys($hits) as $short) foreach (array_keys($hits) as $long) {
             if ($short !== $long && str_contains(' '.$long.' ', ' '.$short.' ')) { unset($hits[$short]); break; }
@@ -77,6 +77,28 @@ final class AttributeInference
         $byId = [];
         foreach ($hits as $hit) $byId[(string)$hit['id']] = $hit;
         return array_values($byId);
+    }
+
+    /**
+     * Matchable options by their first word. Compatible-model lists hold tens of thousands of options,
+     * so they are indexed once per attribute instead of being compared with every product.
+     * @return array<string,array<string,array{id:int|string,name:string}>>
+     */
+    private static function optionIndex(array $attribute): array
+    {
+        static $cache = [];
+        $values = $attribute['values'] ?? [];
+        $cacheKey = ($attribute['id'] ?? '').'|'.count($values).'|'.($values[0]['id'] ?? '').'|'.($values[count($values) - 1]['id'] ?? '');
+        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+        if (count($cache) > 50) $cache = [];
+        $index = [];
+        foreach ($values as $option) {
+            $key = TrendyolAttributeResolver::mapKey((string)($option['name'] ?? ''));
+            // A bare number ("3", "12") or a one/two letter code ("M", "XL") matches unrelated words and counts.
+            if ($key === '' || mb_strlen($key) < 3 || ctype_digit(str_replace(' ', '', $key)) || in_array($key, self::STOP, true)) continue;
+            $index[explode(' ', $key)[0]][$key] = ['id' => $option['id'], 'name' => (string)$option['name']];
+        }
+        return $cache[$cacheKey] = $index;
     }
 
     /**

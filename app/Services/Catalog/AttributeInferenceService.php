@@ -18,7 +18,7 @@ final class AttributeInferenceService
     /**
      * @return array{checked:int,blocked:int,ready:int,written:int,attributes:array<string,array{name:string,text:int,neutral:int,none:int,samples:list<string>}>}
      */
-    public function run(string $key, bool $allowNeutral, bool $apply): array
+    public function run(string $key, bool $allowNeutral, bool $apply, bool $originTr = false): array
     {
         $empty = ['checked' => 0, 'blocked' => 0, 'ready' => 0, 'written' => 0, 'attributes' => []];
         $mid = $this->report->marketplace();
@@ -29,7 +29,7 @@ final class AttributeInferenceService
         $products = $this->report->pendingProducts($mapping, $mid, false);
         if ($products === []) return $empty;
         $attributes = $this->container->get(TrendyolAttributeCatalog::class)->get((string)$mapping['marketplace_category_id'])['attributes'];
-        $plan = self::plan($mapping, $attributes, $products, $this->report->localAttributes(array_column($products, 'id')), $allowNeutral);
+        $plan = self::plan($mapping, $attributes, $products, $this->report->localAttributes(array_column($products, 'id')), $allowNeutral, $originTr);
         if ($apply && $plan['values'] !== []) {
             $this->container->get(CategoryMarketplaceMapping::class)->saveInferredAttributeValues((int)$key, $plan['values']);
             $this->report->refreshMapping($key);
@@ -44,7 +44,7 @@ final class AttributeInferenceService
      * @param array<int,list<array>> $locals
      * @return array{values:array<string,array<string,string>>,blocked:int,ready:int,written:int,attributes:array}
      */
-    public static function plan(array $mapping, array $attributes, array $products, array $locals, bool $allowNeutral): array
+    public static function plan(array $mapping, array $attributes, array $products, array $locals, bool $allowNeutral, bool $originTr = false): array
     {
         $byId = [];
         foreach ($attributes as $a) $byId[(string)$a['id']] = $a;
@@ -68,9 +68,9 @@ final class AttributeInferenceService
                 if ($attribute === null) continue;
                 $slot = &$stats[$aid];
                 $slot = ($slot ?? []) + ['name' => (string)$attribute['name'], 'text' => 0, 'neutral' => 0, 'none' => 0, 'samples' => []];
-                $hit = AttributeInference::suggest($attribute, array_values(array_filter([$xmlValue, (string)($product['name'] ?? '')], static fn($t) => $t !== '')), $allowNeutral);
+                $hit = AttributeInference::suggest($attribute, array_values(array_filter([$xmlValue, (string)($product['name'] ?? '')], static fn($t) => $t !== '')), $allowNeutral, $originTr);
                 if ($hit === null) { $slot['none']++; unset($slot); continue; }
-                $slot[$hit['basis'] === 'neutral' ? 'neutral' : 'text']++;
+                $slot[in_array($hit['basis'], ['neutral', 'default'], true) ? 'neutral' : 'text']++;
                 if (count($slot['samples']) < 3) $slot['samples'][] = mb_substr((string)($product['name'] ?? ''), 0, 70).' → '.$hit['option'];
                 unset($slot);
                 $own[$aid] = $hit['value'];

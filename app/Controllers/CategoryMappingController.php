@@ -112,6 +112,7 @@ final class CategoryMappingController extends BaseController
                 $attributeIssues = $report->summary();
                 $attributeIssues['library_enabled'] = $this->container->get(\App\Services\Catalog\AttributeLibrary::class)->enabled();
                 $blockedByMapping = $report->blockedByMapping();
+                $attributeIssues['has_inferred_brands'] = $this->container->get(\App\Services\Catalog\BrandInferenceService::class)->hasAssigned();
                 // Shows "Çıkarımları geri al" only when there is something to undo.
                 $attributeIssues['has_inferred'] = $report->marketplace() !== null && (bool) $this->container->get(\App\Core\Database::class)->fetchOne(
                     "SELECT 1 FROM category_marketplace_mapping WHERE store_id=? AND marketplace_id=? AND attribute_mapping_json LIKE '%\"inferred\"%' LIMIT 1",

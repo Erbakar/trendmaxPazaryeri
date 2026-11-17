@@ -114,4 +114,35 @@ final class AttributeInferenceTest extends TestCase
         $this->assertSame(['id:1' => ['348' => '2', '6' => '1']], $after);
         $this->assertSame(1, $removed);
     }
+
+    public function testEmptyOriginBecomesTurkiyeOnlyWhenTheStoreSaysSo(): void
+    {
+        $origin = ['id' => 9, 'name' => 'Menşei', 'required' => true, 'values' => [['id' => 1, 'name' => 'CN'], ['id' => 2, 'name' => 'TR']]];
+        $this->assertNull(AttributeInference::suggest($origin, ['Ahşap Yapboz'], true, false));
+        $this->assertSame(['value' => '2', 'option' => 'TR', 'basis' => 'default'], AttributeInference::suggest($origin, ['Ahşap Yapboz'], false, true));
+        // Other attributes are unaffected, and a list without Türkiye gets nothing.
+        $this->assertNull(AttributeInference::suggest($this->colour(), ['Ahşap Yapboz'], false, true));
+        $this->assertNull(AttributeInference::suggest(['id' => 9, 'name' => 'Menşei', 'values' => [['id' => 1, 'name' => 'CN']]], ['x'], false, true));
+    }
+
+    public function testPlanWithOriginMakesTheProductReady(): void
+    {
+        $attributes = [$this->colour(), ['id' => 9, 'name' => 'Menşei', 'required' => true, 'values' => [['id' => 1, 'name' => 'TR']]]];
+        $plan = AttributeInferenceService::plan(['attribute_mapping_json' => '{}'], $attributes, [['id' => 1, 'sku' => 'A', 'name' => 'Kırmızı Araba']], [], false, true);
+        $this->assertSame(['id:1' => ['348' => '1', '9' => '1']], $plan['values']);
+        $this->assertSame(1, $plan['ready']);
+        $this->assertSame(1, $plan['attributes']['9']['neutral']);
+    }
+
+    public function testBrandIsReadFromTheProductName(): void
+    {
+        $index = \App\Services\Catalog\BrandInference::index([1 => 'Pilsan', 2 => 'Dede', 3 => 'Dede Toys', 4 => 'Diğer', 5 => 'LC', 6 => 'Fisher Price']);
+        $from = static fn(string $name) => \App\Services\Catalog\BrandInference::fromName($name, $index);
+        $this->assertSame(1, $from('PİLSAN Akülü Araba 12V'));
+        $this->assertSame(3, $from('Dede Toys Mutfak Seti'));          // longer brand wins over its part
+        $this->assertSame(6, $from('Fisher-Price Eğitici Köpekçik'));  // punctuation in the title
+        $this->assertNull($from('Pilsanlı Diğer LC Oyuncak'));         // part of a word, placeholder, short code
+        $this->assertSame(2, $from('Dede Pilsan Uyumlu Yedek Teker')); // two brands: the one the title starts with
+        $this->assertNull($from('Uyumlu Teker Pilsan Dede'));          // two brands, neither leads
+    }
 }

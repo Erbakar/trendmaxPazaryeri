@@ -246,4 +246,36 @@ final class BrandMappingController extends BaseController
             array_slice($satirlar, 0, 50)
         );
     }
+
+    /**
+     * Markası olmayan ürünlere, adında geçen mağaza markasını atar (apply=1 değilse yalnız önizleme).
+     */
+    public function inferFromNames(Request $request): void
+    {
+        $marketplaceId = $request->integer('marketplace_id');
+        $marketplace = $marketplaceId > 0 ? $this->marketplaceModel->find($marketplaceId) : false;
+        if ($marketplace === false) $this->error('Pazaryeri seçilmedi.', 422);
+        $auth = $this->container->get(\App\Services\AuthorizationService::class);
+        if (!$auth->canAccessMarketplace($marketplaceId)) $this->error('Bu pazaryerine erişiminiz yok.', 403);
+        $apply = $request->post('apply', '') === '1';
+        if ($apply && (!$auth->hasPermission('brands.edit') || !$auth->hasPermission('products.edit'))) $this->error('Marka ve ürün düzenleme yetkisi gerekli.', 403);
+        @set_time_limit(120);
+        try {
+            $this->success($this->container->get(\App\Services\Catalog\BrandInferenceService::class)->run($marketplaceId, $apply));
+        } catch (\Throwable $e) {
+            $this->error('Marka çıkarımı yapılamadı: ' . \App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
+        }
+    }
+
+    /** Ürün adından atanan markaları kaldırır (sonradan elle değiştirilenler kalır). */
+    public function undoInferred(Request $request): void
+    {
+        $back = '/categories/mapping' . ($request->integer('marketplace_id') > 0 ? '?marketplace_id=' . $request->integer('marketplace_id') : '');
+        try {
+            $removed = $this->container->get(\App\Services\Catalog\BrandInferenceService::class)->undo();
+            $this->redirectWithSuccess($back, $removed > 0 ? "Ürün adından atanan marka {$removed} üründen kaldırıldı." : 'Geri alınacak marka ataması yok.');
+        } catch (\Throwable $e) {
+            $this->redirectWithError($back, 'Geri alınamadı: ' . \App\Services\Catalog\AttributeIssueReport::publicError($e));
+        }
+    }
 }

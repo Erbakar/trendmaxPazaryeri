@@ -169,7 +169,7 @@ final class TrendyolAttributeController extends BaseController
         if ($apply && (!$this->authorization()->hasPermission('categories.edit') || !$this->authorization()->hasPermission('products.edit'))) $this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
         @set_time_limit(120);
         try {
-            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->run((string)$id, $request->post('neutral','') === '1', $apply));
+            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->run((string)$id, $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1'));
         } catch (\Throwable $e) {
             $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
         }

@@ -280,6 +280,8 @@ $router->get('/brands/mapping',                             [BrandMappingControl
 $router->get('/brands/mapping/unmapped-count',              [BrandMappingController::class, 'unmappedCount'],     $authMiddleware);
 $router->get('/brands/mapping/search',                      [BrandMappingController::class, 'searchTrendyol'],    $authMiddleware);
 $router->post('/brands/mapping',                            [BrandMappingController::class, 'store'],             $authCsrf);
+$router->post('/brands/mapping/infer-from-names',            [BrandMappingController::class, 'inferFromNames'],    $authCsrf);
+$router->post('/brands/mapping/undo-inferred',              [BrandMappingController::class, 'undoInferred'],      $authCsrf);
 $router->post('/brands/mapping/bulk',                       [BrandMappingController::class, 'storeBulk'],         $authCsrf);
 $router->post('/brands/mapping/{id}/delete',                [BrandMappingController::class, 'delete'],            $authCsrf);
 

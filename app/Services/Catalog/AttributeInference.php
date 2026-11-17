@@ -37,10 +37,12 @@ final class AttributeInference
 
     /**
      * @param list<string> $texts most specific first (unmatched XML value, then product name)
-     * @return array{value:string,option:string,basis:string}|null basis: text | text_multi | neutral
+     * @param bool $originTr the store states its products are made in Türkiye: an empty origin becomes TR
+     * @return array{value:string,option:string,basis:string}|null basis: text | text_multi | neutral | default
      */
-    public static function suggest(array $attribute, array $texts, bool $allowNeutral): ?array
+    public static function suggest(array $attribute, array $texts, bool $allowNeutral, bool $originTr = false): ?array
     {
+        if ($originTr && self::isOrigin($attribute)) return self::originTr($attribute);
         if (!empty($attribute['allowCustom'])) return self::isColour($attribute) ? self::colourText($texts, $allowNeutral) : null;
         if (empty($attribute['values'])) return null;
         foreach ($texts as $text) {
@@ -90,6 +92,22 @@ final class AttributeInference
         $wanted = $silent ? array_merge(self::UNKNOWN, $mixed, self::OTHER) : $mixed;
         foreach ($wanted as $want) foreach ($attribute['values'] ?? [] as $option) {
             if (TrendyolAttributeResolver::mapKey((string)($option['name'] ?? '')) === $want) return ['value' => (string)$option['id'], 'option' => (string)$option['name']];
+        }
+        return null;
+    }
+
+    private static function isOrigin(array $attribute): bool
+    {
+        $name = ' '.TrendyolAttributeResolver::mapKey((string)($attribute['name'] ?? '')).' ';
+        return str_contains($name, ' mensei ') || str_contains($name, ' mense ') || str_contains($name, ' uretim yeri ');
+    }
+
+    /** The Türkiye option of an origin list (Trendyol lists country codes), or the word itself for free text. */
+    private static function originTr(array $attribute): ?array
+    {
+        if (!empty($attribute['allowCustom'])) return ['value' => 'Türkiye', 'option' => 'Türkiye', 'basis' => 'default'];
+        foreach (['tr', 'turkiye', 'turkiye tr', 'tr turkiye'] as $want) foreach ($attribute['values'] ?? [] as $option) {
+            if (TrendyolAttributeResolver::mapKey((string)($option['name'] ?? '')) === $want) return ['value' => (string)$option['id'], 'option' => (string)$option['name'], 'basis' => 'default'];
         }
         return null;
     }

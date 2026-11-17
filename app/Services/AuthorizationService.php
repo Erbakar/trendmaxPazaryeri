@@ -279,6 +279,8 @@ final class AuthorizationService
             'store' => ['brands.edit'],
             'delete' => ['brands.edit'],
             'searchTrendyol' => ['brands.view'],
+            // inferFromNames: a dry run only reads; the controller requires both edit permissions to apply.
+            'inferFromNames' => ['brands.view'], 'undoInferred' => ['brands.edit'],
         ],
         MarketplaceController::class => [
             'index' => ['marketplaces.view'],

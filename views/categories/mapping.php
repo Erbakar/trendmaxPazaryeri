@@ -40,6 +40,7 @@ $unsellableLabels = [
 .cmap-infer[hidden]{display:none}
 .cmap-infer h2{margin:0 0 6px;font-size:15px}
 .cmap-infer p{margin:0 0 10px;color:var(--text-secondary);max-width:90ch}
+.cmap-infer-rule{margin:16px 0;border:0;border-top:1px solid var(--border)}
 .cmap-infer-check{display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;max-width:90ch}
 .cmap-infer-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .cmap-infer-status{margin-top:10px;font-weight:600}
@@ -176,7 +177,8 @@ $unsellableLabels = [
 </div>
 <?php elseif (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []);
     $inferKeys = array_values(array_filter(array_map('strval', array_keys(array_filter($blockedByMapping, static fn($n) => (int) $n > 0))), 'ctype_digit'));
-    $canInfer = $canEdit && $can('products.edit') && ($inferKeys !== [] || !empty($attributeIssues['has_inferred'])); ?>
+    $canInfer = $canEdit && $can('products.edit');
+    $canInferBrand = $canInfer && $can('brands.edit'); ?>
 <div class="cmap-alert <?= (int) $attributeIssues['products_blocked'] > 0 ? 'is-danger' : 'is-warning' ?>" role="status" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
     <div>
     <?php if (empty($aiState['refreshed_at'])): ?>
@@ -207,6 +209,8 @@ $unsellableLabels = [
        Rastgele değer seçilmez; adında bir şey yazmayan ürün atlanır. Elle girdiğiniz ürün değerleri değiştirilmez ve işlem geri alınabilir.</p>
     <label class="cmap-infer-check"><input type="checkbox" id="cmapInferNeutral" checked>
         <span>Adında bulunamazsa nötr seçeneği kullan (varsa "Belirtilmemiş", "Çok Renkli", "Unisex", "Diğer"). Kapalıyken yalnız adından okunan değerler yazılır.</span></label>
+    <label class="cmap-infer-check"><input type="checkbox" id="cmapInferOrigin" checked>
+        <span>Menşei boş olan ürünlere Türkiye (TR) yaz. Ürünleriniz Türkiye'de üretilmiyorsa kapatın; ithal ürünün menşeini kategori Özellikler ekranından ayrıca seçin.</span></label>
     <div class="cmap-infer-actions">
         <button type="button" class="cmap-btn" id="cmapInferPreview"<?= $inferKeys === [] ? ' disabled' : '' ?>><i data-lucide="search" aria-hidden="true"></i> Önizle (<?= count($inferKeys) ?> kategori)</button>
         <button type="button" class="cmap-btn is-primary" id="cmapInferApply" disabled><i data-lucide="check" aria-hidden="true"></i> Uygula</button>
@@ -218,6 +222,24 @@ $unsellableLabels = [
     </div>
     <div class="cmap-infer-status" id="cmapInferStatus" role="status" aria-live="polite"></div>
     <div id="cmapInferResult"></div>
+    <?php if ($canInferBrand): ?>
+    <hr class="cmap-infer-rule">
+    <h2>Markası olmayan ürünlere adından marka ata</h2>
+    <p>Markası boş ürünün adında mağazanızdaki bir markanın tam adı geçiyorsa o marka atanır. Markası olan ürünlere dokunulmaz.
+       Atanan markanın Trendyol markasıyla eşleşmiş olması da gerekir; eşleşmemiş olanları <a href="/brands/mapping?marketplace_id=<?= $marketplaceId ?>">Marka Eşleştirme</a> ekranından tamamlayın.</p>
+    <div class="cmap-infer-actions">
+        <button type="button" class="cmap-btn" id="cmapBrandPreview"><i data-lucide="search" aria-hidden="true"></i> Önizle</button>
+        <button type="button" class="cmap-btn is-primary" id="cmapBrandApply" disabled><i data-lucide="check" aria-hidden="true"></i> Uygula</button>
+        <?php if (!empty($attributeIssues['has_inferred_brands'])): ?>
+        <form method="POST" action="/brands/mapping/undo-inferred" onsubmit="return confirm('Ürün adından atanan markalar kaldırılacak. Elle değiştirdikleriniz kalır. Devam edilsin mi?')">
+            <input type="hidden" name="_csrf_token" value="<?= $esc($csrf) ?>"><input type="hidden" name="marketplace_id" value="<?= $marketplaceId ?>">
+            <button type="submit" class="cmap-btn"><i data-lucide="undo-2" aria-hidden="true"></i> Marka atamalarını geri al</button>
+        </form>
+        <?php endif; ?>
+    </div>
+    <div class="cmap-infer-status" id="cmapBrandStatus" role="status" aria-live="polite"></div>
+    <div id="cmapBrandResult"></div>
+    <?php endif; ?>
 </section>
 <script>
 (function () {
@@ -226,7 +248,7 @@ $unsellableLabels = [
     const CSRF = <?= json_encode($csrf, $jsonFlags ?? 0) ?>;
     const $ = (id) => document.getElementById(id);
     const box = $('cmapInfer'), openBtn = $('cmapInferOpen'), previewBtn = $('cmapInferPreview'), applyBtn = $('cmapInferApply');
-    const statusBox = $('cmapInferStatus'), resultBox = $('cmapInferResult'), neutralBox = $('cmapInferNeutral');
+    const statusBox = $('cmapInferStatus'), resultBox = $('cmapInferResult'), neutralBox = $('cmapInferNeutral'), originBox = $('cmapInferOrigin');
     const esc = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const num = (n) => Number(n || 0).toLocaleString('tr-TR');
     let busy = false;
@@ -237,10 +259,10 @@ $unsellableLabels = [
         if (!box.hidden) box.scrollIntoView({ block: 'nearest' });
     });
     // A changed option invalidates the preview the user would be applying.
-    neutralBox.addEventListener('change', function () { if (!busy) applyBtn.disabled = true; });
+    [neutralBox, originBox].forEach((el) => el.addEventListener('change', function () { if (!busy) applyBtn.disabled = true; }));
 
     async function one(key, apply) {
-        const body = new URLSearchParams({ _csrf_token: CSRF, neutral: neutralBox.checked ? '1' : '0', apply: apply ? '1' : '0' });
+        const body = new URLSearchParams({ _csrf_token: CSRF, neutral: neutralBox.checked ? '1' : '0', origin_tr: originBox.checked ? '1' : '0', apply: apply ? '1' : '0' });
         const response = await fetch('/categories/mapping/' + encodeURIComponent(key) + '/trendyol-infer', {
             method: 'POST', credentials: 'same-origin', body: body,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-Token': CSRF },
@@ -253,7 +275,7 @@ $unsellableLabels = [
 
     async function run(apply) {
         if (busy) return;
-        busy = true; previewBtn.disabled = true; applyBtn.disabled = true; neutralBox.disabled = true;
+        busy = true; previewBtn.disabled = true; applyBtn.disabled = true; neutralBox.disabled = true; originBox.disabled = true;
         const total = { checked: 0, blocked: 0, ready: 0, written: 0, failed: 0 }, attrs = {};
         let lastError = '';
         for (let i = 0; i < KEYS.length; i++) {
@@ -275,15 +297,45 @@ $unsellableLabels = [
         resultBox.innerHTML = '<p class="cmap-infer-total"><strong>' + num(total.blocked) + '</strong> engelli üründen <strong>' + num(total.ready) + '</strong> tanesi '
             + (apply ? 'gönderime hazır hale geldi' : 'bu işlemle gönderime hazır olur') + '; ' + num(total.blocked - total.ready) + ' ürün için elle seçim gerekir.'
             + (apply ? ' ' + num(total.written) + ' değer yazıldı.' : '') + '</p>'
-            + (rows ? '<div class="cmap-infer-scroll"><table class="cmap-infer-table"><thead><tr><th>Özellik</th><th>Adından bulundu</th><th>Nötr seçenek</th><th>Bulunamadı</th><th>Örnekler</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '');
+            + (rows ? '<div class="cmap-infer-scroll"><table class="cmap-infer-table"><thead><tr><th>Özellik</th><th>Adından bulundu</th><th>Nötr / varsayılan</th><th>Bulunamadı</th><th>Örnekler</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '');
         statusBox.textContent = total.failed
             ? total.failed + ' kategori işlenemedi: ' + lastError
             : (apply ? 'Uygulandı. Sayfayı yenileyince rapor güncel sayıları gösterir; hazır ürünler Katalog Kontrolü ile gönderilir.' : 'Önizleme tamam. Hiçbir şey yazılmadı; sonuç uygunsa "Uygula"ya basın.');
-        busy = false; previewBtn.disabled = false; neutralBox.disabled = false;
+        busy = false; previewBtn.disabled = KEYS.length === 0; neutralBox.disabled = false; originBox.disabled = false;
         // Nothing to write when the preview found no value at all.
         applyBtn.disabled = apply || Object.keys(attrs).every((n) => attrs[n].text + attrs[n].neutral === 0);
     }
     previewBtn.addEventListener('click', function () { run(false); });
+
+    // ── Marka ──
+    const brandPreview = $('cmapBrandPreview'), brandApply = $('cmapBrandApply'), brandStatus = $('cmapBrandStatus'), brandResult = $('cmapBrandResult');
+    async function brand(apply) {
+        brandPreview.disabled = true; brandApply.disabled = true;
+        brandStatus.textContent = apply ? 'Uygulanıyor…' : 'Önizleniyor…';
+        try {
+            const body = new URLSearchParams({ _csrf_token: CSRF, marketplace_id: String(<?= $marketplaceId ?>), apply: apply ? '1' : '0' });
+            const response = await fetch('/brands/mapping/infer-from-names', { method: 'POST', credentials: 'same-origin', body: body,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-Token': CSRF } });
+            let json = null;
+            try { json = JSON.parse(await response.text()); } catch (e) { /* reported below */ }
+            if (!json || !json.success) throw new Error((json && json.message) || 'Sunucudan beklenmeyen yanıt geldi (' + response.status + ').');
+            const d = json.data || {};
+            const rows = (d.brands || []).map((b) => '<tr><td>' + esc(b.name) + '</td><td>' + num(b.count) + '</td><td>' + (b.mapped ? 'Evet' : 'Hayır — eşleştirin') + '</td></tr>').join('');
+            brandResult.innerHTML = '<p class="cmap-infer-total">Markası olmayan <strong>' + num(d.without_brand) + '</strong> üründen <strong>' + num(d.found) + '</strong> tanesinin adında marka bulundu; bunların '
+                + num(d.mapped) + ' tanesinin markası Trendyol ile eşleşmiş.' + (apply ? ' ' + num(d.assigned) + ' ürüne marka atandı.' : '') + '</p>'
+                + (rows ? '<div class="cmap-infer-scroll"><table class="cmap-infer-table"><thead><tr><th>Marka</th><th>Ürün</th><th>Trendyol eşleşmesi</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '')
+                + ((d.samples || []).length ? '<p class="cmap-infer-samples">' + d.samples.map(esc).join('<br>') + '</p>' : '');
+            brandStatus.textContent = apply ? 'Uygulandı.' : 'Önizleme tamam. Hiçbir şey yazılmadı.';
+            brandApply.disabled = apply || !d.found;
+        } catch (e) { brandStatus.textContent = e.message; }
+        brandPreview.disabled = false;
+    }
+    if (brandPreview) {
+        brandPreview.addEventListener('click', function () { brand(false); });
+        brandApply.addEventListener('click', function () {
+            if (confirm('Önizlemedeki markalar ürünlere atanacak. Sonradan "Marka atamalarını geri al" ile kaldırabilirsiniz. Devam edilsin mi?')) brand(true);
+        });
+    }
     applyBtn.addEventListener('click', function () {
         if (confirm('Önizlemedeki değerler ürünlere yazılacak. Sonradan "Çıkarımları geri al" ile kaldırabilirsiniz. Devam edilsin mi?')) run(true);
     });

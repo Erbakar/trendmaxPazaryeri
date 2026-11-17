@@ -51,7 +51,9 @@ final class XmlProfileController extends BaseController
     {
         $this->requireModule('products');
         $profiles = $this->profileModel->all([], 'id ASC');
+        $running = $this->logModel->runningStartedAt();
         foreach ($profiles as &$p) {
+            $p['running_since'] = $running[(int) $p['id']] ?? null;
             $p['product_count'] = ((string) $p['direction'] === 'import')
                 ? $this->profileModel->getProductCount((int) $p['id'])
                 : (int) $p['total_products'];
@@ -202,6 +204,9 @@ final class XmlProfileController extends BaseController
 
         @set_time_limit(0);
         @ini_set('memory_limit', '512M');
+        // Büyük XML'lerde istek dakikalarca sürer; tarayıcı/proxy bağlantıyı keserse
+        // içe aktarım yarıda kalmasın.
+        @ignore_user_abort(true);
 
         try {
             if (($profile['direction'] ?? '') === 'export') {
@@ -211,7 +216,8 @@ final class XmlProfileController extends BaseController
 
             $result = $this->importService->run($profileId, 'manual');
             if ($result['ok']) {
-                $this->redirectWithSuccess('/xml-profilleri', 'Senkron tamamlandı — ' . $result['message']);
+                $this->redirectWithSuccess('/xml-profilleri', 'Senkron tamamlandı — ' . $result['message']
+                    . '. Ürünler panele alındı; pazaryerine gönderim ayrı bir adımdır (aşağıdaki "Sonraki adım" kutusuna bakın).');
             }
             $this->redirectWithError('/xml-profilleri', $result['message']);
         } catch (\Throwable $e) {

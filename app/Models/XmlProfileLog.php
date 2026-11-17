@@ -84,4 +84,26 @@ final class XmlProfileLog extends BaseModel
     {
         return $this->all(['profile_id' => $profileId], 'id DESC', $limit);
     }
+
+    /**
+     * Şu anda çalışan senkronlar: profil id => başlangıç zamanı.
+     *
+     * Çöken bir koşum kaydı 'running' olarak kalabildiği için yalnız son
+     * $withinMinutes dakikada başlayanlar sayılır.
+     *
+     * @return array<int, string>
+     */
+    public function runningStartedAt(int $withinMinutes = 60): array
+    {
+        $since = time() - $withinMinutes * 60;
+        $out = [];
+        foreach ($this->all(['status' => 'running'], 'id DESC', 50) as $row) {
+            $pid = (int) $row['profile_id'];
+            $started = (string) ($row['started_at'] ?? '');
+            if (!isset($out[$pid]) && $started !== '' && strtotime($started) >= $since) {
+                $out[$pid] = $started;
+            }
+        }
+        return $out;
+    }
 }

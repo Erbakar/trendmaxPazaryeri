@@ -61,6 +61,16 @@ $periodLabel = static function (int $h): string {
 .xp-rates{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .xp-rate{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);font-size:12px;font-weight:700;color:var(--text-primary)}
 .xp-rate small{font-weight:500;color:var(--text-muted)}
+/* Çalıştır geri bildirimi */
+.xp-busy{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 14px;border-radius:10px;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.35);color:var(--text-primary);font-size:13px;font-weight:600}
+.xp-busy[hidden]{display:none}
+.xp-busy svg,.xp-act.is-busy svg{animation:spin 1s linear infinite}
+.xp-busy svg{width:16px;height:16px;flex:none}
+.xp-act[disabled]{opacity:.55;cursor:not-allowed}
+.xp-calisiyor{background:rgba(37,99,235,.12);color:#2563eb;margin-left:6px;font-weight:700}
+.xp-next{margin-top:14px;padding:14px 16px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);font-size:13px;color:var(--text-secondary);line-height:1.6}
+.xp-next strong{color:var(--text-primary)}
+.xp-next-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 </style>
 <?php $subnav = ['active' => '/xml-profilleri', 'items' => [
   ['u' => '/products', 'l' => 'Ürünler'],
@@ -71,6 +81,11 @@ $periodLabel = static function (int $h): string {
   ['u' => '/xml-profilleri', 'l' => 'XML Profilleri'],
 ]]; include BASE_PATH . '/views/layouts/_subnav.php'; ?>
 
+
+<div class="xp-busy" id="xpBusy" role="status" aria-live="polite" hidden>
+    <i data-lucide="loader"></i>
+    <span id="xpBusyText"></span>
+</div>
 
 <div class="o-toolbar">
     <div class="xp-rates">
@@ -136,7 +151,7 @@ $periodLabel = static function (int $h): string {
                     <?php endif; ?>
                     <a href="/xml-profilleri/<?= $pid ?>/kayitlar" class="xp-act xp-kayit"><i data-lucide="list"></i> Kayıtlar</a>
                     <?php if ($canManage): ?>
-                    <form method="POST" action="/xml-profilleri/<?= $pid ?>/calistir" style="display:inline">
+                    <form method="POST" action="/xml-profilleri/<?= $pid ?>/calistir" style="display:inline" class="xp-run-form" data-import="<?= $isImport ? '1' : '0' ?>">
                         <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars($csrf) ?>">
                         <button type="submit" class="xp-act xp-run" title="<?= $isImport ? 'Şimdi senkronize et' : 'XML çıktısını yeniden üret' ?>"><i data-lucide="refresh-cw"></i> Çalıştır</button>
                     </form>
@@ -151,6 +166,9 @@ $periodLabel = static function (int $h): string {
                     : '<span class="o-badge xp-durum-kapali">Kapalı</span>' ?>
             </td>
             <td style="font-weight:700"><?= htmlspecialchars((string) $p['name']) ?>
+                <?php if (!empty($p['running_since'])): ?>
+                    <span class="o-badge xp-calisiyor" title="Sayfayı yenileyerek durumu izleyebilirsiniz">Çalışıyor · <?= date('H:i', strtotime((string) $p['running_since'])) ?></span>
+                <?php endif; ?>
                 <?php if (!empty($p['last_run_status']) && $p['last_run_status'] !== 'success'): ?>
                     <i data-lucide="alert-triangle" style="width:13px;height:13px;color:#f59e0b;vertical-align:-2px" title="<?= htmlspecialchars((string) $p['last_run_summary']) ?>"></i>
                 <?php endif; ?>
@@ -188,3 +206,49 @@ $periodLabel = static function (int $h): string {
     <span><i data-lucide="info" style="width:13px;height:13px;vertical-align:-2px"></i> Döviz (USD/EUR/GBP) bazlı ürünlerin TL fiyatları TCMB satış kuruyla otomatik hesaplanır ve kur cron'u ile güncel tutulur.</span>
     <span><i data-lucide="clock" style="width:13px;height:13px;vertical-align:-2px"></i> Periyotlu profiller sunucu cron'u ile otomatik senkronize edilir (<code>cron/sync_xml_profiles.php</code>).</span>
 </div>
+
+<?php
+$hasImport = false;
+foreach ($profiles as $pp) { if (($pp['direction'] ?? 'import') === 'import') { $hasImport = true; break; } }
+if ($hasImport): ?>
+<div class="xp-next">
+    <strong>Sonraki adım — ürünleri pazaryerine gönderme.</strong>
+    "Çalıştır" yalnızca tedarikçi XML'indeki ürünleri bu panele alır; Trendyol'a kendiliğinden göndermez.
+    Göndermek için kategoriler ve zorunlu Trendyol özellikleri eşleşmiş olmalıdır.
+    Ürünler sayfasındaki "Pazaryerinden Çek" butonu ters yönde çalışır: pazaryerindeki ilanları panele getirir.
+    <div class="xp-next-links">
+        <a href="/products/catalog-audit" class="o-btn o-btn-primary o-btn-sm">Katalog Kontrolü (otomatik gönderim)</a>
+        <a href="/categories/mapping" class="o-btn o-btn-outline o-btn-sm">Kategori Eşleştirme</a>
+        <a href="/products" class="o-btn o-btn-outline o-btn-sm">Ürünler › seç › Pazaryerine Gönder</a>
+    </div>
+</div>
+<?php endif; ?>
+
+<script>
+// "Çalıştır" dakikalarca süren tek bir istektir; basıldığı an görünür geri bildirim ver
+// ve ikinci kez basılmasını engelle.
+document.querySelectorAll('.xp-run-form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+        if (form.dataset.sent === '1') { e.preventDefault(); return; }
+        form.dataset.sent = '1';
+        var btn = form.querySelector('button[type=submit]');
+        document.querySelectorAll('.xp-run-form button[type=submit]').forEach(function (b) {
+            // disabled butonun formu yine gönderilir; yalnız tekrar tıklamayı keser
+            setTimeout(function () { b.disabled = true; }, 0);
+        });
+        if (btn) {
+            btn.classList.add('is-busy');
+            btn.lastChild.textContent = ' Çalışıyor…';
+        }
+        var busy = document.getElementById('xpBusy');
+        if (busy) {
+            document.getElementById('xpBusyText').textContent = form.dataset.import === '1'
+                ? 'Senkron başladı. Ürün sayısına göre birkaç dakika sürebilir; bitince sonuç bu sayfada görünür. Lütfen sayfayı kapatmayın.'
+                : 'XML çıktısı yeniden üretiliyor…';
+            busy.hidden = false;
+        }
+    });
+});
+// Geri tuşuyla (bfcache) dönülürse butonlar kilitli kalmasın
+window.addEventListener('pageshow', function (e) { if (e.persisted) { location.reload(); } });
+</script>

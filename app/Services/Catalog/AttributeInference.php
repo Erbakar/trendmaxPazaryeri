@@ -25,6 +25,8 @@ final class AttributeInference
         'color' => ['cok renkli', 'karisik renkli', 'karisik', 'multicolor'],
         'cinsiyet' => ['unisex'],
     ];
+    /** Names of the Türkiye option in an origin list. */
+    private const ORIGIN_TR = ['tr', 'turkiye', 'turkiye tr', 'tr turkiye'];
     /** Last resort for a silent text. */
     private const OTHER = ['diger'];
     /** Colour words for the free-text colour field: key as mapKey() writes it => display name. */
@@ -40,31 +42,32 @@ final class AttributeInference
      * @param bool $originTr the store states its products are made in Türkiye: an empty origin becomes TR
      * @return array{value:string,option:string,basis:string}|null basis: text | text_multi | neutral | default
      */
-    public static function suggest(array $attribute, array $texts, bool $allowNeutral, bool $originTr = false): ?array
+    public static function suggest(array $attribute, array $texts, bool $allowNeutral, bool $originTr = false, ?array $prepared = null): ?array
     {
-        if ($originTr && self::isOrigin($attribute)) return self::originTr($attribute);
+        $prepared ??= self::prepare($attribute);
+        if ($originTr && self::isOrigin($attribute)) return self::originTr($attribute, $prepared);
         if (!empty($attribute['allowCustom'])) return self::isColour($attribute) ? self::colourText($texts, $allowNeutral) : null;
         if (empty($attribute['values'])) return null;
         foreach ($texts as $text) {
-            $found = self::optionsInText($attribute, (string)$text);
+            $found = self::optionsInText($attribute, (string)$text, $prepared);
             if (count($found) === 1) return ['value' => (string)$found[0]['id'], 'option' => (string)$found[0]['name'], 'basis' => 'text'];
             if (count($found) > 1) {
                 // Several different values in one text ("Kırmızı Beyaz"): only a "mixed" option states that truthfully.
-                $mixed = self::neutral($attribute, false);
+                $mixed = self::neutral($attribute, false, $prepared);
                 return $mixed ? $mixed + ['basis' => 'text_multi'] : null;
             }
         }
-        $neutral = $allowNeutral ? self::neutral($attribute, true) : null;
+        $neutral = $allowNeutral ? self::neutral($attribute, true, $prepared) : null;
         return $neutral ? $neutral + ['basis' => 'neutral'] : null;
     }
 
     /** @return list<array{id:int|string,name:string}> options named in the text, longest phrase wins over its parts */
-    public static function optionsInText(array $attribute, string $text): array
+    public static function optionsInText(array $attribute, string $text, ?array $prepared = null): array
     {
         $name = TrendyolAttributeResolver::mapKey($text);
         if ($name === '') return [];
         $hay = ' '.$name.' ';
-        $index = self::optionIndex($attribute);
+        $index = ($prepared ?? self::prepare($attribute))['index'];
         $hits = [];
         // Only options that start with a word of the text can be in it.
         foreach (array_unique(explode(' ', $name)) as $word) foreach ($index[$word] ?? [] as $key => $option) {
@@ -80,25 +83,24 @@ final class AttributeInference
     }
 
     /**
-     * Matchable options by their first word. Compatible-model lists hold tens of thousands of options,
-     * so they are indexed once per attribute instead of being compared with every product.
-     * @return array<string,array<string,array{id:int|string,name:string}>>
+     * One pass over an attribute's options: matchable options by their first word, and the few
+     * options looked up by name (neutral ones, Türkiye). Compatible-model lists hold tens of
+     * thousands of options, so a caller working through a category prepares each attribute once
+     * and passes the result to suggest().
+     * @return array{index:array<string,array<string,array{id:int|string,name:string}>>,named:array<string,array{value:string,option:string}>}
      */
-    private static function optionIndex(array $attribute): array
+    public static function prepare(array $attribute): array
     {
-        static $cache = [];
-        $values = $attribute['values'] ?? [];
-        $cacheKey = ($attribute['id'] ?? '').'|'.count($values).'|'.($values[0]['id'] ?? '').'|'.($values[count($values) - 1]['id'] ?? '');
-        if (isset($cache[$cacheKey])) return $cache[$cacheKey];
-        if (count($cache) > 50) $cache = [];
-        $index = [];
-        foreach ($values as $option) {
+        $wanted = array_flip(array_merge(self::UNKNOWN, self::OTHER, self::ORIGIN_TR, ...array_values(self::MIXED)));
+        $index = []; $named = [];
+        foreach ($attribute['values'] ?? [] as $option) {
             $key = TrendyolAttributeResolver::mapKey((string)($option['name'] ?? ''));
+            if (isset($wanted[$key]) && !isset($named[$key])) $named[$key] = ['value' => (string)$option['id'], 'option' => (string)$option['name']];
             // A bare number ("3", "12") or a one/two letter code ("M", "XL") matches unrelated words and counts.
             if ($key === '' || mb_strlen($key) < 3 || ctype_digit(str_replace(' ', '', $key)) || in_array($key, self::STOP, true)) continue;
             $index[explode(' ', $key)[0]][$key] = ['id' => $option['id'], 'name' => (string)$option['name']];
         }
-        return $cache[$cacheKey] = $index;
+        return ['index' => $index, 'named' => $named];
     }
 
     /**
@@ -106,15 +108,14 @@ final class AttributeInference
      *                     false: the text names several values (only a "mixed" option fits)
      * @return array{value:string,option:string}|null
      */
-    public static function neutral(array $attribute, bool $silent): ?array
+    public static function neutral(array $attribute, bool $silent, ?array $prepared = null): ?array
     {
         $name = ' '.TrendyolAttributeResolver::mapKey((string)($attribute['name'] ?? '')).' ';
         $mixed = [];
         foreach (self::MIXED as $word => $names) if (str_contains($name, ' '.$word.' ')) $mixed = array_merge($mixed, $names);
         $wanted = $silent ? array_merge(self::UNKNOWN, $mixed, self::OTHER) : $mixed;
-        foreach ($wanted as $want) foreach ($attribute['values'] ?? [] as $option) {
-            if (TrendyolAttributeResolver::mapKey((string)($option['name'] ?? '')) === $want) return ['value' => (string)$option['id'], 'option' => (string)$option['name']];
-        }
+        $named = ($prepared ?? self::prepare($attribute))['named'];
+        foreach ($wanted as $want) if (isset($named[$want])) return $named[$want];
         return null;
     }
 
@@ -125,12 +126,11 @@ final class AttributeInference
     }
 
     /** The Türkiye option of an origin list (Trendyol lists country codes), or the word itself for free text. */
-    private static function originTr(array $attribute): ?array
+    private static function originTr(array $attribute, array $prepared): ?array
     {
         if (!empty($attribute['allowCustom'])) return ['value' => 'Türkiye', 'option' => 'Türkiye', 'basis' => 'default'];
-        foreach (['tr', 'turkiye', 'turkiye tr', 'tr turkiye'] as $want) foreach ($attribute['values'] ?? [] as $option) {
-            if (TrendyolAttributeResolver::mapKey((string)($option['name'] ?? '')) === $want) return ['value' => (string)$option['id'], 'option' => (string)$option['name'], 'basis' => 'default'];
-        }
+        $named = $prepared['named'];
+        foreach (self::ORIGIN_TR as $want) if (isset($named[$want])) return $named[$want] + ['basis' => 'default'];
         return null;
     }
 

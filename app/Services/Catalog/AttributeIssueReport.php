@@ -250,6 +250,7 @@ final class AttributeIssueReport
      */
     public static function aggregate(array $mapping, array $attributes, array $products, array $locals): array
     {
+        $attributes = TrendyolAttributeResolver::withOptionIndex($attributes);
         $byId = array_column($attributes, null, 'id');
         $missing = []; $unmatched = []; $other = []; $blocked = 0;
         foreach ($products as $product) {

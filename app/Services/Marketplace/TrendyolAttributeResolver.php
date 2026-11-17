@@ -37,13 +37,11 @@ final class TrendyolAttributeResolver
         if (!$multiple && count($requested)>1) throw new \InvalidArgumentException('Bu özellik tek değer kabul ediyor.');
         if ($requested === []) throw new \InvalidArgumentException('En az bir seçenek seçin.');
         $ids = [];
-        // A saved option id is looked up, not searched: lists such as compatible phone models hold
-        // tens of thousands of options and this runs for every product of a category.
-        $byId = $local ? [] : self::optionIds($attribute);
+        $byId = !$local && isset($attribute['_ids']) ? $attribute['_ids'] : null; // see withOptionIndex()
         foreach ($requested as $value) {
             if (!is_scalar($value)) throw new \InvalidArgumentException('Geçersiz seçenek.');
             $found = null;
-            if (!$local) {
+            if ($byId !== null) {
                 if (!isset($byId[(string)$value])) throw new \InvalidArgumentException('Trendyol’un geçerli seçeneklerinden birini seçin.');
                 $ids[] = $byId[(string)$value];
                 continue;
@@ -64,17 +62,21 @@ final class TrendyolAttributeResolver
         return $item + ($multiple ? ['attributeValueIds'=>$ids] : ['attributeValueId'=>$ids[0]]);
     }
 
-    /** @return array<string,int> option id (as saved) => option id */
-    private static function optionIds(array $attribute): array
+    /**
+     * Adds an option-id lookup to each attribute for callers that resolve many products of one
+     * category (lists such as compatible phone models hold tens of thousands of options).
+     * Attributes without it are searched as before.
+     */
+    public static function withOptionIndex(array $attributes): array
     {
-        static $cache = [];
-        $values = $attribute['values'] ?? [];
-        $key = ($attribute['id'] ?? '').'|'.count($values).'|'.($values[0]['id'] ?? '').'|'.($values[count($values) - 1]['id'] ?? '');
-        if (isset($cache[$key])) return $cache[$key];
-        if (count($cache) > 50) $cache = [];
-        $map = [];
-        foreach ($values as $option) $map[(string)$option['id']] = (int)$option['id'];
-        return $cache[$key] = $map;
+        foreach ($attributes as &$attribute) {
+            if (!empty($attribute['allowCustom']) || isset($attribute['_ids'])) continue;
+            $map = [];
+            foreach ($attribute['values'] ?? [] as $option) $map[(string)$option['id']] = (int)$option['id'];
+            $attribute['_ids'] = $map;
+        }
+        unset($attribute);
+        return $attributes;
     }
 
     /**

@@ -46,7 +46,8 @@ final class AttributeInferenceService
      */
     public static function plan(array $mapping, array $attributes, array $products, array $locals, bool $allowNeutral, bool $originTr = false): array
     {
-        $byId = [];
+        $attributes = TrendyolAttributeResolver::withOptionIndex($attributes);
+        $byId = []; $prepared = [];
         foreach ($attributes as $a) $byId[(string)$a['id']] = $a;
         $values = []; $stats = []; $blocked = 0; $ready = 0; $written = 0;
         $config = CategoryMarketplaceMapping::decodeAttributeMapping($mapping);
@@ -68,7 +69,7 @@ final class AttributeInferenceService
                 if ($attribute === null) continue;
                 $slot = &$stats[$aid];
                 $slot = ($slot ?? []) + ['name' => (string)$attribute['name'], 'text' => 0, 'neutral' => 0, 'none' => 0, 'samples' => []];
-                $hit = AttributeInference::suggest($attribute, array_values(array_filter([$xmlValue, (string)($product['name'] ?? '')], static fn($t) => $t !== '')), $allowNeutral, $originTr);
+                $hit = AttributeInference::suggest($attribute, array_values(array_filter([$xmlValue, (string)($product['name'] ?? '')], static fn($t) => $t !== '')), $allowNeutral, $originTr, $prepared[$aid] ??= AttributeInference::prepare($attribute));
                 if ($hit === null) { $slot['none']++; unset($slot); continue; }
                 $slot[in_array($hit['basis'], ['neutral', 'default'], true) ? 'neutral' : 'text']++;
                 if (count($slot['samples']) < 3) $slot['samples'][] = mb_substr((string)($product['name'] ?? ''), 0, 70).' → '.$hit['option'];

@@ -145,4 +145,20 @@ final class AttributeInferenceTest extends TestCase
         $this->assertSame(2, $from('Dede Pilsan Uyumlu Yedek Teker')); // two brands: the one the title starts with
         $this->assertNull($from('Uyumlu Teker Pilsan Dede'));          // two brands, neither leads
     }
+
+    public function testOptionIndexResolvesExactlyLikeTheListSearchAndNeverLeaksBetweenLists(): void
+    {
+        $r = \App\Services\Marketplace\TrendyolAttributeResolver::class;
+        $a = ['id' => 9, 'name' => 'Menşei', 'values' => [['id' => 1, 'name' => 'TR'], ['id' => 2, 'name' => 'CN']]];
+        $b = ['id' => 9, 'name' => 'Menşei', 'values' => [['id' => 1, 'name' => 'CN'], ['id' => 3, 'name' => 'TR']]]; // same id, other list
+        [$ia, $ib] = $r::withOptionIndex([$a, $b]);
+        foreach ([[$a, $ia], [$b, $ib]] as [$plain, $indexed]) foreach (['1', '2', '3', 'x'] as $value) {
+            $run = static function (array $attribute) use ($r, $value) { try { return $r::value($attribute, $value); } catch (\InvalidArgumentException $e) { return $e->getMessage(); } };
+            $this->assertSame($run($plain), $run($indexed), "value $value");
+        }
+        $this->assertSame(['attributeId' => 9, 'attributeValueId' => 3], $r::value($ib, '3'));
+        // Prepared inference data belongs to its own list as well.
+        $this->assertSame('1', AttributeInference::suggest($a, ['x'], false, true, AttributeInference::prepare($a))['value']);
+        $this->assertSame('3', AttributeInference::suggest($b, ['x'], false, true, AttributeInference::prepare($b))['value']);
+    }
 }

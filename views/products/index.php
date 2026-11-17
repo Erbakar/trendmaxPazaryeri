@@ -937,7 +937,8 @@ const PROD_MP_DATA = new Map(); // productId → mpMap
     let hideTimer = null;
 
     document.addEventListener('mouseenter', function(e){
-        const strip = e.target.closest('.mp-strip');
+        // Fare sayfaya girip çıkarken hedef document'tır; onda closest() yoktur.
+        const strip = e.target instanceof Element ? e.target.closest('.mp-strip') : null;
         if(!strip) return;
         clearTimeout(hideTimer);
         const wrap = strip.closest('.mp-strip-wrap');
@@ -980,7 +981,8 @@ const PROD_MP_DATA = new Map(); // productId → mpMap
     }, true);
 
     document.addEventListener('mouseleave', function(e){
-        const strip = e.target.closest('.mp-strip');
+        // Fare sayfaya girip çıkarken hedef document'tır; onda closest() yoktur.
+        const strip = e.target instanceof Element ? e.target.closest('.mp-strip') : null;
         if(!strip) return;
         hideTimer = setTimeout(()=>{ pop.classList.remove('show'); }, 120);
     }, true);

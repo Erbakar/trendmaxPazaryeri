@@ -161,4 +161,21 @@ final class CatalogAuditTest extends TestCase
         self::assertFalse($covered(['id'=>9002,'_override_id'=>9002,'marketplace_category_id'=>'1877'],$mapping));// moved elsewhere
         self::assertFalse($covered(['id'=>466,'_override_id'=>466,'marketplace_category_id'=>''],$mapping));      // override id colliding with the mapping id
     }
+
+    public function testEachProductOfABatchPublishIsJudgedOnItsOwn(): void
+    {
+        $result=['success'=>0,'processing'=>2,'skipped'=>1,'failed'=>1,'batch_ids'=>['B1'],'errors'=>[
+            ['product_id'=>3,'error'=>'Validasyon hatası: Ürün görseli eksik'],
+            ['product_id'=>4,'error'=>'Kategori özelliği geçersiz'],
+            ['product_id'=>0,'error'=>'Fiyat/stok gönderilemedi'],
+        ]];
+        $own=[\App\Services\Catalog\CatalogAuditService::class,'productResult'];
+        $state=[\App\Services\Catalog\CatalogAuditPolicy::class,'submissionState'];
+        self::assertSame('accepted',$state($own($result,1,['sync_error'=>'Batch kontrol bekliyor: B1'])));
+        self::assertSame('accepted',$state($own($result,2,['sync_error'=>'Batch kontrol bekliyor: B1'])));
+        self::assertSame('not_submitted',$state($own($result,3,['sync_error'=>'Validasyon hatası: Ürün görseli eksik'])));
+        self::assertSame('rejected',$state($own($result,4,['sync_error'=>'Kategori özelliği geçersiz'])));
+        self::assertSame('unknown',$state($own($result,5,[])));      // never seen by the publish service
+        self::assertSame(['B1'],$own($result,1,['sync_error'=>'Batch kontrol bekliyor: B1'])['batch_ids']);
+    }
 }

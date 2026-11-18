@@ -14,6 +14,9 @@ final class CatalogAuditService
     public function __construct(private readonly Container $container,private readonly CatalogAuditRepository $repo,
         private readonly StoreSetting $settings,private readonly CatalogImageProbe $images) {}
     private function get(string $class): object { return $this->container->get($class); }
+    /** New listings that passed every per-item check in this tick, sent together (see flushPublishQueue). */
+    private array $publishQueue=[];
+    private const PUBLISH_BATCH=25;
     /** Seconds spent per audit step in the current tick; written to storage/cache for diagnosis. */
     private array $timing=[];
     private function time(string $step,float $since): void
@@ -116,8 +119,16 @@ final class CatalogAuditService
                         $item['checks']['source_evidence']=$proof;
                     }
                     $t=microtime(true);
-                    if($this->configuration()['publish'])$item=$this->dispatch($mid,(int)$run['id'],$item,$snapshot);
+                    if($this->configuration()['publish'])$item=$this->dispatch($mid,(int)$run['id'],$item,$snapshot,true);
                     $this->time('dispatch:'.$item['status'],$t);
+                    if($item['status']==='queued'){
+                        // Stored with its send result when the queue is flushed; nothing was recorded yet.
+                        $this->publishQueue[]=$item;
+                        if(count($this->publishQueue)>=self::PUBLISH_BATCH)$this->flushPublishQueue($mid,(int)$run['id']);
+                        $cursor++;$processed++;
+                        $this->repo->progress((int)$run['id'],'running',$cursor,(int)$run['total']);
+                        continue;
+                    }
                 }catch(\Throwable $e){
                     $item=['key'=>$entity['key'],'product_id'=>$entity['product_id']??null,'source_product_id'=>$entity['source_product_id']??null,
                         'sku'=>$entity['sku']??'','barcode'=>$entity['remote']['barcode']??'','name'=>$entity['remote']['name']??'',
@@ -135,9 +146,12 @@ final class CatalogAuditService
                 $keepIds=array_column($keep,'id');
                 foreach(glob($this->repo->directory().'/run-*.json')?:[]as$file)if(preg_match('/run-([0-9]+)\.json$/',$file,$match)&&!in_array($match[1],$keepIds))unlink($file);
             }
+            $this->flushPublishQueue($mid,(int)$run['id']);
             $this->saveTiming($processed,$tickStarted);
             return ['run_id'=>$run['id'],'checked'=>$cursor,'total'=>$run['total'],'processed'=>$processed];
         }catch(\Throwable $e){
+            // Items already checked must not lose their send because a later one failed the tick.
+            if($run)try{$this->flushPublishQueue($mid,(int)$run['id']);}catch(\Throwable){}
             if($run)$this->repo->progress((int)$run['id'],'failed',(int)$run['cursor_pos'],(int)$run['total'],$e->getMessage());
             throw $e;
         }finally{$this->repo->db->query('SELECT RELEASE_LOCK(?)',[$lock]);}
@@ -333,7 +347,70 @@ final class CatalogAuditService
             $this->repo->put($mid,$run,$item);
         }
     }
-    private function dispatch(int $mid,int $run,array $item,array $snapshot): array
+    /**
+     * Sends the queued new listings in ONE create request instead of one request each (0.8 s per
+     * product on live). Every item passed dispatch()'s checks moments ago; intents are written only
+     * now, so a tick that dies before the flush leaves nothing pending and the next pass retries.
+     * The outcome is read per product: the publish service records each product's own state.
+     */
+    private function flushPublishQueue(int $mid,int $run): void
+    {
+        if(!$this->publishQueue)return;
+        $queue=$this->publishQueue;$this->publishQueue=[];
+        $ids=[];
+        foreach($queue as$i=>$item)$ids[$i]=$this->repo->intent($mid,$run,$item,'publish',$item['payload']);
+        $t=microtime(true);
+        try{
+            $result=$this->get(ProductPublishService::class)->publishProducts(array_map(static fn($q)=>(int)$q['product_id'],$queue),$mid);
+        }catch(\App\Services\PublishBusyException $e){
+            foreach($queue as$i=>$item){
+                $this->repo->actionResult($ids[$i],'retryable',['error'=>$e->getMessage()]);
+                $item['status']='ready';$item['checks']['errors'][]='Gönderim sırası dolu; sonraki otomatik kontrolde yeniden denenecek.';
+                $this->repo->put($mid,$run,$item);
+            }
+            return;
+        }catch(\Throwable $e){
+            foreach($queue as$i=>$item){
+                $this->repo->actionResult($ids[$i],'unknown',['error'=>$e->getMessage()]);
+                $item['status']='awaiting_result';$item['checks']['errors'][]='İstek sonucu belirsiz: '.$e->getMessage();
+                $this->repo->put($mid,$run,$item);
+            }
+            return;
+        }finally{$this->time('send:publish_batch',$t);}
+        $listings=[];
+        foreach($queue as$item)$listings[(int)$item['product_id']]=$this->repo->db->fetchOne('SELECT is_listed,sync_error FROM marketplace_products WHERE store_id=? AND marketplace_id=? AND product_id=?',[$this->repo->store(),$mid,(int)$item['product_id']])?:[];
+        foreach($queue as$i=>$item){
+            $own=self::productResult($result,(int)$item['product_id'],$listings[(int)$item['product_id']]);
+            $state=CatalogAuditPolicy::submissionState($own);
+            if(in_array($state,['rejected','not_submitted'],true))$own['rejection']=self::responseErrors($own['errors'])?:'Gönderim doğrulaması başarısız.';
+            $this->repo->actionResult($ids[$i],$state,$own);
+            $item['status']=$state==='rejected'?'rejected':($state==='not_submitted'?($item['remote']?'rejected':'needs_review'):'awaiting_result');
+            if(!empty($own['errors']))$item['checks']['errors'][]='Gönderim yanıtı: '.self::responseErrors($own['errors']);
+            $this->repo->put($mid,$run,$item);
+        }
+    }
+
+    /**
+     * Pure (unit tested): one product's share of a multi-product publish result, in the shape a
+     * single-product publish returns, so submissionState() judges it exactly as before.
+     */
+    public static function productResult(array $result,int $productId,array $listing): array
+    {
+        $errors=array_values(array_filter($result['errors']??[],static fn($e)=>(int)($e['product_id']??-1)===$productId));
+        $pending=str_starts_with((string)($listing['sync_error']??''),'Batch kontrol bekliyor: ');
+        if($errors){
+            // Messages the publish service writes when it never sent the product.
+            $notSent=['Validasyon hatası','Önceki gönderim','Bu XML ürünü','Mevcut Trendyol kaydı'];
+            foreach($notSent as$prefix)if(str_starts_with((string)$errors[0]['error'],$prefix))return ['skipped'=>1,'errors'=>$errors];
+            if($pending)return ['processing'=>1,'errors'=>$errors,'batch_ids'=>[trim(substr((string)$listing['sync_error'],strlen('Batch kontrol bekliyor: ')))]];
+            return ['failed'=>1,'errors'=>$errors];
+        }
+        if($pending)return ['processing'=>1,'errors'=>[],'batch_ids'=>[trim(substr((string)$listing['sync_error'],strlen('Batch kontrol bekliyor: ')))]];
+        if(!empty($result['batch_ids'])&&!empty($listing['is_listed']))return ['success'=>1,'errors'=>[],'batch_ids'=>$result['batch_ids']];
+        return ['errors'=>[]];
+    }
+
+    private function dispatch(int $mid,int $run,array $item,array $snapshot,bool $defer=false): array
     {
         $pending=$this->repo->pending($mid,$item['key']);
         if($pending){
@@ -383,6 +460,7 @@ final class CatalogAuditService
             }
         }
         $operation=$publish?'publish':($item['status']==='close_required'?'close':'inventory');
+        if($publish&&$defer){$item['status']='queued';return $item;}
         $id=$this->repo->intent($mid,$run,$item,$operation,$publish?$item['payload']:$payload);
         try {
             $t=microtime(true);

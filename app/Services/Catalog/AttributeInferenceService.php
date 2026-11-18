@@ -27,12 +27,7 @@ final class AttributeInferenceService
         $mapping = null;
         foreach ($this->report->mappings($mid) as $entry) if ($entry['key'] === $key) { $mapping = $entry['mapping']; break; }
         if ($mapping === null) return $empty;
-        // Same set as AttributeIssueReport::pendingProducts(), asked in bulk (see pendingAmong()).
-        $ids = array_map(static fn(array $r): int => (int)$r['id'], $this->container->get(Database::class)->fetchAll(
-            'SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id',
-            [$this->container->get(\App\Core\TenantContext::class)->currentStoreId(), (int)$mapping['category_id'], $mid]));
-        $products = [];
-        foreach (array_chunk($ids, 1000) as $chunk) foreach ($this->report->pendingAmong($chunk, $mid) as $row) $products[] = $row;
+        $products = $this->report->pendingProducts($mapping, $mid, false);
         if ($products === []) return $empty;
         $attributes = $this->container->get(TrendyolAttributeCatalog::class)->get((string)$mapping['marketplace_category_id'])['attributes'];
         $plan = self::plan($mapping, $attributes, $products, $this->report->localAttributes(array_column($products, 'id')), $allowNeutral, $originTr);

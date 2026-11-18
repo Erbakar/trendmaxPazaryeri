@@ -213,27 +213,20 @@ final class AttributeIssueReport
     /** Products of this mapping that are not already live on Trendyol (new, rejected or never sent). */
     public function pendingProducts(array $mapping, int $mid, bool $override): array
     {
-        $params = [$this->store()];
-        if ($override) { $scope = 'p.id=?'; $params[] = (int)$mapping['product_id']; }
-        else {
-            $scope = 'p.category_id=? AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?)';
-            array_push($params, (int)$mapping['category_id'], $mid);
-        }
-        // Live = the latest catalog check saw it on Trendyol (not rejected); without a check, a listed row with a remote id.
-        return $this->db->fetchAll("SELECT p.id, p.sku, p.name FROM products p
-            WHERE p.store_id=? AND $scope AND COALESCE(p.is_active,1)=1 AND COALESCE(p.is_archived,0)=0
-              AND NOT EXISTS (SELECT 1 FROM catalog_audit_items ai WHERE ai.store_id=p.store_id AND ai.marketplace_id=? AND ai.product_id=p.id
-                    AND ai.status NOT IN ('rejected','not_observed') AND ai.remote_json IS NOT NULL AND ai.remote_json<>'null')
-              AND NOT (NOT EXISTS (SELECT 1 FROM catalog_audit_items ai2 WHERE ai2.store_id=p.store_id AND ai2.marketplace_id=? AND ai2.product_id=p.id AND ai2.status<>'not_observed')
-                   AND EXISTS (SELECT 1 FROM marketplace_products mp WHERE mp.store_id=p.store_id AND mp.marketplace_id=? AND mp.product_id=p.id AND mp.is_listed=1 AND COALESCE(mp.marketplace_product_id,'')<>''))
-            ORDER BY p.id", [...$params, $mid, $mid, $mid]);
+        if ($override) $ids = [(int)$mapping['product_id']];
+        else $ids = array_map(static fn(array $r): int => (int)$r['id'], $this->db->fetchAll(
+            'SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id',
+            [$this->store(), (int)$mapping['category_id'], $mid]));
+        $out = [];
+        foreach (array_chunk($ids, 1000) as $chunk) foreach ($this->pendingAmong($chunk, $mid) as $row) $out[] = $row;
+        return $out;
     }
 
     /**
-     * pendingProducts() for a known set of products in three queries instead of three subqueries per
-     * product (the per-product form took about 0.2 s each on a 42k catalog). Same rule: a product is
-     * pending unless the latest catalog check saw it on Trendyol, or - without any check - it is a
-     * listed row with a remote id.
+     * Which of these products are pending, in three flat queries. (The former single query with three
+     * correlated subqueries took about 0.2 s per product on a 42k catalog.) A product is pending
+     * unless the latest catalog check saw it on Trendyol, or - without any check - it is a listed
+     * row with a remote id.
      * @param list<int> $ids
      * @return array<int,array{id:int,sku:string,name:string}> by product id
      */

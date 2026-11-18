@@ -183,4 +183,21 @@ final class AttributeInferenceTest extends TestCase
         $this->assertNull(AttributeInference::suggest($brand, ['LG G7 Ekran Koruyucu'], false));   // two-letter stem is too short to trust
         $this->assertNull(AttributeInference::suggest($brand, ['Apple Realme Kılıf Seti'], false)); // two brands: no single answer
     }
+
+    public function testChosenDefaultFillsOnlyWhatTheTitleLeavesOpenAndOpenOnesAreListed(): void
+    {
+        $case = ['id' => 600, 'name' => 'Kılıf Tipi', 'required' => true, 'values' => [['id' => 1, 'name' => 'Kapaklı Kılıf'], ['id' => 2, 'name' => 'Silikon Kılıf']]];
+        $sleep = ['id' => 601, 'name' => 'Uyku Modu', 'required' => true, 'values' => [['id' => 7, 'name' => 'Var'], ['id' => 8, 'name' => 'Yok']]];
+        $products = [['id' => 1, 'sku' => 'A', 'name' => 'iPad 9 Kapakli Kilif'], ['id' => 2, 'sku' => 'B', 'name' => 'iPad 9 Kilif']];
+        $open = AttributeInferenceService::plan(['attribute_mapping_json' => '{}'], [$case, $sleep], $products, [], false);
+        $this->assertSame(0, $open['ready']);
+        $this->assertSame(['601' => 2, '600' => 1], array_column($open['unresolved'], 'n', 'aid'));
+        $this->assertSame(['iPad 9 Kapakli Kilif', 'iPad 9 Kilif'], $open['unresolved'][0]['aid'] === '601' ? $open['unresolved'][0]['samples'] : $open['unresolved'][1]['samples']);
+        $plan = AttributeInferenceService::plan(['attribute_mapping_json' => '{}'], [$case, $sleep], $products, [], false, false, ['600' => '2', '601' => '8', '999' => '1']);
+        $this->assertSame(['id:1' => ['600' => '1', '601' => '8'], 'id:2' => ['600' => '2', '601' => '8']], $plan['values']); // the title still wins
+        $this->assertSame(2, $plan['ready']);
+        $this->assertSame([], $plan['unresolved']);
+        $bad = AttributeInferenceService::plan(['attribute_mapping_json' => '{}'], [$case, $sleep], $products, [], false, false, ['601' => '42']);
+        $this->assertSame(0, $bad['ready']); // a value that is not one of the category's options is ignored
+    }
 }

@@ -169,7 +169,7 @@ final class TrendyolAttributeController extends BaseController
         if ($apply && (!$this->authorization()->hasPermission('categories.edit') || !$this->authorization()->hasPermission('products.edit'))) $this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
         @set_time_limit(120);
         try {
-            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->run((string)$id, $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1'));
+            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->run((string)$id, $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1', self::chosenDefaults($request)));
         } catch (\Throwable $e) {
             $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
         }
@@ -185,10 +185,22 @@ final class TrendyolAttributeController extends BaseController
         @set_time_limit(120);
         try {
             $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->runOverrides((int)$categoryId, max(0,$request->integer('after')), 150,
-                $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1'));
+                $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1', self::chosenDefaults($request)));
         } catch (\Throwable $e) {
             $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
         }
+    }
+    /** {"<trendyol category id>": {"<attribute id>": "<option id or text>"}} from the request; anything else is dropped. */
+    private static function chosenDefaults(Request $request): array
+    {
+        $raw = json_decode((string)$request->post('chosen', ''), true);
+        if (!is_array($raw)) return [];
+        $out = [];
+        foreach ($raw as $target => $pairs) {
+            if (!ctype_digit((string)$target) || !is_array($pairs)) continue;
+            foreach ($pairs as $aid => $value) if (ctype_digit((string)$aid) && is_scalar($value) && trim((string)$value) !== '') $out[(string)$target][(string)$aid] = trim((string)$value);
+        }
+        return $out;
     }
     /** Removes the inferred values again (hand-edited ones stay). */
     public function undoInference(Request $request): void

@@ -63,7 +63,9 @@ final class CatalogAuditService
                 $run['total']=count($snapshot['entities']);$this->repo->progress((int)$run['id'],'running',0,$run['total']);
             }else $snapshot=$this->repo->snapshot((int)$run['id']);
             // Refresh source data during long passes; a failed refresh never turns missing rows into zero stock.
-            if(($snapshot['source_at']??0)<time()-900){
+            // Refreshed at 10 minutes so a tick never runs into dispatch()'s 15-minute freshness guard: with the
+            // same threshold, a tick starting just before the mark sent nothing until the next full pass.
+            if(($snapshot['source_at']??0)<time()-600){
                 $snapshot['sources']=$this->sources();$snapshot['source_at']=time();$this->repo->saveSnapshot((int)$run['id'],$snapshot);
             }
             if($this->configuration()['publish'])$this->retryUnsubmitted($mid,(int)$run['id'],$snapshot,$deadline);

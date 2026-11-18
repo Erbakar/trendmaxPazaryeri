@@ -184,6 +184,17 @@ final class AttributeInferenceTest extends TestCase
         $this->assertNull(AttributeInference::suggest($brand, ['Apple Realme Kılıf Seti'], false)); // two brands: no single answer
     }
 
+    public function testSubBrandInTheTitleResolvesToItsBrand(): void
+    {
+        $brand = ['id' => 1059, 'name' => 'Uyumlu Marka', 'required' => true, 'values' => [
+            ['id' => 1, 'name' => 'Xiaomi Uyumlu'], ['id' => 2, 'name' => 'Redmi Uyumlu'], ['id' => 3, 'name' => 'POCO Uyumlu'], ['id' => 4, 'name' => 'Realme Uyumlu']]];
+        $this->assertSame('1', AttributeInference::suggest($brand, ['Xiaomi Redmi Note 9 5d Eko Cam Ekran Koruyucu'], false)['value']);
+        $this->assertSame('1', AttributeInference::suggest($brand, ['Xiaomi Poco X8 Pro Max 3d Hayalet Cam'], false)['value']);
+        $this->assertSame('2', AttributeInference::suggest($brand, ['Redmi 9a Ekran Koruyucu'], false)['value']); // sub-brand alone
+        $this->assertNull(AttributeInference::suggest($brand, ['Redmi Realme Kılıf Seti'], false));  // sub-brand of another brand
+        $this->assertNull(AttributeInference::suggest($brand, ['Redmi Poco Kılıf Seti'], false));    // two sub-brands, no parent named
+    }
+
     public function testChosenDefaultFillsOnlyWhatTheTitleLeavesOpenAndOpenOnesAreListed(): void
     {
         $case = ['id' => 600, 'name' => 'Kılıf Tipi', 'required' => true, 'values' => [['id' => 1, 'name' => 'Kapaklı Kılıf'], ['id' => 2, 'name' => 'Silikon Kılıf']]];

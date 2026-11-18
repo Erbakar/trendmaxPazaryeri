@@ -51,6 +51,9 @@ final class AttributeInference
         foreach ($texts as $text) {
             $found = self::optionsInText($attribute, (string)$text, $prepared);
             if (count($found) === 1) return ['value' => (string)$found[0]['id'], 'option' => (string)$found[0]['name'], 'basis' => 'text'];
+            if (count($found) > 1 && ($first = self::firstCompatible($found, (string)$text)) !== null) {
+                return ['value' => (string)$first['id'], 'option' => (string)$first['name'], 'basis' => 'text'];
+            }
             if (count($found) > 1) {
                 // Several different values in one text ("Kırmızı Beyaz"): only a "mixed" option states that truthfully.
                 $mixed = self::neutral($attribute, false, $prepared);
@@ -80,6 +83,34 @@ final class AttributeInference
         $byId = [];
         foreach ($hits as $hit) $byId[(string)$hit['id']] = $hit;
         return array_values($byId);
+    }
+
+    /** Sub-brand => brand, as phone titles name them together ("Xiaomi Redmi Note 9", "Xiaomi Poco X6"). */
+    private const SUB_BRANDS = ['redmi' => 'xiaomi', 'poco' => 'xiaomi'];
+
+    /**
+     * Compatibility lists hold a brand and its sub-brands ("Xiaomi Uyumlu", "Redmi Uyumlu", "POCO Uyumlu").
+     * When the hits are exactly one brand plus its own sub-brands, the device is that brand's and the
+     * brand option is true. Two unrelated brands ("Apple Realme Kılıf Seti") stay open.
+     * @param list<array{id:int|string,name:string}> $found
+     * @return array{id:int|string,name:string}|null
+     */
+    private static function firstCompatible(array $found, string $text): ?array
+    {
+        $parent = null; $stems = [];
+        foreach ($found as $option) {
+            $key = TrendyolAttributeResolver::mapKey($option['name']);
+            if (!str_ends_with($key, ' uyumlu')) return null;
+            $stems[substr($key, 0, -7)] = $option;
+        }
+        foreach ($stems as $stem => $option) {
+            if (isset(self::SUB_BRANDS[$stem])) continue;
+            if ($parent !== null) return null; // two top-level brands
+            $parent = $stem;
+        }
+        if ($parent === null) return null;
+        foreach (array_keys($stems) as $stem) if ($stem !== $parent && (self::SUB_BRANDS[$stem] ?? null) !== $parent) return null;
+        return $stems[$parent];
     }
 
     /**

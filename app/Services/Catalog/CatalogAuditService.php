@@ -98,7 +98,7 @@ final class CatalogAuditService
                         $source=$snapshot['sources'][(int)$next['profile_id']]['rows'][(string)$next['sku']]??null;
                         array_push($urls,...array_map([CatalogAuditPolicy::class,'url'],$source['images']??[]),...($next['remote']['images']??[]));
                     }
-                    $this->images->prefetch($urls);
+                    $t=microtime(true);$this->images->prefetch($urls);$this->time('prefetch_images',$t);
                 }
                 $entity=$snapshot['entities'][$cursor];
                 try {

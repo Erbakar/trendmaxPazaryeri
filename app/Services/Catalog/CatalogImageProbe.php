@@ -13,10 +13,16 @@ final class CatalogImageProbe
         return (bool)filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE)
             &&!str_starts_with(strtolower($ip),'::ffff:');
     }
-    public function inspect(string $url,int $maxAge=86400): array
+    /**
+     * A working image stays valid this long. A catalog pass now takes several hours, so a one-day
+     * limit re-downloaded every image of the catalog on each pass; dispatch still demands a check
+     * younger than 15 minutes before anything is sent, and a failed check is retried after 15 minutes.
+     */
+    public const OK_TTL=3*86400;
+    public function inspect(string $url,int $maxAge=self::OK_TTL): array
     {
         $old=$this->cached($url);
-        if($old&&($old['algorithm']??0)===2&&($old['at']??0)>time()-min(max(0,$maxAge),!empty($old['ok'])?86400:900))return $old;
+        if($old&&($old['algorithm']??0)===2&&($old['at']??0)>time()-min(max(0,$maxAge),!empty($old['ok'])?self::OK_TTL:900))return $old;
         try{$result=$this->download($url);$result['ok']=true;}
         catch(\Throwable $e){$result=['ok'=>false,'error'=>$e->getMessage()];}
         $result['url']=$url;$result['at']=time();$result['algorithm']=2;
@@ -84,7 +90,7 @@ final class CatalogImageProbe
         $jobs=[];
         foreach(array_slice(array_values(array_unique($urls)),0,40)as$url){
             $cached=$this->cached($url);
-            if($cached&&($cached['algorithm']??0)===2&&($cached['at']??0)>time()-(!empty($cached['ok'])?86400:900))continue;
+            if($cached&&($cached['algorithm']??0)===2&&($cached['at']??0)>time()-(!empty($cached['ok'])?self::OK_TTL:900))continue;
             $u=parse_url($url);$scheme=strtolower($u['scheme']??'');$host=strtolower($u['host']??'');$port=(int)($u['port']??($scheme==='https'?443:80));
             if(!in_array($scheme,['http','https'],true)||$host===''||isset($u['user'])||isset($u['pass'])||!in_array($port,[80,443],true))continue;
             if(!isset($this->dns[$host])){

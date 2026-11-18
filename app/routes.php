@@ -162,6 +162,8 @@ $router->get('/products',                    [ProductController::class, 'index']
 $router->get('/products/catalog-audit', [\App\Controllers\CatalogAuditController::class, 'index'], $authMiddleware);
 $router->post('/products/catalog-audit/configure', [\App\Controllers\CatalogAuditController::class, 'configure'], $authCsrf);
 $router->post('/products/catalog-audit/approve', [\App\Controllers\CatalogAuditController::class, 'approve'], $authCsrf);
+$router->get('/products/catalog-audit/overrides', [\App\Controllers\CatalogAuditController::class, 'overrides'], $authMiddleware);
+$router->post('/products/catalog-audit/overrides/approve', [\App\Controllers\CatalogAuditController::class, 'approveOverrides'], $authCsrf);
 $router->get('/products/ajax',              [ProductController::class, 'ajaxList'],    $authMiddleware);
 $router->post('/products/catalog-status', [ProductController::class, 'catalogStatus'], $authCsrf);
 $router->get('/products/create',             [ProductController::class, 'create'],      $authMiddleware);

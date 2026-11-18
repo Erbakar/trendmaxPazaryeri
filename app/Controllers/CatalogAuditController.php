@@ -19,6 +19,27 @@ final class CatalogAuditController extends BaseController
             $this->view('products/catalog_audit',['pageTitle'=>'Katalog Kontrolü','report'=>$report,'attributeIssues'=>$issues,'marketplaceId'=>$mid,'config'=>$service->configuration(),'supplier'=>$this->container->get(\App\Services\Catalog\SupplierCatalog::class)->summary(),'status'=>$status,'search'=>$search]);
         }catch(\Throwable $e){$this->view('products/catalog_audit',['pageTitle'=>'Katalog Kontrolü','error'=>$e->getMessage()]);}
     }
+    /** Products with their own Trendyol category, grouped by that category, with sample names to check before approving. */
+    public function overrides(Request $request): void
+    {
+        $this->requireModule('products');
+        try {
+            $groups=$this->container->get(CatalogAuditService::class)->overrideGroups();
+            $this->view('products/catalog_overrides',['pageTitle'=>'Ürüne özel kategoriler','groups'=>$groups]);
+        }catch(\Throwable $e){$this->view('products/catalog_overrides',['pageTitle'=>'Ürüne özel kategoriler','error'=>$e->getMessage(),'groups'=>[]]);}
+    }
+    public function approveOverrides(Request $request): void
+    {
+        $this->requireModule('products');
+        $auth=$this->container->get(\App\Services\AuthorizationService::class);
+        if(!$auth->hasPermission('categories.edit')||!$auth->hasPermission('products.edit'))$this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
+        if($request->post('confirm','')!=='1')$this->error('Örnek ürünleri inceleyip onay kutusunu işaretleyin.',422);
+        try {
+            @set_time_limit(120);
+            $result=$this->container->get(CatalogAuditService::class)->approveOverrides((string)$request->post('target',''),(int)$this->session->userId(),300,max(0,$request->integer('after')));
+            $this->success($result,$result['reviewed'].' ürün onaylandı.');
+        }catch(\Throwable $e){$this->error('Toplu onay yapılamadı: '.$e->getMessage(),422);}
+    }
     public function configure(Request $request): void
     {
         $this->requireModule('products');

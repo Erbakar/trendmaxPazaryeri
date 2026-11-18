@@ -41,7 +41,7 @@ $report=$data['report']??[];$config=$data['config']??[];$run=$report['run']??nul
 <div class="catalog-box">
 <h2>Zorunlu Trendyol özellikleri</h2>
 <?php if((int)$ai['products_blocked']>0): ?><p><strong><?= number_format((int)$ai['products_blocked'],0,',','.') ?></strong> üründe zorunlu özellik eksik veya XML değeri Trendyol seçeneğiyle eşleşmiyor (<?= (int)$ai['categories_blocked'] ?> kategori). Değerler kategori bazında bir kez tamamlanır ve kategorideki tüm ürünlere uygulanır.</p>
-<p><a class="ui-btn ui-btn-outline" href="/categories/mapping?marketplace_id=<?= (int)($data['marketplaceId']??0) ?>">Kategori özelliklerini tamamla</a></p>
+<p><a class="ui-btn ui-btn-outline" href="/categories/mapping?marketplace_id=<?= (int)($data['marketplaceId']??0) ?>">Kategori özelliklerini tamamla</a> <a class="ui-btn ui-btn-outline" href="/products/catalog-audit/overrides">Ürüne özel kategorileri onayla</a></p>
 <?php else: ?><p>Gönderilmeyi bekleyen <?= number_format((int)$ai['products_checked'],0,',','.') ?> ürünün zorunlu özellikleri tamam.</p><?php endif; ?>
 <p class="catalog-note">Son hesaplama: <?= $e($ai['state']['refreshed_at']) ?>. Özellik değişikliği içerik onayını yeniler; Özellikler ekranındaki toplu onayla kategorinin ürünleri yeniden gönderime alınabilir.</p>
 </div>

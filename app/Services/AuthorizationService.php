@@ -171,7 +171,7 @@ final class AuthorizationService
             'getMarketplaceSettings' => ['products.view'],
             'saveMarketplaceSettings' => ['products.edit'],
         ],
-        \App\Controllers\CatalogAuditController::class => ['index'=>['products.view'],'configure'=>['products.edit'],'approve'=>['products.edit']],
+        \App\Controllers\CatalogAuditController::class => ['index'=>['products.view'],'configure'=>['products.edit'],'approve'=>['products.edit'],'overrides'=>['products.view'],'approveOverrides'=>['categories.edit','products.edit']],
         ProductPublishController::class => [
             // Toplu gönderim uçları haritada YOKTU; kayıt olmayınca RBAC atlanıyor
             // (routeAllowed fail-open). Oturum + CSRF vardı ama rol denetimi yoktu.

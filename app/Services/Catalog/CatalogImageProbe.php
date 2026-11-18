@@ -101,7 +101,8 @@ final class CatalogImageProbe
             }
             $jobs[]=['url'=>$url,'host'=>$host,'port'=>$port,'ip'=>$this->dns[$host]];
         }
-        foreach(array_chunk($jobs,10)as$chunk){
+        // 20 at a time: a chunk waits for its slowest image, and supplier photos are full-size originals.
+        foreach(array_chunk($jobs,20)as$chunk){
             $multi=curl_multi_init();$handles=[];$buffers=[];
             foreach($chunk as$i=>$job){
                 $buffers[$i]='';$ch=curl_init($job['url']);

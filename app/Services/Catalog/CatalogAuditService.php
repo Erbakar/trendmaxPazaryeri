@@ -98,7 +98,8 @@ final class CatalogAuditService
                         $source=$snapshot['sources'][(int)$next['profile_id']]['rows'][(string)$next['sku']]??null;
                         array_push($urls,...array_map([CatalogAuditPolicy::class,'url'],$source['images']??[]),...($next['remote']['images']??[]));
                     }
-                    $t=microtime(true);$this->images->prefetch($urls);$this->time('prefetch_images',$t);
+                    $t=microtime(true);$fetched=$this->images->prefetch($urls);$this->time('prefetch_images',$t);
+                    $this->timing['prefetch_downloads']['n']=($this->timing['prefetch_downloads']['n']??0)+$fetched;$this->timing['prefetch_downloads']['s']=($this->timing['prefetch_downloads']['s']??0)+count($urls);
                 }
                 $entity=$snapshot['entities'][$cursor];
                 try {

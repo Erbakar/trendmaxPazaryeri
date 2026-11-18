@@ -85,7 +85,8 @@ final class CatalogImageProbe
             return $result;
     }
     /** Warm independent images concurrently; redirects still pass through inspect's checked redirect path. */
-    public function prefetch(array $urls): void
+    /** @return int how many images had to be downloaded (the rest came from the cache) */
+    public function prefetch(array $urls): int
     {
         $jobs=[];
         foreach(array_slice(array_values(array_unique($urls)),0,40)as$url){
@@ -116,11 +117,16 @@ final class CatalogImageProbe
                     if(!curl_errno($ch)&&(int)curl_getinfo($ch,CURLINFO_HTTP_CODE)===200&&str_starts_with(strtolower((string)curl_getinfo($ch,CURLINFO_CONTENT_TYPE)),'image/')){
                         $result=$this->signature($buffers[$i])+['ok'=>true,'url'=>$chunk[$i]['url'],'at'=>time()];
                         $this->remember($chunk[$i]['url'],$result);
+                    }elseif(!curl_errno($ch)&&(($code=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE))===200||($code>=400&&$code<500))){
+                        // A definite answer (4xx, or 200 that is not an image) is kept for the 15-minute retry window, so the
+                        // same broken image is not fetched again by inspect() right after. Timeouts and 5xx are left to inspect().
+                        $this->remember($chunk[$i]['url'],['ok'=>false,'error'=>'Görsel indirilemedi veya resim içeriği değil (HTTP '.$code.').','url'=>$chunk[$i]['url'],'at'=>time(),'algorithm'=>2]);
                     }
                 }catch(\Throwable){}finally{curl_multi_remove_handle($multi,$ch);curl_close($ch);}
             }
             curl_multi_close($multi);
         }
+        return count($jobs);
     }
     public static function similar(array $a,array $b): bool
     {

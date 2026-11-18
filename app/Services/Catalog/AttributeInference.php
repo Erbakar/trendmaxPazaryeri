@@ -99,6 +99,14 @@ final class AttributeInference
             // A bare number ("3", "12") or a one/two letter code ("M", "XL") matches unrelated words and counts.
             if ($key === '' || mb_strlen($key) < 3 || ctype_digit(str_replace(' ', '', $key)) || in_array($key, self::STOP, true)) continue;
             $index[explode(' ', $key)[0]][$key] = ['id' => $option['id'], 'name' => (string)$option['name']];
+            // Compatibility lists name options "Apple Uyumlu"; a title says "iPhone 13 Kılıf ... Apple" or
+            // "Realme 7 Pro ...". The brand alone stands for its "... Uyumlu" option.
+            if (str_ends_with($key, ' uyumlu')) {
+                $stem = substr($key, 0, -7);
+                if (mb_strlen($stem) >= 3 && !ctype_digit(str_replace(' ', '', $stem)) && !in_array($stem, self::STOP, true)) {
+                    $index[explode(' ', $stem)[0]][$stem] ??= ['id' => $option['id'], 'name' => (string)$option['name']];
+                }
+            }
         }
         return ['index' => $index, 'named' => $named];
     }

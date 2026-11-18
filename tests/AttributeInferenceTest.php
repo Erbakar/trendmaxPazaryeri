@@ -172,4 +172,15 @@ final class AttributeInferenceTest extends TestCase
         $this->assertSame(['id:5' => ['1192' => '10617344']], $plan['values']); // colour was chosen before and stays
         $this->assertSame(1, $plan['ready']);
     }
+
+    public function testCompatibleBrandOptionMatchesTheBrandInTheTitle(): void
+    {
+        $brand = ['id' => 1059, 'name' => 'Uyumlu Marka', 'required' => true, 'values' => [
+            ['id' => 1, 'name' => 'Apple Uyumlu'], ['id' => 2, 'name' => 'Realme Uyumlu'], ['id' => 3, 'name' => 'Black Shark Uyumlu'], ['id' => 4, 'name' => 'LG Uyumlu']]];
+        $this->assertSame('2', AttributeInference::suggest($brand, ['Realme 7 Pro 5d Eko Cam Ekran Koruyucu'], false)['value']);
+        $this->assertSame('3', AttributeInference::suggest($brand, ['Black Shark 4 Kılıf'], false)['value']);
+        $this->assertNull(AttributeInference::suggest($brand, ['iPhone 13 Kılıf'], false));       // model without the brand word: not guessed
+        $this->assertNull(AttributeInference::suggest($brand, ['LG G7 Ekran Koruyucu'], false));   // two-letter stem is too short to trust
+        $this->assertNull(AttributeInference::suggest($brand, ['Apple Realme Kılıf Seti'], false)); // two brands: no single answer
+    }
 }

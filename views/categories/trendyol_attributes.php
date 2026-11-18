@@ -22,7 +22,7 @@
     <div class="tya-body tya-table-wrap"><table class="tya-table"><thead><tr><th>Trendyol özelliği</th><th>Üründeki kaynak alan</th><th>Sabit / varsayılan değer</th></tr></thead><tbody id="tyaRows"></tbody></table></div>
     <details id="tyaPreviewBox" hidden><summary style="padding:12px 20px">Gönderilecek değerler ve kontrol sonucu</summary><pre id="tyaPreview" class="tya-preview"></pre></details>
     <div class="tya-footer"><button type="button" class="btn btn-primary" id="tyaSave">Eşleştirmeleri Kaydet</button><button type="button" class="btn btn-secondary" id="tyaCheck">Gönderimi Kontrol Et</button><small>Kontrol işlemi Trendyol’a ürün göndermez.</small>
-        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini, kaydedilen özellik değerlerini ve kategorideki ürünlerin ad/görsellerini inceledim; ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><div id="tyaUnreviewed" hidden style="width:100%"></div><small>Yalnız özellikleri eksiksiz çözülen ürünler onaylanır; daha önce onaylanıp adı, açıklaması veya görseli değişen ürünler tek tek incelenir. Tek seferde en çok 1000 ürün işlenir. Otomatik katalog kontrolü açıksa onaylanan ürünler bir sonraki turda gönderilir; görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
+        <div class="tya-review" id="tyaReviewBox" hidden><label><input type="checkbox" id="tyaReviewConfirm"> Bu kategorinin Trendyol kategorisini, kaydedilen özellik değerlerini ve kategorideki ürünlerin ad/görsellerini inceledim; ürünlere uygundur.</label><button type="button" class="btn btn-secondary" id="tyaReview">Kategorideki ürünlerin içeriğini onayla</button><div id="tyaUnreviewed" hidden style="width:100%"></div><small>Yalnız özellikleri eksiksiz çözülen ürünler onaylanır; daha önce onaylanıp adı, açıklaması veya görseli değişen ürünler tek tek incelenir. Ürüne özel kategori seçimi bu kategoriyle aynı Trendyol kategorisinde olan ürünler de kapsanır; farklı kategoriye taşınanlar tek tek incelenir. Çok ürünlü kategoriler parça parça işlenir. Otomatik katalog kontrolü açıksa onaylanan ürünler bir sonraki turda gönderilir; görsel, stok ve fiyat kontrolleri yine yapılır.</small></div>
     </div>
 </dialog>
 <script>
@@ -186,8 +186,25 @@
         busy=true;const button=document.getElementById('tyaReview');button.disabled=true;message('Kategorideki ürünler kontrol ediliyor…');
         const body=new FormData();body.append('_csrf_token',document.querySelector('meta[name=csrf-token]').content);body.append('confirm','1');body.append('mapping_version',data.mapping_version||'');
         if(includeUnreviewed)body.append('include_unreviewed','1');
-        try{const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});let result=null;try{result=await response.json();}catch{throw new Error('Sunucu yanıtı okunamadı (HTTP '+response.status+'). Çok sayıda ürün varsa işlem zaman aşımına uğramış olabilir; birkaç dakika sonra tekrar deneyin.');}if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');message(result.message);
-            const r=result.data||{};unreviewedBox.hidden=true;unreviewedBox.innerHTML='';
+        try{
+            // Large categories are approved in chunks: each call continues after the last product of the previous one.
+            const r={reviewed:0,already:0,attribute_errors:0,individual:0,unreviewed:0,unreviewed_samples:[]};let after=0,done=0;
+            for(;;){
+                body.set('after',String(after));
+                const response=await fetch('/categories/mapping/'+mappingId+'/trendyol-review',{method:'POST',body,headers:{'X-Requested-With':'XMLHttpRequest'}});let result=null;try{result=await response.json();}catch{throw new Error('Sunucu yanıtı okunamadı (HTTP '+response.status+'). '+done+' ürün işlendi; birkaç dakika sonra tekrar deneyin.');}if(!response.ok||!result.success)throw new Error(result.message||'Onaylanamadı.');
+                const d=result.data||{};['reviewed','already','attribute_errors','individual','unreviewed'].forEach(k=>{r[k]+=Number(d[k]||0);});
+                (d.unreviewed_samples||[]).forEach(p=>{if(r.unreviewed_samples.length<50)r.unreviewed_samples.push(p);});
+                done+=Number(d.total||0);after=Number(d.last_id||0);
+                if(!d.limited||!d.total)break;
+                message(done+' ürün işlendi, devam ediyor…');
+            }
+            const parts=[r.reviewed+' ürün onaylandı'];
+            if(r.unreviewed)parts.push(r.unreviewed+' ürün daha önce hiç incelenmedi; aşağıdaki listeyi kontrol edip ayrıca onaylayın');
+            if(r.already)parts.push(r.already+' ürün zaten onaylıydı');
+            if(r.attribute_errors)parts.push(r.attribute_errors+' üründe özellik eksiği sürüyor (onaylanmadı)');
+            if(r.individual)parts.push(r.individual+' ürün içerik çelişkisi, tedarikçi farkı veya farklı Trendyol kategorisi nedeniyle tek tek incelenmeli');
+            message(parts.join(' · ')+'.');
+            unreviewedBox.hidden=true;unreviewedBox.innerHTML='';
             if(!includeUnreviewed&&r.unreviewed>0){
                 // Second step: products nobody has looked at are listed before they can be approved.
                 unreviewedBox.hidden=false;

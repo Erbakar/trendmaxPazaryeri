@@ -225,13 +225,15 @@ final class TrendyolAttributeController extends BaseController
         if (!hash_equals(self::mappingVersion($mapping), (string)$request->post('mapping_version',''))) $this->error('Kategori eşleştirmesi siz incelerken değişti; ekranı yenileyip tekrar inceleyin.',409);
         try {
             $include = $request->post('include_unreviewed','') === '1';
-            $result = $this->container->get(\App\Services\Catalog\CatalogAuditService::class)->approveMapping((int)$id,(int)$this->session->userId(),$include);
+            @set_time_limit(120);
+            // 300 per request keeps each call short; the screen continues from last_id while "limited".
+            $result = $this->container->get(\App\Services\Catalog\CatalogAuditService::class)->approveMapping((int)$id,(int)$this->session->userId(),$include,300,max(0,$request->integer('after')));
             $parts = [$result['reviewed'].' ürün onaylandı'];
             if ($result['unreviewed']) $parts[] = $result['unreviewed'].' ürün daha önce hiç incelenmedi; aşağıdaki listeyi kontrol edip ayrıca onaylayın';
             if ($result['already']) $parts[] = $result['already'].' ürün zaten onaylıydı';
             if ($result['attribute_errors']) $parts[] = $result['attribute_errors'].' üründe özellik eksiği sürüyor (onaylanmadı)';
             if ($result['individual']) $parts[] = $result['individual'].' ürün içerik çelişkisi, tedarikçi farkı veya ayrı kategori nedeniyle tek tek incelenmeli';
-            if ($result['limited']) $parts[] = 'ilk '.$result['total'].' ürün işlendi; kalanlar için tekrar çalıştırın';
+            if ($result['limited']) $parts[] = $result['total'].' ürün işlendi; devamı sürüyor';
             $this->success($result, implode(' · ', $parts).'.');
         } catch (\Throwable $e) { $this->error('Toplu onay yapılamadı: '.$e->getMessage(),422); }
     }

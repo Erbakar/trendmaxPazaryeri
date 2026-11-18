@@ -393,19 +393,27 @@ final class CatalogAuditService
      * category selection keep needing an individual review; an existing conflict is never overwritten.
      * @return array{reviewed:int,already:int,attribute_errors:int,individual:int,total:int,limited:bool}
      */
-    public function approveMapping(int $mappingId,int $user,bool $includeUnreviewed=false,int $limit=1000): array
+    /**
+     * Category-wide content approval. Covers the category's own products and those whose per-product
+     * override ("ürüne özel kategori seçimi") points to the SAME Trendyol category: source enrichment
+     * opens such an override only to carry the product's attribute values, so the category the user
+     * reviews is the one they are sent to. A product moved to a different Trendyol category is still
+     * reviewed individually. Works through the category by product id; pass last_id as $after.
+     */
+    public function approveMapping(int $mappingId,int $user,bool $includeUnreviewed=false,int $limit=1000,int $after=0): array
     {
         $mid=$this->marketplace();
         $mapping=$this->get(CategoryMarketplaceMapping::class)->find($mappingId);
         if(!$mapping||(int)$mapping['marketplace_id']!==$mid)throw new \RuntimeException('Trendyol kategori eşleştirmesi bulunamadı.');
-        $rows=$this->repo->db->fetchAll('SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND COALESCE(p.is_archived,0)=0 AND NOT EXISTS (SELECT 1 FROM product_marketplace_category_overrides po WHERE po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?) ORDER BY p.id LIMIT '.(max(1,$limit)+1),[$this->repo->store(),(int)$mapping['category_id'],$mid]);
+        $rows=$this->repo->db->fetchAll('SELECT p.id FROM products p WHERE p.store_id=? AND p.category_id=? AND p.id>? AND COALESCE(p.is_archived,0)=0 ORDER BY p.id LIMIT '.(max(1,$limit)+1),[$this->repo->store(),(int)$mapping['category_id'],max(0,$after)]);
         $limited=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
-        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'unreviewed'=>0,'unreviewed_samples'=>[],'total'=>count($rows),'limited'=>$limited];
+        $out=['reviewed'=>0,'already'=>0,'attribute_errors'=>0,'individual'=>0,'unreviewed'=>0,'unreviewed_samples'=>[],'total'=>count($rows),'limited'=>$limited,
+            'last_id'=>$rows?(int)$rows[count($rows)-1]['id']:max(0,$after)];
         $publish=$this->get(ProductPublishService::class);$supplier=$this->get(SupplierCatalog::class);
         foreach($rows as$row){
             $p=$this->get(Product::class)->find((int)$row['id']);if(!$p)continue;
             $m=$this->get(CategoryMarketplaceMapping::class)->forProduct($p,$mid)?:null;
-            if(!$m||!empty($m['_override_id'])||(int)$m['id']!==$mappingId){$out['individual']++;continue;}
+            if(!$m||!self::coveredByMapping($m,$mapping)){$out['individual']++;continue;}
             if($this->repo->blockedReason($mid,$p)!==null||$supplier->errors($p)){$out['individual']++;continue;}
             // A product reviewed before may only be re-approved here if just its mapping changed since;
             // a changed name, description, image or XML attribute still needs an individual review.
@@ -431,6 +439,12 @@ final class CatalogAuditService
             $out['reviewed']++;
         }
         return $out;
+    }
+    /** Pure (unit tested): is the product's effective mapping the reviewed category mapping, or an override into the same Trendyol category? */
+    public static function coveredByMapping(array $effective,array $mapping): bool
+    {
+        if(!empty($effective['_override_id']))return (string)($effective['marketplace_category_id']??'')!==''&&(string)$effective['marketplace_category_id']===(string)($mapping['marketplace_category_id']??'');
+        return (int)($effective['id']??0)===(int)($mapping['id']??-1);
     }
     public function approve(int $itemId,string $fingerprint,int $user): void
     {

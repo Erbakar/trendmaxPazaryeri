@@ -150,4 +150,15 @@ final class CatalogAuditTest extends TestCase
             }
         }finally{if($file&&is_file($file))unlink($file);$db->rollBack();$tenant->clear();$_ENV=$env;}
     }
+
+    public function testBulkApprovalCoversOverridesIntoTheSameTrendyolCategoryOnly(): void
+    {
+        $mapping=['id'=>466,'marketplace_category_id'=>'4452'];
+        $covered=[\App\Services\Catalog\CatalogAuditService::class,'coveredByMapping'];
+        self::assertTrue($covered(['id'=>466,'marketplace_category_id'=>'4452'],$mapping));
+        self::assertFalse($covered(['id'=>467,'marketplace_category_id'=>'4452'],$mapping));                    // another category mapping
+        self::assertTrue($covered(['id'=>9001,'_override_id'=>9001,'marketplace_category_id'=>'4452'],$mapping)); // own override, same target
+        self::assertFalse($covered(['id'=>9002,'_override_id'=>9002,'marketplace_category_id'=>'1877'],$mapping));// moved elsewhere
+        self::assertFalse($covered(['id'=>466,'_override_id'=>466,'marketplace_category_id'=>''],$mapping));      // override id colliding with the mapping id
+    }
 }

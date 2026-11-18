@@ -229,6 +229,37 @@ final class AttributeIssueReport
             ORDER BY p.id", [...$params, $mid, $mid, $mid]);
     }
 
+    /**
+     * pendingProducts() for a known set of products in three queries instead of three subqueries per
+     * product (the per-product form took about 0.2 s each on a 42k catalog). Same rule: a product is
+     * pending unless the latest catalog check saw it on Trendyol, or - without any check - it is a
+     * listed row with a remote id.
+     * @param list<int> $ids
+     * @return array<int,array{id:int,sku:string,name:string}> by product id
+     */
+    public function pendingAmong(array $ids, int $mid): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) return [];
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $seenLive = []; $checked = [];
+        foreach ($this->db->fetchAll("SELECT product_id, status, (remote_json IS NOT NULL AND remote_json<>'null') AS has_remote FROM catalog_audit_items
+            WHERE store_id=? AND marketplace_id=? AND product_id IN ($marks)", [$this->store(), $mid, ...$ids]) as $row) {
+            $pid = (int)$row['product_id'];
+            if ($row['status'] !== 'not_observed') $checked[$pid] = true;
+            if (!in_array($row['status'], ['rejected', 'not_observed'], true) && (int)$row['has_remote'] === 1) $seenLive[$pid] = true;
+        }
+        $listed = [];
+        foreach ($this->db->fetchAll("SELECT DISTINCT product_id FROM marketplace_products WHERE store_id=? AND marketplace_id=? AND is_listed=1 AND COALESCE(marketplace_product_id,'')<>'' AND product_id IN ($marks)", [$this->store(), $mid, ...$ids]) as $row) $listed[(int)$row['product_id']] = true;
+        $out = [];
+        foreach ($this->db->fetchAll("SELECT id, sku, name FROM products WHERE store_id=? AND id IN ($marks) AND COALESCE(is_active,1)=1 AND COALESCE(is_archived,0)=0 ORDER BY id", [$this->store(), ...$ids]) as $row) {
+            $pid = (int)$row['id'];
+            if (isset($seenLive[$pid]) || (!isset($checked[$pid]) && isset($listed[$pid]))) continue;
+            $out[$pid] = ['id' => $pid, 'sku' => (string)$row['sku'], 'name' => (string)$row['name']];
+        }
+        return $out;
+    }
+
     /** @param list<int> $ids @return array<int,list<array>> */
     public function localAttributes(array $ids): array
     {

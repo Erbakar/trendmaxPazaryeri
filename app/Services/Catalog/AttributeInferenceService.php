@@ -114,16 +114,17 @@ final class AttributeInferenceService
         $ids = array_map(static fn(array $r): int => (int)$r['id'], $rows);
         $out['processed'] = count($ids); $out['last_id'] = end($ids);
         $locals = $this->report->localAttributes($ids);
+        $pendingById = $this->report->pendingAmong($ids, $mid);
         $products = $this->container->get(Product::class); $maps = $this->container->get(CategoryMarketplaceMapping::class);
         $catalog = $this->container->get(TrendyolAttributeCatalog::class); $overrides = $this->container->get(ProductCategoryOverride::class);
         foreach ($ids as $pid) {
+            // Listings already live on Trendyol are left alone, exactly as the issue report does.
+            if (!isset($pendingById[$pid])) continue;
+            $pending = [$pendingById[$pid]];
             $product = $products->find($pid);
             $mapping = $product ? $maps->forProduct($product, $mid) : false;
             if (!$mapping || empty($mapping['_override_id'])) continue;
             $mapping['product_id'] = $pid;
-            // Listings already live on Trendyol are left alone, exactly as the issue report does.
-            $pending = $this->report->pendingProducts($mapping, $mid, true);
-            if ($pending === []) continue;
             $out['checked']++;
             try { $attributes = $catalog->get((string)$mapping['marketplace_category_id'])['attributes']; }
             catch (\Throwable) { continue; } // counted by the issue report as a catalog error

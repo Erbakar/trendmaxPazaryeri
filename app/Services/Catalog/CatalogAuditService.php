@@ -14,6 +14,23 @@ final class CatalogAuditService
     public function __construct(private readonly Container $container,private readonly CatalogAuditRepository $repo,
         private readonly StoreSetting $settings,private readonly CatalogImageProbe $images) {}
     private function get(string $class): object { return $this->container->get($class); }
+    /** Seconds spent per audit step in the current tick; written to storage/cache for diagnosis. */
+    private array $timing=[];
+    private function time(string $step,float $since): void
+    {
+        $this->timing[$step]['n']=($this->timing[$step]['n']??0)+1;
+        $this->timing[$step]['s']=($this->timing[$step]['s']??0)+(microtime(true)-$since);
+    }
+    private function saveTiming(int $processed,float $started): void
+    {
+        if(!$this->timing)return;
+        $file=BASE_PATH.'/storage/cache/catalog-audit-timing.json';
+        $log=is_file($file)?(json_decode((string)file_get_contents($file),true)?:[]):[];
+        $log[]=['at'=>date('Y-m-d H:i:s'),'processed'=>$processed,'tick_s'=>round(microtime(true)-$started,2),
+            'steps'=>array_map(static fn($t)=>['n'=>$t['n'],'s'=>round($t['s'],2)],$this->timing)];
+        @file_put_contents($file,json_encode(array_slice($log,-60),JSON_UNESCAPED_UNICODE));
+        $this->timing=[];
+    }
     public function marketplace(): int
     {
         $mp=$this->get(Marketplace::class)->findBySlug('trendyol');
@@ -69,7 +86,7 @@ final class CatalogAuditService
                 $snapshot['sources']=$this->sources();$snapshot['source_at']=time();$this->repo->saveSnapshot((int)$run['id'],$snapshot);
             }
             if($this->configuration()['publish'])$this->retryUnsubmitted($mid,(int)$run['id'],$snapshot,$deadline);
-            $cursor=(int)$run['cursor_pos'];$processed=0;
+            $cursor=(int)$run['cursor_pos'];$processed=0;$tickStarted=microtime(true);
             while($cursor<count($snapshot['entities'])&&microtime(true)<$deadline){
                 if(!$this->configuration()['enabled'])break;
                 if($processed%10===0){
@@ -82,8 +99,11 @@ final class CatalogAuditService
                 }
                 $entity=$snapshot['entities'][$cursor];
                 try {
+                    $t=microtime(true);
                     $proof=$this->configuration()['enrich']?$this->get(CatalogEvidenceEnricher::class)->complete($mid,$entity,$snapshot):null;
+                    $this->time('enrich',$t);$t=microtime(true);
                     $item=$this->inspect($mid,$entity,$snapshot);
+                    $this->time('inspect',$t);
                     if($proof&&!empty($proof['category'])&&(string)$proof['category']['id']===(string)($item['checks']['category_id']??'')){
                         $remaining=array_values(array_diff($item['checks']['errors'],['Kategori, özellik ve görsel içerik onayı gerekli.']));
                         // Matching supplier facts plus all technical/image checks are evidence; API acceptance alone is not.
@@ -95,7 +115,9 @@ final class CatalogAuditService
                         }
                         $item['checks']['source_evidence']=$proof;
                     }
+                    $t=microtime(true);
                     if($this->configuration()['publish'])$item=$this->dispatch($mid,(int)$run['id'],$item,$snapshot);
+                    $this->time('dispatch:'.$item['status'],$t);
                 }catch(\Throwable $e){
                     $item=['key'=>$entity['key'],'product_id'=>$entity['product_id']??null,'source_product_id'=>$entity['source_product_id']??null,
                         'sku'=>$entity['sku']??'','barcode'=>$entity['remote']['barcode']??'','name'=>$entity['remote']['name']??'',
@@ -113,6 +135,7 @@ final class CatalogAuditService
                 $keepIds=array_column($keep,'id');
                 foreach(glob($this->repo->directory().'/run-*.json')?:[]as$file)if(preg_match('/run-([0-9]+)\.json$/',$file,$match)&&!in_array($match[1],$keepIds))unlink($file);
             }
+            $this->saveTiming($processed,$tickStarted);
             return ['run_id'=>$run['id'],'checked'=>$cursor,'total'=>$run['total'],'processed'=>$processed];
         }catch(\Throwable $e){
             if($run)$this->repo->progress((int)$run['id'],'failed',(int)$run['cursor_pos'],(int)$run['total'],$e->getMessage());
@@ -350,16 +373,21 @@ final class CatalogAuditService
                 if(empty($current['is_active'])||!empty($current['is_archived'])||(isset($listingNow['is_active'])&&!$listingNow['is_active'])||$quantityNow!==(int)$payload['quantity']||abs($priceNow['sale_price']-$payload['salePrice'])>.011||abs($priceNow['list_price']-$payload['listPrice'])>.011)throw new \RuntimeException('Stok/fiyat kuralı kontrol sırasında değişti; eski değer gönderilmedi.');
             }
             if($publish){
+                $t=microtime(true);
                 $preview=$this->get(ProductPublishService::class)->previewForPublish((int)$item['product_id'],$mid);
+                $this->time('send:preview',$t);$t=microtime(true);
                 if(empty($preview['valid'])||$preview['item']!==$item['payload'])throw new \RuntimeException('Gönderim önizlemesi değişti; tekrar incelenecek.');
                 $existing=$this->get(TrendyolService::class)->findProductsByBarcode((string)$payload['barcode']);
+                $this->time('send:barcode_lookup',$t);
                 if(!CatalogAuditPolicy::barcodeAbsent($existing)&&!( !empty($item['replace_rejected'])&&CatalogAuditPolicy::canReplaceRejected($existing,(string)$payload['barcode'],(string)$current['sku']) )){$item['status']='awaiting_result';$item['checks']['errors'][]='Barkod Trendyol’da bulundu; sonraki tam katalog kontrolü bekleniyor.';return $item;}
             }
         }
         $operation=$publish?'publish':($item['status']==='close_required'?'close':'inventory');
         $id=$this->repo->intent($mid,$run,$item,$operation,$publish?$item['payload']:$payload);
         try {
+            $t=microtime(true);
             $result=$publish?$this->get(ProductPublishService::class)->publishProducts([(int)$item['product_id']],$mid):$this->get(TrendyolService::class)->updateStock([$payload]);
+            $this->time($publish?'send:publish_call':'send:stock_call',$t);
             // A transport response is only a submission. Remote observation confirms completion on the next pass.
             $state=$publish?CatalogAuditPolicy::submissionState($result):'accepted';
             if(in_array($state,['rejected','not_submitted'],true))$result['rejection']=self::responseErrors($result['errors']??[])?:'Gönderim doğrulaması başarısız.';

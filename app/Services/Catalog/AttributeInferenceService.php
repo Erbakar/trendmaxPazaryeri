@@ -3,7 +3,8 @@ declare(strict_types=1);
 namespace App\Services\Catalog;
 
 use App\Core\Container;
-use App\Models\CategoryMarketplaceMapping;
+use App\Core\Database;
+use App\Models\{CategoryMarketplaceMapping,Product,ProductCategoryOverride};
 use App\Services\Marketplace\{TrendyolAttributeCatalog,TrendyolAttributeResolver};
 
 /**
@@ -90,6 +91,62 @@ final class AttributeInferenceService
         return ['values' => $values, 'blocked' => $blocked, 'ready' => $ready, 'written' => $written, 'attributes' => $stats];
     }
 
+    /**
+     * Same for products that carry their own Trendyol category ("ürüne özel kategori seçimi", which the
+     * source enrichment assigns): each is resolved against its own category's attributes and the values
+     * are written to its own override. Works through one local category in chunks; pass the returned
+     * last_id as $after until done.
+     * @return array{processed:int,last_id:int,done:bool,checked:int,blocked:int,ready:int,written:int,attributes:array}
+     */
+    public function runOverrides(int $categoryId, int $after, int $limit, bool $allowNeutral, bool $apply, bool $originTr = false): array
+    {
+        $out = ['processed' => 0, 'last_id' => $after, 'done' => true, 'checked' => 0, 'blocked' => 0, 'ready' => 0, 'written' => 0, 'attributes' => []];
+        $mid = $this->report->marketplace();
+        if ($mid === null) return $out;
+        $db = $this->container->get(Database::class);
+        $store = $this->container->get(\App\Core\TenantContext::class)->currentStoreId();
+        $limit = max(1, min(500, $limit));
+        $rows = $db->fetchAll('SELECT p.id FROM products p JOIN product_marketplace_category_overrides po ON po.store_id=p.store_id AND po.product_id=p.id AND po.marketplace_id=?
+            WHERE p.store_id=? AND p.category_id=? AND p.id>? ORDER BY p.id LIMIT '.($limit + 1), [$mid, $store, $categoryId, $after]);
+        $out['done'] = count($rows) <= $limit;
+        $rows = array_slice($rows, 0, $limit);
+        if ($rows === []) return $out;
+        $ids = array_map(static fn(array $r): int => (int)$r['id'], $rows);
+        $out['processed'] = count($ids); $out['last_id'] = end($ids);
+        $locals = $this->report->localAttributes($ids);
+        $products = $this->container->get(Product::class); $maps = $this->container->get(CategoryMarketplaceMapping::class);
+        $catalog = $this->container->get(TrendyolAttributeCatalog::class); $overrides = $this->container->get(ProductCategoryOverride::class);
+        foreach ($ids as $pid) {
+            $product = $products->find($pid);
+            $mapping = $product ? $maps->forProduct($product, $mid) : false;
+            if (!$mapping || empty($mapping['_override_id'])) continue;
+            $mapping['product_id'] = $pid;
+            // Listings already live on Trendyol are left alone, exactly as the issue report does.
+            $pending = $this->report->pendingProducts($mapping, $mid, true);
+            if ($pending === []) continue;
+            $out['checked']++;
+            try { $attributes = $catalog->get((string)$mapping['marketplace_category_id'])['attributes']; }
+            catch (\Throwable) { continue; } // counted by the issue report as a catalog error
+            $plan = self::plan($mapping, $attributes, $pending, [$pid => $locals[$pid] ?? []], $allowNeutral, $originTr);
+            $out['blocked'] += $plan['blocked']; $out['ready'] += $plan['ready'];
+            foreach ($plan['attributes'] as $stat) {
+                // Attribute ids repeat across Trendyol categories; the name is what the user reads.
+                $slot = &$out['attributes'][$stat['name']];
+                $slot = ($slot ?? []) + ['name' => $stat['name'], 'text' => 0, 'neutral' => 0, 'none' => 0, 'samples' => []];
+                foreach (['text', 'neutral', 'none'] as $k) $slot[$k] += $stat[$k];
+                foreach ($stat['samples'] as $sample) if (count($slot['samples']) < 3) $slot['samples'][] = $sample;
+                unset($slot);
+            }
+            if ($apply && isset($plan['values']['id:'.$pid])) {
+                $overrides->mergeInferredAttributes((int)$mapping['_override_id'], $pid, $plan['values']['id:'.$pid]);
+                $out['written'] += $plan['written'];
+            }
+        }
+        // The per-product report rows are recounted by the report's own pass instead of one by one here.
+        if ($apply && $out['written'] > 0) $this->report->request();
+        return $out;
+    }
+
     /** Removes every inferred value of the store's Trendyol mappings that was not edited by hand since. */
     public function undo(): array
     {
@@ -102,6 +159,8 @@ final class AttributeInferenceService
             $n = $model->clearInferredAttributeValues((int)$entry['key']);
             if ($n > 0) { $mappings++; $removed += $n; $this->report->refreshMapping($entry['key']); }
         }
+        $own = $this->container->get(ProductCategoryOverride::class)->clearInferredAttributes($mid);
+        if ($own > 0) { $removed += $own; $this->report->request(); }
         return ['mappings' => $mappings, 'removed' => $removed];
     }
 }

@@ -115,8 +115,9 @@ final class CategoryMappingController extends BaseController
                 $attributeIssues['has_inferred_brands'] = $this->container->get(\App\Services\Catalog\BrandInferenceService::class)->hasAssigned();
                 // Shows "Çıkarımları geri al" only when there is something to undo.
                 $attributeIssues['has_inferred'] = $report->marketplace() !== null && (bool) $this->container->get(\App\Core\Database::class)->fetchOne(
-                    "SELECT 1 FROM category_marketplace_mapping WHERE store_id=? AND marketplace_id=? AND attribute_mapping_json LIKE '%\"inferred\"%' LIMIT 1",
-                    [$this->container->get(\App\Core\TenantContext::class)->currentStoreId(), $report->marketplace()]);
+                    "SELECT 1 FROM category_marketplace_mapping WHERE store_id=? AND marketplace_id=? AND attribute_mapping_json LIKE '%\"inferred\"%'
+                     UNION ALL SELECT 1 FROM product_marketplace_category_overrides WHERE store_id=? AND marketplace_id=? AND attribute_mapping_json LIKE '%\"inferred\"%' LIMIT 1",
+                    [$sid = $this->container->get(\App\Core\TenantContext::class)->currentStoreId(), $report->marketplace(), $sid, $report->marketplace()]);
             } catch (\Throwable $e) {
                 // Usually phase15 (063/064) not migrated yet: say so instead of hiding the feature.
                 $attributeIssues = ['migration_missing' => str_contains($e->getMessage(), 'trendyol_attribute') || $e instanceof \PDOException];

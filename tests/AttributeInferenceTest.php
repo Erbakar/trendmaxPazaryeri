@@ -161,4 +161,15 @@ final class AttributeInferenceTest extends TestCase
         $this->assertSame('1', AttributeInference::suggest($a, ['x'], false, true, AttributeInference::prepare($a))['value']);
         $this->assertSame('3', AttributeInference::suggest($b, ['x'], false, true, AttributeInference::prepare($b))['value']);
     }
+
+    public function testPlanWorksOnAProductsOwnOverrideMapping(): void
+    {
+        // An override keeps the product's values under products['id:N'], exactly like a category mapping.
+        $attributes = [$this->colour(), ['id' => 1192, 'name' => 'Menşei', 'required' => true, 'values' => [['id' => 10617344, 'name' => 'TR']]]];
+        $override = ['_override_id' => 7, 'product_id' => 5, 'marketplace_category_id' => '766',
+            'attribute_mapping_json' => json_encode(['defaults' => new stdClass(), 'sources' => new stdClass(), 'products' => ['id:5' => ['348' => '2']]])];
+        $plan = AttributeInferenceService::plan($override, $attributes, [['id' => 5, 'sku' => 'A', 'name' => 'Kırmızı Kılıf']], [], true, true);
+        $this->assertSame(['id:5' => ['1192' => '10617344']], $plan['values']); // colour was chosen before and stays
+        $this->assertSame(1, $plan['ready']);
+    }
 }

@@ -177,6 +177,10 @@ $unsellableLabels = [
 </div>
 <?php elseif (is_array($attributeIssues)): $aiState = (array) ($attributeIssues['state'] ?? []);
     $inferKeys = array_values(array_filter(array_map('strval', array_keys(array_filter($blockedByMapping, static fn($n) => (int) $n > 0))), 'ctype_digit'));
+    // Local categories whose products carry their own Trendyol category (assigned by source enrichment).
+    $inferOwn = [];
+    foreach ($categories as $c) if ((int) ($c['override_count'] ?? 0) > 0) $inferOwn[] = ['id' => (int) $c['id'], 'n' => (int) $c['override_count']];
+    $inferOwnTotal = array_sum(array_column($inferOwn, 'n'));
     $canInfer = $canEdit && $can('products.edit');
     $canInferBrand = $canInfer && $can('brands.edit'); ?>
 <div class="cmap-alert <?= (int) $attributeIssues['products_blocked'] > 0 ? 'is-danger' : 'is-warning' ?>" role="status" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
@@ -212,7 +216,7 @@ $unsellableLabels = [
     <label class="cmap-infer-check"><input type="checkbox" id="cmapInferOrigin" checked>
         <span>Menşei boş olan ürünlere Türkiye (TR) yaz. Ürünleriniz Türkiye'de üretilmiyorsa kapatın; ithal ürünün menşeini kategori Özellikler ekranından ayrıca seçin.</span></label>
     <div class="cmap-infer-actions">
-        <button type="button" class="cmap-btn" id="cmapInferPreview"<?= $inferKeys === [] ? ' disabled' : '' ?>><i data-lucide="search" aria-hidden="true"></i> Önizle (<?= count($inferKeys) ?> kategori)</button>
+        <button type="button" class="cmap-btn" id="cmapInferPreview"<?= $inferKeys === [] && $inferOwn === [] ? ' disabled' : '' ?>><i data-lucide="search" aria-hidden="true"></i> Önizle (<?= count($inferKeys) ?> kategori<?= $inferOwnTotal > 0 ? ' + ' . number_format($inferOwnTotal, 0, ',', '.') . ' ürüne özel seçim' : '' ?>)</button>
         <button type="button" class="cmap-btn is-primary" id="cmapInferApply" disabled><i data-lucide="check" aria-hidden="true"></i> Uygula</button>
         <?php if (!empty($attributeIssues['has_inferred'])): ?>
         <form method="POST" action="/categories/attribute-inference/undo" onsubmit="return confirm('Ürün adından çıkarılan tüm değerler kaldırılacak. Elle değiştirdikleriniz kalır. Devam edilsin mi?')">
@@ -245,6 +249,8 @@ $unsellableLabels = [
 (function () {
     'use strict';
     const KEYS = <?= json_encode($inferKeys) ?>;
+    const OWN = <?= json_encode($inferOwn) ?>;
+    const OWN_TOTAL = <?= (int) $inferOwnTotal ?>;
     const CSRF = <?= json_encode($csrf, $jsonFlags ?? 0) ?>;
     const $ = (id) => document.getElementById(id);
     const box = $('cmapInfer'), openBtn = $('cmapInferOpen'), previewBtn = $('cmapInferPreview'), applyBtn = $('cmapInferApply');
@@ -261,9 +267,11 @@ $unsellableLabels = [
     // A changed option invalidates the preview the user would be applying.
     [neutralBox, originBox].forEach((el) => el.addEventListener('change', function () { if (!busy) applyBtn.disabled = true; }));
 
-    async function one(key, apply) {
+    async function one(key, apply, ownAfter) {
         const body = new URLSearchParams({ _csrf_token: CSRF, neutral: neutralBox.checked ? '1' : '0', origin_tr: originBox.checked ? '1' : '0', apply: apply ? '1' : '0' });
-        const response = await fetch('/categories/mapping/' + encodeURIComponent(key) + '/trendyol-infer', {
+        if (ownAfter !== undefined) body.set('after', String(ownAfter));
+        const url = ownAfter !== undefined ? '/categories/attribute-inference/overrides/' + encodeURIComponent(key) : '/categories/mapping/' + encodeURIComponent(key) + '/trendyol-infer';
+        const response = await fetch(url, {
             method: 'POST', credentials: 'same-origin', body: body,
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-Token': CSRF },
         });
@@ -278,17 +286,29 @@ $unsellableLabels = [
         busy = true; previewBtn.disabled = true; applyBtn.disabled = true; neutralBox.disabled = true; originBox.disabled = true;
         const total = { checked: 0, blocked: 0, ready: 0, written: 0, failed: 0 }, attrs = {};
         let lastError = '';
+        const add = (d) => {
+            ['checked', 'blocked', 'ready', 'written'].forEach((k) => { total[k] += Number(d[k] || 0); });
+            Object.values(d.attributes || {}).forEach((a) => {
+                const slot = attrs[a.name] = attrs[a.name] || { text: 0, neutral: 0, none: 0, samples: [] };
+                slot.text += a.text; slot.neutral += a.neutral; slot.none += a.none;
+                (a.samples || []).forEach((s) => { if (slot.samples.length < 3) slot.samples.push(s); });
+            });
+        };
         for (let i = 0; i < KEYS.length; i++) {
             statusBox.textContent = (apply ? 'Uygulanıyor' : 'Önizleniyor') + ': ' + (i + 1) + ' / ' + KEYS.length + ' kategori…';
-            try {
-                const d = await one(KEYS[i], apply);
-                ['checked', 'blocked', 'ready', 'written'].forEach((k) => { total[k] += Number(d[k] || 0); });
-                Object.values(d.attributes || {}).forEach((a) => {
-                    const slot = attrs[a.name] = attrs[a.name] || { text: 0, neutral: 0, none: 0, samples: [] };
-                    slot.text += a.text; slot.neutral += a.neutral; slot.none += a.none;
-                    (a.samples || []).forEach((s) => { if (slot.samples.length < 3) slot.samples.push(s); });
-                });
-            } catch (e) { total.failed++; lastError = e.message; }
+            try { add(await one(KEYS[i], apply)); } catch (e) { total.failed++; lastError = e.message; }
+        }
+        // Products with their own Trendyol category: one local category at a time, in chunks.
+        let ownDone = 0;
+        for (const cat of OWN) {
+            let after = 0;
+            for (;;) {
+                statusBox.textContent = (apply ? 'Uygulanıyor' : 'Önizleniyor') + ': ürüne özel seçimler ' + num(ownDone) + ' / ' + num(OWN_TOTAL) + ' ürün…';
+                let d;
+                try { d = await one(cat.id, apply, after); } catch (e) { total.failed++; lastError = e.message; break; }
+                add(d); ownDone += Number(d.processed || 0); after = Number(d.last_id || 0);
+                if (d.done || !d.processed) break;
+            }
         }
         const rows = Object.keys(attrs).sort((a, b) => (attrs[b].text + attrs[b].neutral + attrs[b].none) - (attrs[a].text + attrs[a].neutral + attrs[a].none)).map((name) => {
             const a = attrs[name];

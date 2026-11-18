@@ -251,6 +251,7 @@ $router->get('/categories/mapping/{id}/trendyol-preview', [\App\Controllers\Tren
 $router->get('/categories/mapping/{id}/trendyol-attribute-products', [\App\Controllers\TrendyolAttributeController::class, 'attributeProducts'], $authMiddleware);
 $router->post('/categories/mapping/{id}/trendyol-review', [\App\Controllers\TrendyolAttributeController::class, 'review'], $authCsrf);
 $router->post('/categories/mapping/{id}/trendyol-infer', [\App\Controllers\TrendyolAttributeController::class, 'infer'], $authCsrf);
+$router->post('/categories/attribute-inference/overrides/{categoryId}', [\App\Controllers\TrendyolAttributeController::class, 'inferOverrides'], $authCsrf);
 $router->post('/categories/attribute-inference/undo', [\App\Controllers\TrendyolAttributeController::class, 'undoInference'], $authCsrf);
 $router->post('/categories/attribute-issues/refresh', [\App\Controllers\TrendyolAttributeController::class, 'refreshIssues'], $authCsrf);
 $router->post('/categories/attribute-library/toggle', [\App\Controllers\TrendyolAttributeController::class, 'toggleLibrary'], $authCsrf);

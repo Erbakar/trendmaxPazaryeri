@@ -174,6 +174,22 @@ final class TrendyolAttributeController extends BaseController
             $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
         }
     }
+    /** The same for the products of one local category that carry their own Trendyol category; chunked. */
+    public function inferOverrides(Request $request, string $categoryId): void
+    {
+        $report = $this->container->get(\App\Services\Catalog\AttributeIssueReport::class);
+        $mid = $report->marketplace();
+        if ($mid === null || !$this->authorization()->canAccessMarketplace((int)$mid)) $this->error('Trendyol bağlantısı aktif değil veya erişiminiz yok.',403);
+        $apply = $request->post('apply','') === '1';
+        if ($apply && (!$this->authorization()->hasPermission('categories.edit') || !$this->authorization()->hasPermission('products.edit'))) $this->error('Kategori ve ürün düzenleme yetkisi gerekli.',403);
+        @set_time_limit(120);
+        try {
+            $this->success($this->container->get(\App\Services\Catalog\AttributeInferenceService::class)->runOverrides((int)$categoryId, max(0,$request->integer('after')), 150,
+                $request->post('neutral','') === '1', $apply, $request->post('origin_tr','') === '1'));
+        } catch (\Throwable $e) {
+            $this->error('Çıkarım yapılamadı: '.\App\Services\Catalog\AttributeIssueReport::publicError($e), 422);
+        }
+    }
     /** Removes the inferred values again (hand-edited ones stay). */
     public function undoInference(Request $request): void
     {

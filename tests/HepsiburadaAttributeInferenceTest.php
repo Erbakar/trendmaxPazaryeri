@@ -69,4 +69,23 @@ final class HepsiburadaAttributeInferenceTest extends TestCase
         self::assertNull(Inf::infer($free, 'TIANQIU AG0 LR69 Pil'));
         self::assertSame('AG0', Inf::infer($free, 'Pil', ['Model Kodu' => 'AG0'])['value']);
     }
+
+    public function testHepsiburadaModelListWithoutBrandNames(): void
+    {
+        // HB writes models without the brand and the attribute as "Telefon Modeli"
+        $model = $this->attr('Telefon Modeli', ['A26', 'A25', '14C', '14C 4G', '16 Pro Max', 'Galaxy', 'Plus', 'S Plus']);
+        self::assertSame('A26', Inf::infer($model, 'Samsung Galaxy A26 Kilif Trend S Plus Kapakli Kilif')['value']);
+        self::assertSame('14C', Inf::infer($model, 'Xiaomi Redmi 14c Kilif Razer Lensli Silikon - Lacivert')['value']);
+        self::assertSame('16 Pro Max', Inf::infer($model, 'Apple Iphone 16 Pro Max Desina Magsafe Kapak - Desen 4')['value']);
+        self::assertNull(Inf::infer($model, 'Cep Telefonu Selfie Yuzugu'));
+    }
+
+    public function testGenderFromTheCategoryPathWhenTheNameIsSilent(): void
+    {
+        $cinsiyet = $this->attr('Cinsiyet', ['Kadın', 'Erkek', 'Unisex']);
+        $hit = Inf::infer($cinsiyet, 'SUNI DERI SIK TASARIM LAPTOP BOLMELI SIRT CANTASI', [], null, 'Giyim / Ayakkabı > Kadın > Çanta > Sırt Çantası');
+        self::assertSame('Kadın', $hit['value']);
+        $renk = $this->attr('Renk', ['Kırmızı', 'Siyah']);
+        self::assertNull(Inf::infer($renk, 'Laptop Cantasi', [], null, 'Kırmızı Kategori'));
+    }
 }

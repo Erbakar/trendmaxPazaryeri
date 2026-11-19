@@ -28,8 +28,14 @@ final class HepsiburadaAttributeInference
         'inc', 'mah', 'amper', 'litre', 'ml', 'cm', 'mm', 'kg', 'gb', 'tb', 'hz', 'adet', 'sayisi', 'yas',
     ];
 
-    /** Adda birden çok seçenek geçtiğinde ilk geçeni almanın doğru olduğu listeler (cihaz markası/modeli). */
+    /**
+     * Adda birden çok seçenek geçtiğinde ilk geçeni almanın doğru olduğu listeler (cihaz markası/modeli).
+     * Kelime başı olarak aranır: HB "Telefon Modeli", "Uyumlu Marka" yazar.
+     */
     private const FIRST_HIT = ['marka', 'model', 'uyumlu'];
+
+    /** Ürün adında yoksa HB kategori yolundan da okunabilen özellikler ("… > Kadın > Çanta"). */
+    private const FROM_PATH = ['cinsiyet'];
 
     /**
      * @param array{id?: string, name: string, type?: string, values?: array<int, string>} $attribute HB zorunlu özelliği
@@ -37,7 +43,7 @@ final class HepsiburadaAttributeInference
      * @param array<string, mixed>|null $prepared AttributeInference::prepare() sonucu (büyük listeler için önbellek)
      * @return array{value: string, source: string}|null source: xml | ad | mensei | notr
      */
-    public static function infer(array $attribute, string $productName, array $localValues = [], ?array $prepared = null): ?array
+    public static function infer(array $attribute, string $productName, array $localValues = [], ?array $prepared = null, string $categoryPath = ''): ?array
     {
         $values = array_values(array_filter(array_map(static fn($v) => trim((string) $v), (array) ($attribute['values'] ?? [])), 'strlen'));
         $name = (string) ($attribute['name'] ?? '');
@@ -74,6 +80,12 @@ final class HepsiburadaAttributeInference
             $first = self::firstInText($hits, $productName);
             if ($first !== null) {
                 return ['value' => $first, 'source' => 'ad'];
+            }
+        }
+        if ($hits === [] && $categoryPath !== '' && self::readsPath($name)) {
+            $pathHits = AttributeInference::optionsInText($shape, $categoryPath, $prepared);
+            if (count($pathHits) === 1) {
+                return ['value' => (string) $pathHits[0]['name'], 'source' => 'ad'];
             }
         }
         if (count($hits) > 1) {
@@ -123,22 +135,48 @@ final class HepsiburadaAttributeInference
 
     private static function takesFirstHit(string $attributeName): bool
     {
-        $words = explode(' ', TrendyolAttributeResolver::mapKey($attributeName));
-        return array_intersect($words, self::FIRST_HIT) !== [];
+        return self::hasWordPrefix($attributeName, self::FIRST_HIT);
     }
 
-    /** @param list<array{id: int|string, name: string}> $hits */
+    private static function readsPath(string $attributeName): bool
+    {
+        return self::hasWordPrefix($attributeName, self::FROM_PATH);
+    }
+
+    /** @param list<string> $prefixes */
+    private static function hasWordPrefix(string $text, array $prefixes): bool
+    {
+        foreach (explode(' ', TrendyolAttributeResolver::mapKey($text)) as $word) {
+            foreach ($prefixes as $prefix) {
+                if (str_starts_with($word, $prefix)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Adda ilk geçen seçenek. Model listelerinde rakam içeren seçenek ("A26", "14C") genel bir
+     * kelimenin ("Galaxy", "Plus") önüne geçer: model adı rakamla ayrışır.
+     *
+     * @param list<array{id: int|string, name: string}> $hits
+     */
     private static function firstInText(array $hits, string $text): ?string
     {
         $hay = ' ' . TrendyolAttributeResolver::mapKey($text) . ' ';
         $best = null;
-        $bestPos = PHP_INT_MAX;
+        $bestRank = null;
         foreach ($hits as $hit) {
             $key = TrendyolAttributeResolver::mapKey((string) $hit['name']);
             $needle = str_ends_with($key, ' uyumlu') ? substr($key, 0, -7) : $key;
             $pos = strpos($hay, ' ' . $needle . ' ');
-            if ($pos !== false && ($pos < $bestPos || ($pos === $bestPos && strlen($needle) > strlen((string) $best)))) {
-                $bestPos = $pos;
+            if ($pos === false) {
+                continue;
+            }
+            $rank = [preg_match('/\d/', $needle) ? 0 : 1, $pos, -strlen($needle)];
+            if ($bestRank === null || $rank < $bestRank) {
+                $bestRank = $rank;
                 $best = (string) $hit['name'];
             }
         }

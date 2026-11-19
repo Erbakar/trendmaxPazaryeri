@@ -743,7 +743,7 @@ final class ProductPublishService
                         }
                         $this->hbPrepared[$prepKey] = \App\Services\Marketplace\HepsiburadaAttributeInference::prepare($attr);
                     }
-                    $hit = \App\Services\Marketplace\HepsiburadaAttributeInference::infer($attr, $info['name'], $localValues, $this->hbPrepared[$prepKey] ?? null);
+                    $hit = \App\Services\Marketplace\HepsiburadaAttributeInference::infer($attr, $info['name'], $localValues, $this->hbPrepared[$prepKey] ?? null, (string) ($catMapping['marketplace_category_path'] ?? ''));
                     if ($hit !== null) {
                         [$value, $source] = [$hit['value'], 'cikarim_' . $hit['source']];
                     }

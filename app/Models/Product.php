@@ -979,6 +979,25 @@ final class Product extends BaseModel
             }
         }
 
+        // Yalnız o pazaryerinde satışta olanlar (toplu gönderim: "yalnız Trendyol'da satışta olanlar").
+        // Sınır (MAX_PRODUCTS) bu süzmeden SONRA uygulansın diye SQL'de yapılır.
+        if (!empty($filters['__listed_on'])) {
+            $where[] = "EXISTS (SELECT 1 FROM marketplace_products lo
+                         WHERE lo.store_id = p.store_id AND lo.product_id = p.id
+                           AND lo.marketplace_id = :lo_mp AND lo.is_listed = 1)";
+            $params['lo_mp'] = (int) $filters['__listed_on'];
+        }
+
+        // O pazaryerine henüz gitmemiş olanlar: satışta ya da onay bekleyen kayıt atlanır, böylece
+        // ikinci gönderim kaldığı yerden devam eder. Reddedilen/hatalı ürünler yeniden denenir.
+        if (!empty($filters['__not_sent_to'])) {
+            $where[] = "NOT EXISTS (SELECT 1 FROM marketplace_products ns
+                         WHERE ns.store_id = p.store_id AND ns.product_id = p.id
+                           AND ns.marketplace_id = :ns_mp
+                           AND (ns.is_listed = 1 OR ns.sync_error LIKE 'Batch kontrol bekliyor%'))";
+            $params['ns_mp'] = (int) $filters['__not_sent_to'];
+        }
+
         if (!empty($filters['stock_status'])) {
             $where[] = match ($filters['stock_status']) {
                 'in_stock'  => "p.stock_qty > p.min_stock_alert",

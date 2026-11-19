@@ -81,6 +81,15 @@ final class BulkPublishService
      */
     public function prepare(array $productIds, array $marketplaceIds, array $filters = [], int $onlyListedOn = 0): array
     {
+        $tekHedef = count($marketplaceIds) === 1 ? (int) reset($marketplaceIds) : 0;
+        if ($productIds === [] && $onlyListedOn > 0) {
+            // Filtre modunda süzme sorguda: ilk MAX_PRODUCTS ürün zaten satışta olanlardan seçilir
+            $filters['__listed_on'] = $onlyListedOn;
+            if ($tekHedef > 0 && $tekHedef !== $onlyListedOn) {
+                $filters['__not_sent_to'] = $tekHedef;
+            }
+        }
+
         if ($productIds !== []) {
             $ids = array_values(array_unique(array_filter(
                 array_map('intval', $productIds),
@@ -96,7 +105,9 @@ final class BulkPublishService
         }
 
         if ($ids === []) {
-            throw new \RuntimeException('Gönderilecek ürün seçilmedi.');
+            throw new \RuntimeException(isset($filters['__listed_on'])
+                ? "Gönderilecek ürün kalmadı: seçimdeki ürünler ya Trendyol'da satışta değil ya da bu pazaryerine zaten gönderildi (satışta / onay bekliyor)."
+                : 'Gönderilecek ürün seçilmedi.');
         }
 
         if (count($ids) > self::MAX_PRODUCTS) {
@@ -108,7 +119,17 @@ final class BulkPublishService
         // "Yalnız Trendyol'da satışta olanlar": kaynak pazaryerinde ELENEN ürünler (yanlış kategori,
         // onaylanmamış grup) diğer pazaryerlerine de gitmez. Hazırlık raporu da bu listeyle çıkar.
         $elenen = 0;
-        if ($onlyListedOn > 0) {
+        $zatenGonderilen = 0;
+        if ($onlyListedOn > 0 && isset($filters['__listed_on'])) {
+            // Filtre modu: süzme sorguda yapıldı; elenen sayı = filtreye uyan tüm ürünler − kalanlar
+            $tumu = $this->productModel->countForFilters(array_diff_key($filters, ['__listed_on' => 1, '__not_sent_to' => 1]));
+            $satista = isset($filters['__not_sent_to'])
+                ? $this->productModel->countForFilters(array_diff_key($filters, ['__not_sent_to' => 1]))
+                : $eslesen;
+            $elenen = max(0, $tumu - $satista);
+            $zatenGonderilen = max(0, $satista - $eslesen);
+            $productIds = $ids;
+        } elseif ($onlyListedOn > 0) {
             $once = count($ids);
             $ids = $this->productModel->idsListedOn($ids, $onlyListedOn);
             $elenen = $once - count($ids);
@@ -223,6 +244,7 @@ final class BulkPublishService
             'blocked_marketplaces' => $engellenen,
             'xml_profit_rule'      => $this->xmlKarKurali($ids),
             'not_listed_skipped'   => $elenen,
+            'already_sent_skipped' => $zatenGonderilen,
             // Ayıklama yapıldıysa sihirbazın fiyat önizlemesi gönderilecek listeyle çalışsın
             'ids'                  => $onlyListedOn > 0 ? $ids : null,
         ];

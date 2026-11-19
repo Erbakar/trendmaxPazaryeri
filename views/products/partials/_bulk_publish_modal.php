@@ -471,6 +471,9 @@
         if (veri.not_listed_skipped > 0) {
             html += `<div class="bp-info">${veri.not_listed_skipped.toLocaleString('tr-TR')} ürün Trendyol'da satışta olmadığı için gönderime alınmadı.</div>`;
         }
+        if (veri.already_sent_skipped > 0) {
+            html += `<div class="bp-info">${veri.already_sent_skipped.toLocaleString('tr-TR')} ürün bu pazaryerine daha önce gönderildiği (satışta ya da onay bekliyor) için atlandı.</div>`;
+        }
         if (veri.truncated) {
             const esl = veri.matching || 0;
             html += `<div class="bp-info"><b>Dikkat:</b> filtreye ${esl.toLocaleString('tr-TR')} ürün uyuyor, `

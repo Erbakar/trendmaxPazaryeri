@@ -632,12 +632,46 @@ final class ProductPublishService
 
     /** HB özellik değeri kaynaklarının okunur adları */
     private const HB_SOURCE_LABELS = [
-        'urun'       => 'ürün değeri',
-        'varsayilan' => 'kategori varsayılanı',
-        'otomatik'   => 'otomatik türetme',
-        'eslesme'    => 'marka eşleştirmesi',
-        ''           => 'değer yok',
+        'urun'          => 'ürün değeri',
+        'varsayilan'    => 'kategori varsayılanı',
+        'otomatik'      => 'otomatik türetme',
+        'eslesme'       => 'marka eşleştirmesi',
+        'cikarim_xml'   => 'XML ürün özelliği',
+        'cikarim_ad'    => 'ürün adı',
+        'cikarim_mensei'=> 'menşei (Türkiye)',
+        'cikarim_notr'  => 'nötr seçenek',
+        ''              => 'değer yok',
     ];
+
+    /** HB özellik çıkarımı için kategori+özellik başına hazırlanmış seçenek dizinleri */
+    private array $hbPrepared = [];
+
+    /**
+     * XML'den gelen ürün özellikleri (ad => değer).
+     *
+     * @param array<string, mixed> $product
+     * @return array<string, string>
+     */
+    private function hepsiburadaLocalValues(array $product): array
+    {
+        $productId = (int) ($product['id'] ?? 0);
+        if ($productId <= 0) {
+            return [];
+        }
+        $out = [];
+        try {
+            foreach ($this->pAttrValueModel->getByProduct($productId) as $row) {
+                $value = \App\Services\Marketplace\TrendyolAttributeResolver::localValue($row);
+                if ($value !== '') {
+                    $out[(string) $row['attribute_name']] = $value;
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('HB XML özellikleri okunamadı (#' . $productId . '): ' . $e->getMessage(), 'ProductPublish');
+        }
+
+        return $out;
+    }
 
     /** hb_listing_cache tablosu bu kurulumda var mı (null: henüz denenmedi) */
     private ?bool $hbListingCacheAvailable = null;
@@ -682,6 +716,7 @@ final class ProductPublishService
         );
         $defaults = CategoryMarketplaceMapping::attributeDefaults($catMapping);
         $info = $this->hepsiburadaProductInfo($product);
+        $localValues = null; // XML ürün özellikleri: yalnız gerektiğinde okunur
 
         foreach ($required as $attr) {
             $attrId = (string) ($attr['id'] ?? '');
@@ -698,6 +733,21 @@ final class ProductPublishService
             } else {
                 $value = (string) ($hepsiburada->suggestAttributeValue($attr, $info) ?? '');
                 $source = $value !== '' ? 'otomatik' : '';
+                if ($value === '') {
+                    // Ürünün kendi söylediği (XML özelliği, ürün adı), menşei ya da nötr seçenek — Trendyol'daki kurallar
+                    $localValues ??= $this->hepsiburadaLocalValues($product);
+                    $prepKey = $hbCategoryId . '|' . $attrId;
+                    if (($attr['type'] ?? '') === 'enum' && !isset($this->hbPrepared[$prepKey])) {
+                        if (count($this->hbPrepared) > 400) {
+                            $this->hbPrepared = [];
+                        }
+                        $this->hbPrepared[$prepKey] = \App\Services\Marketplace\HepsiburadaAttributeInference::prepare($attr);
+                    }
+                    $hit = \App\Services\Marketplace\HepsiburadaAttributeInference::infer($attr, $info['name'], $localValues, $this->hbPrepared[$prepKey] ?? null);
+                    if ($hit !== null) {
+                        [$value, $source] = [$hit['value'], 'cikarim_' . $hit['source']];
+                    }
+                }
             }
 
             $detail = [

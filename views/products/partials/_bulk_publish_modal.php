@@ -82,6 +82,11 @@
           <strong id="bpCount">0</strong> ürün gönderilecek. Hangi pazaryerlerine?
         </p>
         <div class="bp-mp" id="bpMpList"></div>
+        <label id="bpListedWrap" style="display:none;align-items:flex-start;gap:8px;font-size:13px;margin-top:12px">
+          <input type="checkbox" id="bpListedOnly" checked style="margin-top:3px">
+          <span><b>Yalnız Trendyol'da satışta olan ürünleri gönder</b> (önerilir)<br>
+          <small style="color:var(--text-muted,#6b7280)">Trendyol'da elenen ürünler (yanlış kategori, onaylanmamış gruplar) diğer pazaryerlerine de gitmez.</small></span>
+        </label>
       </div>
 
       <!-- 2. Hazırlık raporu -->
@@ -96,7 +101,7 @@
       <div id="bpStep3" style="display:none">
         <div class="bp-fld">
           <label>Pazaryeri
-            <select id="bpMarginMp" onchange="bpPreview()"></select>
+            <select id="bpMarginMp" onchange="bpMarginMpChanged()"></select>
           </label>
           <label>Komisyon %
             <input type="number" id="bpCommission" value="18" min="0" max="100" step="0.5">
@@ -125,6 +130,7 @@
         </div>
         <p style="margin:0 0 8px;font-size:11.5px;color:var(--text-muted,#6b7280)">
           Komisyon oranı tahminidir; pazaryeri sözleşmenize göre girin. Kâr = KDV hariç tutar − maliyet − komisyon − kargo − paketleme.
+          Fiyat kuralını değiştirmezseniz XML profilindeki kâr kuralı uygulanır; değiştirirseniz yeni kural yalnız seçili pazaryerine gönderilen ürünlere yazılır.
         </p>
         <div id="bpXmlKuralNot" class="bp-info" style="display:none"></div>
         <div id="bpSummary"></div>
@@ -221,6 +227,7 @@
         BP.aborted = false;
         BP.running = false;
         BP.ids = Array.from(selectedIds);
+        BP.selIds = BP.ids.slice();   // kullanıcının seçimi; BP.ids hazırlıkta ayıklanabilir
         BP.filters = bpCurrentFilters();
 
         el('bpCount').textContent = BP.useFilters ? (BP.matchingCount || BP.ids.length) : BP.ids.length;
@@ -231,6 +238,15 @@
                 <input type="checkbox" value="${m.id}" ${m.connected ? '' : 'disabled'}>
                 <span>${esc(m.name)}${m.connected ? '' : ' <small style="font-weight:400">(bağlı değil)</small>'}</span>
             </label>`).join('');
+
+        // Trendyol dışındaki bir pazaryeri seçilince "yalnız Trendyol'da satışta olanlar" seçeneği görünür
+        const tyMp = AKTIF_MP.find((m) => m.slug === 'trendyol' && m.connected);
+        const listedSync = () => {
+            const secili = Array.from(el('bpMpList').querySelectorAll('input:checked')).map((c) => parseInt(c.value, 10));
+            el('bpListedWrap').style.display = tyMp && secili.some((id) => id !== tyMp.id) ? 'flex' : 'none';
+        };
+        el('bpMpList').onchange = listedSync;
+        listedSync();
 
         bpShowStep(1);
         el('bpOverlay').classList.add('show');
@@ -282,6 +298,7 @@
         const deg = el('bpRuleValue');
 
         if (tip.value === '' && parseFloat(deg.value || '0') === 0) {
+            BP.rules = BP.rules || {};
             tip.value = kural.type;
             deg.value = kural.value;
 
@@ -325,6 +342,7 @@
                     alert(zarar + ' ürün zararına gidecek. Devam etmek için onay kutusunu işaretleyin.');
                     return;
                 }
+                await bpSendRules();
                 bpShowStep(4);
                 bpRun();
                 return;
@@ -343,13 +361,18 @@
         el('bpNextBtn').disabled = true;
         el('bpFootNote').textContent = 'Hazırlık raporu çıkarılıyor…';
         try {
+            const tyMp = AKTIF_MP.find((m) => m.slug === 'trendyol' && m.connected);
+            const yalnizListede = tyMp && el('bpListedWrap').style.display !== 'none' && el('bpListedOnly').checked
+                && !BP.selectedMp.includes(tyMp.id);
             const veri = await bpPost('/products/publish/bulk/prepare', {
-                product_ids: BP.useFilters ? '' : JSON.stringify(BP.ids),
+                product_ids: BP.useFilters ? '' : JSON.stringify(BP.selIds || BP.ids),
                 marketplace_ids: JSON.stringify(BP.selectedMp),
-                filters: JSON.stringify(BP.filters)
+                filters: JSON.stringify(BP.filters),
+                only_listed_on: yalnizListede ? String(tyMp.id) : '0'
             });
 
             BP.token = veri.token;
+            BP.ids = Array.isArray(veri.ids) ? veri.ids : (BP.selIds || BP.ids).slice();
             BP.marketplaces = veri.marketplaces || [];
             BP.xmlKural = veri.xml_profit_rule || null;
             bpRenderReady(veri);
@@ -438,12 +461,16 @@
         const etiket = {
             no_category_mapping: 'kategori eşleştirmesi yok',
             no_brand_mapping: 'marka eşleştirmesi yok',
+            no_brand: 'markası yok',
             no_barcode: 'barkodu yok',
             no_image: 'görseli yok',
             no_price: 'fiyatı yok'
         };
 
         let html = '';
+        if (veri.not_listed_skipped > 0) {
+            html += `<div class="bp-info">${veri.not_listed_skipped.toLocaleString('tr-TR')} ürün Trendyol'da satışta olmadığı için gönderime alınmadı.</div>`;
+        }
         if (veri.truncated) {
             const esl = veri.matching || 0;
             html += `<div class="bp-info"><b>Dikkat:</b> filtreye ${esl.toLocaleString('tr-TR')} ürün uyuyor, `
@@ -486,6 +513,48 @@
     function bpFillMarginMp() {
         el('bpMarginMp').innerHTML = BP.marketplaces
             .map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+        BP.rules = {};
+        BP.marginMp = parseInt(el('bpMarginMp').value || '0', 10);
+    }
+
+    // Her pazaryerinin kendi fiyat kuralı var: seçim değişince eskisinin değeri saklanır,
+    // yenisininki (yoksa XML profilinin kuralı) alanlara yüklenir.
+    function bpSaveCurrentRule() {
+        if (!BP.marginMp) return;
+        BP.rules = BP.rules || {};
+        BP.rules[BP.marginMp] = { type: el('bpRuleType').value, value: el('bpRuleValue').value };
+    }
+
+    window.bpMarginMpChanged = function () {
+        bpSaveCurrentRule();
+        BP.marginMp = parseInt(el('bpMarginMp').value || '0', 10);
+        const kayitli = (BP.rules || {})[BP.marginMp];
+        const xml = BP.xmlKural;
+        el('bpRuleType').value = kayitli ? kayitli.type : (xml ? xml.type : '');
+        el('bpRuleValue').value = kayitli ? kayitli.value : (xml ? xml.value : 0);
+        bpPreview();
+    };
+
+    function bpXmlKuralAyni() {
+        const xml = BP.xmlKural;
+        return !!xml && el('bpRuleType').value === xml.type
+            && parseFloat(el('bpRuleValue').value || '0') === parseFloat(xml.value);
+    }
+
+    // XML kuralıyla aynı ya da "mevcut kural" seçili olanlar gönderilmez: sunucu
+    // yalnız kullanıcının DEĞİŞTİRDİĞİ kuralı ürünlere yazar.
+    async function bpSendRules() {
+        bpSaveCurrentRule();
+        const xml = BP.xmlKural;
+        const degisen = {};
+        Object.keys(BP.rules || {}).forEach((mp) => {
+            const r = BP.rules[mp];
+            const deger = parseFloat(r.value || '0');
+            if (!r.type) return;
+            if (xml && r.type === xml.type && deger === parseFloat(xml.value)) return;
+            degisen[mp] = { type: r.type, value: deger };
+        });
+        await bpPost('/products/publish/bulk/price-rules', { token: BP.token, rules: JSON.stringify(degisen) });
     }
 
     // ─── 3. adım: kâr önizleme ────────────────────────────
@@ -502,7 +571,9 @@
                 commission_pct: el('bpCommission').value,
                 shipping_cost: el('bpShipping').value,
                 packaging_cost: el('bpPackaging').value,
-                price_rule_type: el('bpRuleType').value,
+                // XML kuralı değiştirilmediyse önizleme de gönderimdeki gibi kural motorunu kullanır
+                // (XML kuralı maliyet üzerinden hesaplanır; simülasyon satış fiyatı üzerinden).
+                price_rule_type: bpXmlKuralAyni() ? '' : el('bpRuleType').value,
                 price_rule_value: el('bpRuleValue').value,
                 page: 1,
                 per_page: 50

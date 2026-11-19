@@ -194,6 +194,7 @@ $router->post('/products/publish/result',    [ProductPublishController::class, '
 $router->post('/products/publish/bulk/prepare',       [ProductPublishController::class, 'bulkPrepare'],  $authCsrf);
 $router->post('/products/publish/bulk/chunk',         [ProductPublishController::class, 'bulkChunk'],    $authCsrf);
 $router->post('/products/publish/bulk/cancel',        [ProductPublishController::class, 'bulkCancel'],   $authCsrf);
+$router->post('/products/publish/bulk/price-rules',   [ProductPublishController::class, 'bulkPriceRules'], $authCsrf);
 $router->post('/products/publish/bulk/price-preview', [ProductPublishController::class, 'pricePreview'], $authCsrf);
 $router->post('/products/publish/bulk/price-apply',   [ProductPublishController::class, 'priceApply'],   $authCsrf);
 $router->post('/products/publish',           [ProductPublishController::class, 'publish'],  $authCsrf);
@@ -240,6 +241,13 @@ $router->post('/categories/bulk-add-to-system', [CategoryController::class, 'bul
 // aksi halde POST /categories/mapping, CategoryController::update('mapping')'e düşer.
 $router->get('/categories/{id}/product-mappings', [\App\Controllers\ProductCategoryMappingController::class, 'index'], $authMiddleware);
 $router->post('/categories/{id}/product-mappings', [\App\Controllers\ProductCategoryMappingController::class, 'save'], $authCsrf);
+$router->get('/categories/crosswalk',                       [\App\Controllers\CategoryCrosswalkController::class, 'index'],      $authMiddleware);
+$router->get('/categories/crosswalk/groups',                [\App\Controllers\CategoryCrosswalkController::class, 'groups'],     $authMiddleware);
+$router->get('/categories/crosswalk/candidates',            [\App\Controllers\CategoryCrosswalkController::class, 'candidates'], $authMiddleware);
+$router->post('/categories/crosswalk/suggest',              [\App\Controllers\CategoryCrosswalkController::class, 'suggest'],    $authCsrf);
+$router->post('/categories/crosswalk/save',                 [\App\Controllers\CategoryCrosswalkController::class, 'save'],       $authCsrf);
+$router->post('/categories/crosswalk/import',               [\App\Controllers\CategoryCrosswalkController::class, 'import'],     $authCsrf);
+$router->post('/categories/crosswalk/apply',                [\App\Controllers\CategoryCrosswalkController::class, 'apply'],      $authCsrf);
 $router->get('/categories/mapping',                         [CategoryMappingController::class, 'index'],          $authMiddleware);
 $router->post('/categories/mapping',                        [CategoryMappingController::class, 'store'],          $authCsrf);
 $router->get('/categories/mapping/search',                  [CategoryMappingController::class, 'searchTrendyol'], $authMiddleware);

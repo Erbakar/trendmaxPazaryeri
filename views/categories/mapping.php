@@ -155,6 +155,12 @@ $unsellableLabels = [
        title="Eşleşmemiş kayıtları otomatik eşleştir">
         <i data-lucide="wand-2" aria-hidden="true"></i> Akıllı Eşleştir
     </a>
+    <?php if ($isHb): ?>
+    <a class="btn btn-primary btn-sm" href="/categories/crosswalk"
+       title="Ürünlerin Trendyol kategorilerini Hepsiburada kategorilerine aktar">
+        <i data-lucide="copy-check" aria-hidden="true"></i> Trendyol'dan aktar
+    </a>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
 

@@ -356,6 +356,36 @@ final class ProductPublishService
         ];
     }
 
+    /**
+     * Ürünlere bu pazaryeri için kâr kuralı yaz (marketplace_products.price_rule_*).
+     * Yalnız aktif mağazanın ürünleri yazılır.
+     *
+     * @param array<int, int> $productIds
+     */
+    public function applyPriceRule(array $productIds, int $marketplaceId, string $type, float $value): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $productIds), static fn(int $v): bool => $v > 0)));
+        if ($ids === [] || $marketplaceId <= 0 || \App\Enums\PriceRuleType::tryFrom($type) === null) {
+            return 0;
+        }
+
+        $storeId = (int) $this->container->get(\App\Core\TenantContext::class)->currentStoreId();
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $sahipli = array_map('intval', array_column(
+            $this->db->fetchAll("SELECT id FROM products WHERE store_id = ? AND id IN ($marks)", [$storeId, ...$ids]),
+            'id'
+        ));
+
+        foreach ($sahipli as $pid) {
+            $this->mpProductModel->upsertByProductAndMarketplace($pid, $marketplaceId, [
+                'price_rule_type'  => $type,
+                'price_rule_value' => $value,
+            ]);
+        }
+
+        return count($sahipli);
+    }
+
     public function resolveTrendyolAttributes(array $product, array $mapping): array
     {
         $catalog = $this->container->get(\App\Services\Marketplace\TrendyolAttributeCatalog::class)

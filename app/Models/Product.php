@@ -846,6 +846,36 @@ final class Product extends BaseModel
      * @return array{0: string, 1: array<string, mixed>}
      */
     /**
+     * Verilen ürünlerden o pazaryerinde satışta olanlar (marketplace_products.is_listed = 1), sıra korunur.
+     *
+     * @param array<int, int> $ids
+     * @return array<int, int>
+     */
+    public function idsListedOn(array $ids, int $marketplaceId): array
+    {
+        $idler = array_values(array_filter(array_map('intval', $ids), static fn(int $v): bool => $v > 0));
+        $listede = [];
+        foreach (array_chunk($idler, 1000) as $parca) {
+            $yerTutucu = [];
+            $params = ['lo_store' => $this->tenantId(), 'lo_mp' => $marketplaceId];
+            foreach ($parca as $i => $id) {
+                $yerTutucu[] = ':lo_' . $i;
+                $params['lo_' . $i] = $id;
+            }
+            foreach ($this->rawQuery(
+                "SELECT product_id FROM marketplace_products
+                  WHERE store_id = :lo_store AND marketplace_id = :lo_mp AND is_listed = 1
+                    AND product_id IN (" . implode(',', $yerTutucu) . ")",
+                $params
+            ) as $r) {
+                $listede[(int) $r['product_id']] = true;
+            }
+        }
+
+        return array_values(array_filter($idler, static fn(int $id): bool => isset($listede[$id])));
+    }
+
+    /**
      * Verilen ürünlerin XML profil kimlikleri (tekilleştirilmiş).
      *
      * Profili olmayan ürün 0 olarak döner; böylece çağıran taraf "hepsi aynı
@@ -1054,7 +1084,8 @@ final class Product extends BaseModel
                          WHERE bm.brand_id = p.brand_id
                            AND bm.marketplace_id = :mp_ready_id2
                            AND bm.store_id = :store_brand
-                    ) THEN 1 ELSE 0 END) AS no_brand_mapping
+                    ) THEN 1 ELSE 0 END) AS no_brand_mapping,
+                SUM(CASE WHEN p.brand_id IS NULL THEN 1 ELSE 0 END) AS no_brand
              FROM products p
              WHERE {$whereStr}",
             $params
@@ -1067,6 +1098,7 @@ final class Product extends BaseModel
             'no_price'            => (int) ($row['no_price'] ?? 0),
             'no_category_mapping' => (int) ($row['no_category_mapping'] ?? 0),
             'no_brand_mapping'    => (int) ($row['no_brand_mapping'] ?? 0),
+            'no_brand'            => (int) ($row['no_brand'] ?? 0),
         ];
 
         // "Hazır" = temel katalog alanları tamamlanan ürün sayısı; kategori özellikleri gönderimde doğrulanır.
@@ -1076,6 +1108,12 @@ final class Product extends BaseModel
         $hazirParams = $params;
         $platform = $this->rawQueryOne('SELECT slug FROM marketplaces WHERE id=:readiness_platform', ['readiness_platform'=>$marketplaceId]);
         $brandRequired = in_array($platform['slug'] ?? '', ['trendyol','pazarama','idefix'], true);
+        // Marka ID'si istemeyen pazaryerleri (Hepsiburada vb.) markayı ürünün marka ADINDAN alır:
+        // eşleştirme eksikliği engel değildir, yalnız markası hiç olmayan ürün sayılır.
+        $sonuc['brand_mapping_required'] = $brandRequired;
+        if (!$brandRequired) {
+            $sonuc['no_brand_mapping'] = 0;
+        }
         $brandClause = '';
         if ($brandRequired) {
             $brandClause = "AND p.brand_id IS NOT NULL

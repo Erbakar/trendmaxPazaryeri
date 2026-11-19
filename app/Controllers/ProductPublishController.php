@@ -56,7 +56,8 @@ final class ProductPublishController extends BaseController
             $sonuc = $this->bulkService->prepare(
                 $this->idListesi($request->post('product_ids', '')),
                 $this->idListesi($request->post('marketplace_ids', '')),
-                $this->filtreler($request)
+                $this->filtreler($request),
+                max(0, $request->integer('only_listed_on'))
             );
 
             $this->success($sonuc, 'Gönderim hazırlandı');
@@ -75,6 +76,24 @@ final class ProductPublishController extends BaseController
 
         try {
             $this->success($this->bulkService->runChunk((string) $request->post('token', '')));
+        } catch (\Throwable $e) {
+            $this->error($e->getMessage());
+        }
+    }
+
+    /**
+     * 3. adım — kullanıcının pazaryeri bazında değiştirdiği kâr kurallarını işe kaydet
+     */
+    public function bulkPriceRules(Request $request): void
+    {
+        try {
+            $kurallar = json_decode((string) $request->post('rules', '{}'), true);
+            $this->success([
+                'rules' => $this->bulkService->setPriceRules(
+                    (string) $request->post('token', ''),
+                    is_array($kurallar) ? $kurallar : []
+                ),
+            ]);
         } catch (\Throwable $e) {
             $this->error($e->getMessage());
         }

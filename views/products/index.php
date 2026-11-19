@@ -91,17 +91,26 @@ table.dataTable td.dataTables_empty{padding:60px 20px!important;text-align:cente
    tablo içindeki eski .mp-seg renk şeritleriyle çakışmaz. */
 .o-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-card);margin-bottom:20px;overflow:hidden}
 .o-panel .o-toolbar{margin:0;padding:12px 14px}
-#mpSeg{display:flex;align-items:center;gap:3px;padding:9px 10px;overflow-x:auto;border-bottom:1px solid var(--border)}
-.mp-seg-tab{flex:none;display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 15px;border:0;border-radius:10px;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;white-space:nowrap;transition:all .15s}
-.mp-seg-tab:hover:not(.is-active):not(.is-disabled){color:var(--text-primary);background:var(--bg-input)}
-.mp-seg-tab img{height:26px;width:auto;max-width:120px;object-fit:contain;display:block}
-.mp-seg-ico{width:18px;height:18px;flex-shrink:0}
-.mp-seg-count{display:inline-grid;place-items:center;min-width:20px;height:18px;padding:0 6px;border-radius:6px;background:rgba(15,23,42,.06);color:var(--text-muted);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
-.mp-seg-tab.is-active{background:var(--primary-bg);color:var(--primary)}
-.mp-seg-tab.is-active .mp-seg-count{background:var(--primary);color:#fff}
-.mp-seg-tab.is-disabled{color:var(--text-muted);cursor:not-allowed;opacity:.5}
-.mp-seg-tab.is-disabled img{filter:grayscale(1);opacity:.5}
-.mp-seg-lock{width:13px;height:13px;opacity:.6}
+/* Ortak .mp-seg-* kuralları (ozy.css) diğer sayfalarda kalır; bu ekranın kart görünümü #mpSeg ile kapsamlanır */
+#mpSeg{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);overflow:visible}
+#mpSeg .mp-seg-tab{flex:none;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;width:132px;height:auto;min-height:64px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);font-family:inherit;color:var(--text-muted);cursor:pointer;text-align:left;white-space:normal;opacity:1;transition:border-color .15s,background .15s,box-shadow .15s}
+#mpSeg .mp-seg-tab:hover:not(.is-active):not(.is-disabled){border-color:var(--text-muted);background:var(--bg-input)}
+#mpSeg .mp-seg-tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+#mpSeg .mp-seg-head{display:flex;align-items:center;gap:7px;height:24px;font-size:13px;font-weight:700;color:var(--text-primary)}
+#mpSeg .mp-seg-logo{display:flex;align-items:center;justify-content:flex-start;width:100%;height:24px}
+#mpSeg .mp-seg-logo img{max-width:96px;max-height:20px;width:auto;height:auto;object-fit:contain;display:block}
+#mpSeg .mp-seg-count{display:flex;align-items:baseline;gap:4px;min-width:0;height:auto;padding:0;border-radius:0;background:none;font-size:11.5px;font-weight:500;color:var(--text-muted);white-space:nowrap}
+#mpSeg .mp-seg-count b{font-size:15px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums}
+#mpSeg .mp-seg-count.is-zero b{color:var(--text-muted);font-weight:600}
+#mpSeg .mp-seg-tab.is-active{border-color:var(--primary);background:var(--primary-bg);box-shadow:inset 0 0 0 1px var(--primary)}
+#mpSeg .mp-seg-tab.is-active .mp-seg-count{background:none;color:var(--text-muted)}
+#mpSeg .mp-seg-tab.is-active .mp-seg-count b,#mpSeg .mp-seg-tab.is-active .mp-seg-head{color:var(--primary)}
+#mpSeg .mp-seg-tab.is-disabled{cursor:not-allowed;background:transparent;border-style:dashed}
+#mpSeg .mp-seg-tab.is-disabled img{filter:grayscale(1);opacity:.45}
+#mpSeg .mp-seg-lock{width:12px;height:12px;opacity:.7;align-self:center}
+/* Koyu temada siyah logolar okunmasın diye logo açık zemin üstünde */
+html[data-theme="dark"] #mpSeg .mp-seg-logo img,html.dark #mpSeg .mp-seg-logo img{background:#fff;border-radius:5px;padding:3px 6px;max-height:18px}
+@media (max-width:640px){#mpSeg .mp-seg-tab{width:calc(50% - 4px)}}
 
 /* ═══ PRODUCTS-SPECIFIC ═══ */
 /* Inline editable cells */
@@ -431,9 +440,11 @@ foreach ($marketplaces as $candidate) {
 <div class="o-panel">
 <div id="mpSeg" role="tablist">
     <button type="button" class="mp-seg-tab<?= ((string) $currentMp === '') ? ' is-active' : '' ?>" data-mp-id="" onclick="setMpFilter('', this)">
-        <svg class="mp-seg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        <span>Tümü</span>
-        <span class="mp-seg-count" data-mp-cnt="all"><?= (int) $totalProducts ?></span>
+        <span class="mp-seg-head">
+            <svg class="mp-seg-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Tümü
+        </span>
+        <span class="mp-seg-count<?= (int) $totalProducts === 0 ? ' is-zero' : '' ?>"><b data-mp-cnt="all"><?= number_format((int) $totalProducts, 0, ',', '.') ?></b> ürün</span>
     </button>
     <?php foreach ($marketplaces as $mp):
         $s = $mp['slug'] ?? '';
@@ -443,14 +454,14 @@ foreach ($marketplaces as $candidate) {
         $nm = htmlspecialchars($mp['display_name'] ?? $s);
     ?>
     <?php if ($isInactive): ?>
-    <span class="mp-seg-tab is-disabled" title="<?= $nm ?> · Pasif (yetki yok)">
-        <img src="/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.png" onerror="this.onerror=null;this.src='/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.jpg'" alt="<?= $nm ?>">
-        <svg class="mp-seg-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span class="mp-seg-tab is-disabled" title="<?= $nm ?> · Paketinizde yok">
+        <span class="mp-seg-logo"><img src="/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.png" onerror="this.onerror=null;this.src='/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.jpg'" alt="<?= $nm ?>"></span>
+        <span class="mp-seg-count"><svg class="mp-seg-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Paketinizde yok</span>
     </span>
     <?php else: ?>
     <button type="button" class="mp-seg-tab<?= ((string) $currentMp === (string) $mp['id']) ? ' is-active' : '' ?>" data-mp-id="<?= (int)$mp['id'] ?>" onclick="setMpFilter('<?= (int)$mp['id'] ?>', this)" title="<?= $nm ?>">
-        <img src="/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.png" onerror="this.onerror=null;this.src='/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.jpg'" alt="<?= $nm ?>">
-        <span class="mp-seg-count" title="Yerel eşleştirme sayısı; satıştaki ürün sayısı değildir"><span data-mp-cnt="<?= (int)$mp['id'] ?>"><?= $cnt ?></span> eşleşme</span>
+        <span class="mp-seg-logo"><img src="/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.png" onerror="this.onerror=null;this.src='/public/assets/img/marketplaces/<?= htmlspecialchars($s) ?>.jpg'" alt="<?= $nm ?>"></span>
+        <span class="mp-seg-count<?= (int) $cnt === 0 ? ' is-zero' : '' ?>" title="Panelde bu pazaryeriyle eşleşen ürün sayısı; satıştaki ürün sayısı değildir"><b data-mp-cnt="<?= (int)$mp['id'] ?>"><?= number_format((int) $cnt, 0, ',', '.') ?></b> ürün</span>
     </button>
     <?php endif; ?>
     <?php endforeach; ?>
@@ -1262,7 +1273,9 @@ function updateMpCounts(counts, total){
     // Üst panel pazaryeri tab rozetleri: per-mp = counts[mpId]; 'all' = toplam ürün (recordsTotal)
     document.querySelectorAll('#mpSeg [data-mp-cnt]').forEach(badge => {
         const key = badge.dataset.mpCnt;
-        badge.textContent = key === 'all' ? (total || 0) : (counts[key] || 0);
+        const n = Number(key === 'all' ? (total || 0) : (counts[key] || 0));
+        badge.textContent = n.toLocaleString('tr-TR');
+        badge.parentElement.classList.toggle('is-zero', n === 0);
     });
 }
 

@@ -210,6 +210,16 @@ final class HepsiburadaService extends AbstractMarketplace
             $body = json_decode((string) $response, true);
             $hbMessage = $body['message'] ?? $body['error'] ?? (string) $response;
 
+            // 404 ListingNotFound: kimlik bilgileri GEÇERLİ, mağazada henüz hiç ilan yok
+            // (yeni açılan HB mağazası). Bağlantı hatası değildir.
+            if (self::isEmptyListingsResponse($httpCode, (string) $response)) {
+                return [
+                    'success' => true,
+                    'message' => 'Hepsiburada bağlantısı başarılı! Mağazanızda henüz ilan yok. (Ortam: '
+                        . strtoupper($this->environment) . ')',
+                ];
+            }
+
             // 401/403 = auth reddedildi
             if ($httpCode === 401 || $httpCode === 403) {
                 return [
@@ -2510,7 +2520,24 @@ final class HepsiburadaService extends AbstractMarketplace
         $url = $this->buildUrl($endpoint, 'listing');
         $url .= '?' . http_build_query(['offset' => $offset, 'limit' => $limit]);
 
-        return $this->httpGet($url, $this->authHeaders());
+        try {
+            return $this->httpGet($url, $this->authHeaders());
+        } catch (\RuntimeException $e) {
+            // Hiç ilanı olmayan mağazada HB 404 + ListingNotFoundException döner: boş liste demektir.
+            if (self::isEmptyListingsResponse(404, $e->getMessage()) && str_contains($e->getMessage(), '(404)')) {
+                return ['listings' => [], 'totalCount' => 0, 'offset' => $offset, 'limit' => $limit];
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * HB listeleme servisi, mağazada hiç ilan yokken 404 ve
+     * "ListingService.Business.Exceptions.ListingNotFoundException" döndürür.
+     */
+    public static function isEmptyListingsResponse(int $httpCode, string $body): bool
+    {
+        return $httpCode === 404 && stripos($body, 'ListingNotFoundException') !== false;
     }
 
     // ═══════════════════════════════════════════════════════

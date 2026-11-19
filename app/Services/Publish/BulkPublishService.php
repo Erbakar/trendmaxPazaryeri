@@ -79,7 +79,7 @@ final class BulkPublishService
      * @param array<string, mixed> $filters    mode=filters için
      * @return array<string, mixed>
      */
-    public function prepare(array $productIds, array $marketplaceIds, array $filters = []): array
+    public function prepare(array $productIds, array $marketplaceIds, array $filters = [], int $onlyListedOn = 0): array
     {
         if ($productIds !== []) {
             $ids = array_values(array_unique(array_filter(
@@ -104,6 +104,19 @@ final class BulkPublishService
         }
 
         $kirpildi = $eslesen > count($ids);
+
+        // "Yalnız Trendyol'da satışta olanlar": kaynak pazaryerinde ELENEN ürünler (yanlış kategori,
+        // onaylanmamış grup) diğer pazaryerlerine de gitmez. Hazırlık raporu da bu listeyle çıkar.
+        $elenen = 0;
+        if ($onlyListedOn > 0) {
+            $once = count($ids);
+            $ids = $this->productModel->idsListedOn($ids, $onlyListedOn);
+            $elenen = $once - count($ids);
+            if ($ids === []) {
+                throw new \RuntimeException("Seçtiğiniz ürünlerin hiçbiri Trendyol'da satışta değil. Yine de göndermek için \"Yalnız Trendyol'da satışta olan ürünleri gönder\" seçeneğini kaldırın.");
+            }
+            $productIds = $ids;
+        }
 
         $kuyruk = [];
         $pazaryerleri = [];
@@ -162,6 +175,8 @@ final class BulkPublishService
                     'blockers'   => [
                         'no_category_mapping' => $rapor['no_category_mapping'],
                         'no_brand_mapping'    => $rapor['no_brand_mapping'],
+                        // Marka adıyla çalışan pazaryeri: markasız ürün (kategori varsayılan markası yoksa reddedilir)
+                        'no_brand'            => empty($rapor['brand_mapping_required']) ? $rapor['no_brand'] : 0,
                         'no_barcode'          => $rapor['no_barcode'],
                         'no_image'            => $rapor['no_image'],
                         'no_price'            => $rapor['no_price'],
@@ -207,6 +222,9 @@ final class BulkPublishService
             'marketplaces'         => $pazaryerleri,
             'blocked_marketplaces' => $engellenen,
             'xml_profit_rule'      => $this->xmlKarKurali($ids),
+            'not_listed_skipped'   => $elenen,
+            // Ayıklama yapıldıysa sihirbazın fiyat önizlemesi gönderilecek listeyle çalışsın
+            'ids'                  => $onlyListedOn > 0 ? $ids : null,
         ];
     }
 
@@ -280,6 +298,11 @@ final class BulkPublishService
         $parcaSonuc = ['success' => 0, 'failed' => 0, 'skipped' => 0, 'processing' => 0, 'errors' => []];
 
         try {
+            $kural = $is['price_rules'][(int) $sira['mp_id']] ?? null;
+            if (is_array($kural)) {
+                $this->publishService->applyPriceRule($parcaId, (int) $sira['mp_id'], (string) $kural['type'], (float) $kural['value']);
+            }
+
             $sonuc = $this->publishService->publishProducts($parcaId, (int) $sira['mp_id']);
 
             $parcaSonuc['success'] = (int) ($sonuc['success'] ?? 0);
@@ -344,6 +367,42 @@ final class BulkPublishService
         $sonucDizi['elapsed'] = round(microtime(true) - $baslangic, 2);
 
         return $sonucDizi;
+    }
+
+    /**
+     * Fiyat adımında kullanıcının pazaryeri bazında DEĞİŞTİRDİĞİ kâr kuralları.
+     *
+     * Önizleme kuralı eskiden yalnız önizlemede kullanılıyordu; gönderim hep XML profilinin
+     * kuralıyla gidiyordu (Hepsiburada'ya farklı marj girilse de yok sayılıyordu). Burada
+     * saklanan kural, gönderilen her parçadaki ürünlere o pazaryeri için yazılır.
+     * Boş tip = mevcut kural (XML profili / genel kurallar) — hiçbir şey yazılmaz.
+     *
+     * @param array<int|string, mixed> $rules [mpId => ['type' => ..., 'value' => ...]]
+     * @return array<int, array{type: string, value: float}>
+     */
+    public function setPriceRules(string $token, array $rules): array
+    {
+        $is = $this->readJob($token);
+        $kuyruktakiler = array_map(static fn(array $q): int => (int) $q['mp_id'], $is['queue']);
+        $kaydedilen = [];
+
+        foreach ($rules as $mpId => $kural) {
+            $mpId = (int) $mpId;
+            if (!is_array($kural) || !in_array($mpId, $kuyruktakiler, true)) {
+                continue;
+            }
+            $tip = \App\Enums\PriceRuleType::tryFrom((string) ($kural['type'] ?? ''));
+            $deger = (float) ($kural['value'] ?? 0);
+            if ($tip === null || $tip === \App\Enums\PriceRuleType::NONE || $deger < 0 || $deger > 100000) {
+                continue;
+            }
+            $kaydedilen[$mpId] = ['type' => $tip->value, 'value' => $deger];
+        }
+
+        $is['price_rules'] = $kaydedilen;
+        $this->writeJob($token, $is);
+
+        return $kaydedilen;
     }
 
     public function cancel(string $token): void

@@ -2266,7 +2266,10 @@ final class ProductPublishService
             // Trendyol ürün adını 100 karakterle sınırlar. XML/tedarikçi feed'lerinde
             // adlar 120-200 karakteri sık geçer; ham gönderilince kalem bazında
             // reddediliyor ve sebebi kullanıcıya hiç ulaşmıyordu.
-            $baslik = trim((string) $product['name']);
+            $ownBrand = (string) ($brandMapping['marketplace_brand_name'] ?? '');
+            $baslik = \App\Services\Marketplace\TrendyolProductRules::withoutForeignBrands(trim((string) $product['name']), $ownBrand);
+            $description = \App\Services\Marketplace\TrendyolProductRules::withoutForeignBrands($description, $ownBrand);
+            if ($description === '') $description = $baslik;
             if (mb_strlen($baslik, 'UTF-8') > 100) {
                 $baslik = rtrim(mb_substr($baslik, 0, 100, 'UTF-8'));
             }

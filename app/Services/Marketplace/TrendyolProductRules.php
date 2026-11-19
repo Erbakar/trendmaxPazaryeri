@@ -18,6 +18,33 @@ final class TrendyolProductRules
         unset($image);
         return array_slice($images,0,8);
     }
+    /**
+     * Device brands Trendyol rejects as "yasaklı kelime" in the title or description of an accessory
+     * that is not that brand's own product (seen in 2026-11 rejections: "Apple Iphone 16 Kılıf").
+     * Only trademark names: a prohibited product type is never reworded here.
+     */
+    public const FOREIGN_BRANDS = ['apple', 'xiaomi', 'oppo', 'panasonic', 'dji'];
+
+    /**
+     * Drops those brand names as whole words ("Apple Iphone 16 Kılıf" → "Iphone 16 Kılıf"), unless the
+     * product is sold under that brand itself. The compatible brand still travels as an attribute.
+     */
+    public static function withoutForeignBrands(string $text, string $ownBrand = ''): string
+    {
+        $own = mb_strtolower(trim($ownBrand), 'UTF-8');
+        $out = $text;
+        foreach (self::FOREIGN_BRANDS as $word) {
+            if ($own !== '' && preg_match('/(^|\W)'.preg_quote($word, '/').'(\W|$)/u', $own)) continue;
+            $out = (string)preg_replace('/(?<![\p{L}\p{N}])'.preg_quote($word, '/').'(?![\p{L}\p{N}])/iu', '', $out);
+        }
+        if ($out === $text) return $text;
+        // Tidy the gap the word left: double spaces, a space before punctuation, a leading separator.
+        $out = (string)preg_replace('/[ \t]{2,}/u', ' ', $out);
+        $out = (string)preg_replace('/ +([,.;:!?)])/u', '$1', $out);
+        $out = (string)preg_replace('/(^|>)\s*[-–,\/]\s*/u', '$1', $out);
+        $out = (string)preg_replace('/(^|>)[ \t]+/u', '$1', $out);
+        return trim($out);
+    }
     public static function quantity(int $quantity): int
     {
         return max(0, min(19999, $quantity));

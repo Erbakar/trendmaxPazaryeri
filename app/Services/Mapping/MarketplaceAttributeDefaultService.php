@@ -279,8 +279,9 @@ final class MarketplaceAttributeDefaultService
     public const MOVE_LIMIT = 2000;
 
     /**
-     * Şu an $sourceCategoryId'ye giden, pazaryerinde henüz satışta olmayan ve adında kelimelerden biri
-     * geçen ürünler. Kelimeler virgülle ayrılır; boşsa kategorinin tümü.
+     * Şu an $sourceCategoryId'ye giden, pazaryerine hiç gönderilmemiş ya da son gönderimi doğrulamada
+     * kalmış ve adında kelimelerden biri geçen ürünler. Gönderilip onay bekleyen ya da satıştaki ürünler
+     * hariç: kategorileri pazaryerinde zaten kayıtlı. Kelimeler virgülle ayrılır; boşsa kategorinin tümü.
      *
      * @return list<array{id: int, name: string, own: int}>
      */
@@ -310,7 +311,8 @@ final class MarketplaceAttributeDefaultService
               WHERE p.store_id = :mv_store AND COALESCE(p.is_archived, 0) = 0
                 AND (CASE WHEN ho.id IS NOT NULL THEN ho.marketplace_category_id ELSE hm.marketplace_category_id END) = :mv_src
                 AND NOT EXISTS (SELECT 1 FROM marketplace_products m WHERE m.store_id = p.store_id AND m.product_id = p.id
-                                   AND m.marketplace_id = :mv_listed AND m.is_listed = 1)"
+                                   AND m.marketplace_id = :mv_listed
+                                   AND (m.is_listed = 1 OR m.sync_error IS NULL OR m.sync_error NOT LIKE 'Validasyon hatası:%'))"
             . ($like !== [] ? ' AND (' . implode(' OR ', $like) . ')' : '')
             . ' ORDER BY p.id LIMIT ' . (self::MOVE_LIMIT + 1),
             $params

@@ -52,7 +52,7 @@ $canEdit = !empty($data['canEdit']);
 
 <div class="hg-box" id="hgMoveBox">
   <h3 style="margin-top:0">Ürünleri başka Hepsiburada kategorisine taşı</h3>
-  <p style="margin-top:0">Bir kategorideki ürünlerin bir kısmı aslında başka bir kategoriye aitse (ör. biblodaki metal araç modelleri → Model Araçlar) adlarındaki kelimeyle seçip taşıyın. Seçilen ürünlere Hepsiburada'da ürüne özel kategori yazılır; satıştaki ilanlara dokunulmaz.</p>
+  <p style="margin-top:0">Bir kategorideki ürünlerin bir kısmı aslında başka bir kategoriye aitse (ör. biblodaki metal araç modelleri → Model Araçlar) adlarındaki kelimeyle seçip taşıyın. Yalnız gönderilemeyen ya da hiç gönderilmemiş ürünler taşınır; onay bekleyen ve satıştaki ilanlara dokunulmaz.</p>
   <div class="hg-bar">
     <select id="hgMoveSrc"><option value="">Kaynak HB kategorisi…</option></select>
     <input type="search" id="hgMoveWords" placeholder="Adında geçen kelimeler, virgülle: kamyon, motosiklet" style="min-width:320px">
@@ -248,7 +248,7 @@ $canEdit = !empty($data['canEdit']);
         out.className = 'hg-msg'; out.textContent = 'Sayılıyor…'; el('hgMovePick').style.display = 'none';
         try {
             const r = await post('/categories/hb-gaps/move', { ...f, preview: '1' });
-            out.innerHTML = `<b>${fmt(r.count)}${r.over_limit ? '+' : ''} ürün</b> (henüz satışta olmayanlar)${samples(r.samples)}`;
+            out.innerHTML = `<b>${fmt(r.count)}${r.over_limit ? '+' : ''} ürün</b> (gönderilemeyen ya da hiç gönderilmemiş)${samples(r.samples)}`;
             if (r.count > 0 && CAN_EDIT) el('hgMovePick').style.display = '';
         } catch (err) { out.className = 'hg-msg hg-err'; out.textContent = err.message; }
     });

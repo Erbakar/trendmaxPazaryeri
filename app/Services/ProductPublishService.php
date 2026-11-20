@@ -640,11 +640,28 @@ final class ProductPublishService
         'cikarim_ad'    => 'ürün adı',
         'cikarim_mensei'=> 'menşei (Türkiye)',
         'cikarim_notr'  => 'nötr seçenek',
+        'kategori_varsayilan' => 'HB kategori varsayılanı',
         ''              => 'değer yok',
     ];
 
     /** HB özellik çıkarımı için kategori+özellik başına hazırlanmış seçenek dizinleri */
     private array $hbPrepared = [];
+
+    private ?\App\Services\Mapping\MarketplaceAttributeDefaultService $hbDefaults = null;
+
+    /** @return array<string, string> özellikId => değer */
+    private function hbCategoryDefaults(int $marketplaceId, string $hbCategoryId): array
+    {
+        if ($marketplaceId <= 0) {
+            return [];
+        }
+        try {
+            $this->hbDefaults ??= $this->container->get(\App\Services\Mapping\MarketplaceAttributeDefaultService::class);
+            return $this->hbDefaults->forCategory($marketplaceId, $hbCategoryId);
+        } catch (\Throwable) {
+            return [];
+        }
+    }
 
     /**
      * XML'den gelen ürün özellikleri (ad => değer).
@@ -746,6 +763,13 @@ final class ProductPublishService
                     $hit = \App\Services\Marketplace\HepsiburadaAttributeInference::infer($attr, $info['name'], $localValues, $this->hbPrepared[$prepKey] ?? null, (string) ($catMapping['marketplace_category_path'] ?? ''));
                     if ($hit !== null) {
                         [$value, $source] = [$hit['value'], 'cikarim_' . $hit['source']];
+                    } else {
+                        // Mağazanın bu HB kategorisi için girdiği varsayılan — ürüne özel kategoriyle gidenler dahil
+                        // (panel eşleştirmesinin varsayılanları onlara uygulanmaz).
+                        $categoryDefault = $this->hbCategoryDefaults((int) ($catMapping['marketplace_id'] ?? 0), $hbCategoryId)[$attrId] ?? '';
+                        if ($categoryDefault !== '') {
+                            [$value, $source] = [$categoryDefault, 'kategori_varsayilan'];
+                        }
                     }
                 }
             }

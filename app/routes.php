@@ -248,6 +248,11 @@ $router->post('/categories/crosswalk/suggest',              [\App\Controllers\Ca
 $router->post('/categories/crosswalk/save',                 [\App\Controllers\CategoryCrosswalkController::class, 'save'],       $authCsrf);
 $router->post('/categories/crosswalk/import',               [\App\Controllers\CategoryCrosswalkController::class, 'import'],     $authCsrf);
 $router->post('/categories/crosswalk/apply',                [\App\Controllers\CategoryCrosswalkController::class, 'apply'],      $authCsrf);
+$router->get('/categories/hb-gaps',                         [\App\Controllers\MarketplaceAttributeDefaultController::class, 'index'],       $authMiddleware);
+$router->get('/categories/hb-gaps/list',                    [\App\Controllers\MarketplaceAttributeDefaultController::class, 'gaps'],        $authMiddleware);
+$router->get('/categories/hb-gaps/values',                  [\App\Controllers\MarketplaceAttributeDefaultController::class, 'values'],      $authMiddleware);
+$router->post('/categories/hb-gaps/save',                   [\App\Controllers\MarketplaceAttributeDefaultController::class, 'save'],        $authCsrf);
+$router->post('/categories/hb-gaps/map',                    [\App\Controllers\MarketplaceAttributeDefaultController::class, 'mapCategory'], $authCsrf);
 $router->get('/categories/mapping',                         [CategoryMappingController::class, 'index'],          $authMiddleware);
 $router->post('/categories/mapping',                        [CategoryMappingController::class, 'store'],          $authCsrf);
 $router->get('/categories/mapping/search',                  [CategoryMappingController::class, 'searchTrendyol'], $authMiddleware);

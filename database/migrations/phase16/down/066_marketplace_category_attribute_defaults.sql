@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS marketplace_category_attribute_defaults;

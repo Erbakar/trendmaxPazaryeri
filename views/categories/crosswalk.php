@@ -32,7 +32,10 @@ textarea.cw-json{width:100%;min-height:140px;font-family:monospace;font-size:12p
     <h1>Trendyol'dan Hepsiburada'ya kategori aktarımı</h1>
     <p>Ürünler Trendyol'da kullandıkları kategoriye göre gruplandı. Her grup için Hepsiburada kategorisini onaylayın; onaylanan kategori o ürünlere Hepsiburada eşleştirmesi olarak yazılır.</p>
   </div>
-  <a class="ui-btn ui-btn-outline" href="/categories/mapping?marketplace_id=<?= (int) ($data['targetId'] ?? 0) ?>">Hepsiburada eşleştirmelerine dön</a>
+  <div class="cw-bar">
+    <a class="ui-btn ui-btn-outline" href="/categories/hb-gaps">Eksik özellikler</a>
+    <a class="ui-btn ui-btn-outline" href="/categories/mapping?marketplace_id=<?= (int) ($data['targetId'] ?? 0) ?>">Hepsiburada eşleştirmelerine dön</a>
+  </div>
 </div>
 
 <div class="cw-box">

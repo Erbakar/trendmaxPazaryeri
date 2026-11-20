@@ -174,7 +174,7 @@ final class AuthorizationService
         \App\Controllers\CatalogAuditController::class => ['index'=>['products.view'],'configure'=>['products.edit'],'approve'=>['products.edit'],'overrides'=>['products.view'],'approveOverrides'=>['categories.edit','products.edit']],
         \App\Controllers\MarketplaceAttributeDefaultController::class => [
             'index' => ['categories.view'], 'gaps' => ['categories.view'], 'values' => ['categories.view'],
-            'save' => ['categories.edit'], 'mapCategory' => ['categories.edit'],
+            'save' => ['categories.edit'], 'mapCategory' => ['categories.edit'], 'move' => ['categories.edit', 'products.edit'],
         ],
         \App\Controllers\CategoryCrosswalkController::class => [
             'index' => ['categories.view'], 'groups' => ['categories.view'], 'candidates' => ['categories.view'],

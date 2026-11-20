@@ -89,6 +89,26 @@ final class MarketplaceAttributeDefaultController extends BaseController
         }
     }
 
+    public function move(Request $request): void
+    {
+        $this->requireModule('products');
+        $tgt = $this->target();
+        $source = (string) $request->post('source', '');
+        $words = (string) $request->post('words', '');
+        try {
+            @set_time_limit(120);
+            if ($request->post('preview', '0') === '1') {
+                $this->success($this->service()->movePreview($tgt, $source, $words));
+            }
+            $r = $this->service()->move($tgt, $source, $words, (string) $request->post('target', ''));
+            $this->success($r, $r['moved'] . ' ürün taşındı');
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage(), 422);
+        } catch (\Throwable $e) {
+            $this->error('Taşınamadı: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function mapCategory(Request $request): void
     {
         $this->requireModule('products');

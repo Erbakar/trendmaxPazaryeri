@@ -268,6 +268,105 @@ final class MarketplaceAttributeDefaultService
         return $value;
     }
 
+    private const TR_ASCII = ['ı' => 'i', 'İ' => 'i', 'ş' => 's', 'Ş' => 's', 'ğ' => 'g', 'Ğ' => 'g', 'ü' => 'u', 'Ü' => 'u', 'ö' => 'o', 'Ö' => 'o', 'ç' => 'c', 'Ç' => 'c'];
+
+    public static function plain(string $text): string
+    {
+        return mb_strtolower(strtr(trim($text), self::TR_ASCII));
+    }
+
+    /** Bir taşımada işlenen en fazla ürün */
+    public const MOVE_LIMIT = 2000;
+
+    /**
+     * Şu an $sourceCategoryId'ye giden, pazaryerinde henüz satışta olmayan ve adında kelimelerden biri
+     * geçen ürünler. Kelimeler virgülle ayrılır; boşsa kategorinin tümü.
+     *
+     * @return list<array{id: int, name: string, own: int}>
+     */
+    private function movable(int $marketplaceId, string $sourceCategoryId, string $words): array
+    {
+        $params = [
+            'mv_own' => $marketplaceId, 'mv_panel' => $marketplaceId, 'mv_listed' => $marketplaceId,
+            'mv_store' => $this->store(), 'mv_src' => $sourceCategoryId,
+        ];
+        // Türkçe harfler ASCII'ye indirilerek karşılaştırılır: XML adları çoğu zaman "Kilif", aranan "kılıf".
+        $plain = 'LOWER(p.name)';
+        foreach (self::TR_ASCII as $from => $to) {
+            $plain = "REPLACE({$plain}, '{$from}', '{$to}')";
+        }
+        $like = [];
+        foreach (array_slice(array_values(array_filter(array_map('trim', explode(',', $words)), 'strlen')), 0, 20) as $i => $word) {
+            $like[] = "{$plain} LIKE :mv_w{$i}";
+            $params["mv_w{$i}"] = '%' . addcslashes(self::plain(mb_substr($word, 0, 60)), '%_\\') . '%';
+        }
+
+        return $this->db->fetchAll(
+            "SELECT p.id, p.name FROM products p
+               LEFT JOIN product_marketplace_category_overrides ho
+                      ON ho.store_id = p.store_id AND ho.product_id = p.id AND ho.marketplace_id = :mv_own
+               LEFT JOIN category_marketplace_mapping hm
+                      ON hm.store_id = p.store_id AND hm.category_id = p.category_id AND hm.marketplace_id = :mv_panel
+              WHERE p.store_id = :mv_store AND COALESCE(p.is_archived, 0) = 0
+                AND (CASE WHEN ho.id IS NOT NULL THEN ho.marketplace_category_id ELSE hm.marketplace_category_id END) = :mv_src
+                AND NOT EXISTS (SELECT 1 FROM marketplace_products m WHERE m.store_id = p.store_id AND m.product_id = p.id
+                                   AND m.marketplace_id = :mv_listed AND m.is_listed = 1)"
+            . ($like !== [] ? ' AND (' . implode(' OR ', $like) . ')' : '')
+            . ' ORDER BY p.id LIMIT ' . (self::MOVE_LIMIT + 1),
+            $params
+        );
+    }
+
+    /** @return array{count: int, over_limit: bool, samples: list<string>} */
+    public function movePreview(int $marketplaceId, string $sourceCategoryId, string $words): array
+    {
+        $rows = $this->movable($marketplaceId, trim($sourceCategoryId), $words);
+
+        return [
+            'count'      => min(count($rows), self::MOVE_LIMIT),
+            'over_limit' => count($rows) > self::MOVE_LIMIT,
+            'samples'    => array_map(static fn(array $r): string => mb_substr((string) $r['name'], 0, 90), array_slice($rows, 0, 12)),
+        ];
+    }
+
+    /**
+     * Seçilen ürünlere hedef kategoriyi ürüne özel kategori olarak yazar. Kategori değişince ürünün o
+     * kategoriye ait eski özellik değerleri silinir. Satıştaki ilanlara dokunulmaz.
+     *
+     * @return array{moved: int, path: string}
+     */
+    public function move(int $marketplaceId, string $sourceCategoryId, string $words, string $targetId): array
+    {
+        $targetId = trim($targetId);
+        if ($targetId === '' || $targetId === trim($sourceCategoryId)) {
+            throw new \InvalidArgumentException('Farklı bir hedef kategori seçin.');
+        }
+        $leaf = $this->catMapping->getMarketplaceCategoryLeafStatus($marketplaceId, $targetId);
+        if ($leaf === null || !$leaf['sellable']) {
+            throw new \InvalidArgumentException('Satışa açık bir Hepsiburada alt kategorisi seçin.');
+        }
+        $rows = array_slice($this->movable($marketplaceId, trim($sourceCategoryId), $words), 0, self::MOVE_LIMIT);
+        foreach (array_chunk($rows, 200) as $chunk) {
+            $this->db->transaction(function () use ($chunk, $marketplaceId, $targetId, $leaf): void {
+                foreach ($chunk as $r) {
+                    $this->db->query(
+                        'INSERT INTO product_marketplace_category_overrides
+                            (store_id, product_id, marketplace_id, marketplace_category_id, marketplace_category_name, marketplace_category_path)
+                         VALUES (?, ?, ?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE
+                            attribute_mapping_json = IF(marketplace_category_id = VALUES(marketplace_category_id), attribute_mapping_json, NULL),
+                            marketplace_category_id = VALUES(marketplace_category_id),
+                            marketplace_category_name = VALUES(marketplace_category_name),
+                            marketplace_category_path = VALUES(marketplace_category_path)',
+                        [$this->store(), (int) $r['id'], $marketplaceId, $targetId, $leaf['name'], $leaf['full_path']]
+                    );
+                }
+            });
+        }
+
+        return ['moved' => count($rows), 'path' => (string) $leaf['full_path']];
+    }
+
     /** Panel kategorisini satışa açık bir pazaryeri kategorisine bağlar (kapalı eşleştirmenin yerine de). */
     public function mapPanelCategory(int $marketplaceId, int $categoryId, string $targetId): array
     {

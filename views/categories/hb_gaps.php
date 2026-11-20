@@ -50,6 +50,21 @@ $canEdit = !empty($data['canEdit']);
   </table></div>
 </div>
 
+<div class="hg-box" id="hgMoveBox">
+  <h3 style="margin-top:0">Ürünleri başka Hepsiburada kategorisine taşı</h3>
+  <p style="margin-top:0">Bir kategorideki ürünlerin bir kısmı aslında başka bir kategoriye aitse (ör. biblodaki metal araç modelleri → Model Araçlar) adlarındaki kelimeyle seçip taşıyın. Seçilen ürünlere Hepsiburada'da ürüne özel kategori yazılır; satıştaki ilanlara dokunulmaz.</p>
+  <div class="hg-bar">
+    <select id="hgMoveSrc"><option value="">Kaynak HB kategorisi…</option></select>
+    <input type="search" id="hgMoveWords" placeholder="Adında geçen kelimeler, virgülle: kamyon, motosiklet" style="min-width:320px">
+    <button type="button" class="ui-btn ui-btn-outline" id="hgMovePreview">Ürünleri göster</button>
+  </div>
+  <div id="hgMoveOut" class="hg-msg"></div>
+  <div class="hg-edit" id="hgMovePick" style="display:none;max-width:560px;margin-top:8px">
+    <input type="search" id="hgMoveQ" placeholder="Hedef Hepsiburada kategorisini ara…">
+    <div id="hgMoveList"></div>
+  </div>
+</div>
+
 <div class="hg-box">
   <h3 style="margin-top:0">Çözülemeyen zorunlu özellikler</h3>
   <div class="hg-scroll"><table class="hg-table">
@@ -116,6 +131,14 @@ $canEdit = !empty($data['canEdit']);
               </div></td>
             </tr>`).join('') : '<tr><td colspan="5">Gösterilecek satır yok.</td></tr>';
 
+        const srcSel = el('hgMoveSrc');
+        if (srcSel.options.length <= 1) {
+            const cats = {};
+            data.attributes.forEach((a) => { cats[a.category_id] ??= { path: a.category, n: 0 }; cats[a.category_id].n = Math.max(cats[a.category_id].n, a.count); });
+            Object.entries(cats).sort((x, y) => y[1].n - x[1].n).forEach(([id, c]) => {
+                srcSel.insertAdjacentHTML('beforeend', `<option value="${esc(id)}">${esc(c.path.split(' > ').slice(-2).join(' > '))} (${fmt(c.n)}+)</option>`);
+            });
+        }
         el('hgCatBox').style.display = data.categories.length ? '' : 'none';
         el('hgCats').innerHTML = data.categories.map((c) => `
             <tr data-cat="${c.category_id}">
@@ -217,6 +240,41 @@ $canEdit = !empty($data['canEdit']);
         const tr = btn.closest('tr');
         const c = data.categories.find((x) => String(x.category_id) === tr.dataset.cat);
         if (c) openCategory(tr, c);
+    });
+    const moveFields = () => ({ source: el('hgMoveSrc').value, words: el('hgMoveWords').value.trim() });
+    el('hgMovePreview').addEventListener('click', async () => {
+        const f = moveFields(); const out = el('hgMoveOut');
+        if (!f.source) { out.className = 'hg-msg hg-err'; out.textContent = 'Kaynak kategoriyi seçin.'; return; }
+        out.className = 'hg-msg'; out.textContent = 'Sayılıyor…'; el('hgMovePick').style.display = 'none';
+        try {
+            const r = await post('/categories/hb-gaps/move', { ...f, preview: '1' });
+            out.innerHTML = `<b>${fmt(r.count)}${r.over_limit ? '+' : ''} ürün</b> (henüz satışta olmayanlar)${samples(r.samples)}`;
+            if (r.count > 0 && CAN_EDIT) el('hgMovePick').style.display = '';
+        } catch (err) { out.className = 'hg-msg hg-err'; out.textContent = err.message; }
+    });
+    let moveTimer = null;
+    el('hgMoveQ').addEventListener('input', (ev) => {
+        clearTimeout(moveTimer);
+        const q = ev.target.value.trim();
+        if (q.length < 2) return;
+        moveTimer = setTimeout(async () => {
+            try {
+                const cats = (await get('/categories/mapping/search?marketplace_id=' + TARGET_MP + '&q=' + encodeURIComponent(q))).categories || [];
+                el('hgMoveList').innerHTML = cats.length ? cats.map((x) => `<button type="button" class="hg-opt" data-id="${esc(x.id)}" data-path="${esc(x.path)}"><b>${esc(x.name)}</b><small style="display:inline;margin-left:6px">${esc(x.path)}</small></button>`).join('') : '<div class="hg-msg">Sonuç yok.</div>';
+            } catch (err) { el('hgMoveList').innerHTML = `<div class="hg-msg hg-err">${esc(err.message)}</div>`; }
+        }, 300);
+    });
+    el('hgMoveList').addEventListener('click', async (ev) => {
+        const opt = ev.target.closest('.hg-opt');
+        if (!opt) return;
+        const f = moveFields(); const out = el('hgMoveOut');
+        if (!confirm(`Seçilen ürünler "${opt.dataset.path}" kategorisine taşınacak. Emin misiniz?`)) return;
+        out.className = 'hg-msg'; out.textContent = 'Taşınıyor…';
+        try {
+            const r = await post('/categories/hb-gaps/move', { ...f, target: opt.dataset.id });
+            out.textContent = `${fmt(r.moved)} ürün → ${r.path}. Yeniden gönderdiğinizde bu kategorinin özellikleriyle gider.`;
+            el('hgMovePick').style.display = 'none';
+        } catch (err) { out.className = 'hg-msg hg-err'; out.textContent = err.message; }
     });
     el('hgSearch').addEventListener('input', render);
     el('hgFilter').addEventListener('change', render);

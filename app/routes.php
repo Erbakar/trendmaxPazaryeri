@@ -253,6 +253,7 @@ $router->get('/categories/hb-gaps/list',                    [\App\Controllers\Ma
 $router->get('/categories/hb-gaps/values',                  [\App\Controllers\MarketplaceAttributeDefaultController::class, 'values'],      $authMiddleware);
 $router->post('/categories/hb-gaps/save',                   [\App\Controllers\MarketplaceAttributeDefaultController::class, 'save'],        $authCsrf);
 $router->post('/categories/hb-gaps/map',                    [\App\Controllers\MarketplaceAttributeDefaultController::class, 'mapCategory'], $authCsrf);
+$router->post('/categories/hb-gaps/move',                   [\App\Controllers\MarketplaceAttributeDefaultController::class, 'move'],        $authCsrf);
 $router->get('/categories/mapping',                         [CategoryMappingController::class, 'index'],          $authMiddleware);
 $router->post('/categories/mapping',                        [CategoryMappingController::class, 'store'],          $authCsrf);
 $router->get('/categories/mapping/search',                  [CategoryMappingController::class, 'searchTrendyol'], $authMiddleware);
